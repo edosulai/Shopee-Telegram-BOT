@@ -970,12 +970,12 @@ const buyItem = function (ctx) {
 
 const replaceMessage = async function (ctx, oldMsg, newMsg) {
   newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
-  // if (newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg) {
-  if (newMsg.localeCompare(oldMsg.text) != 0 && oldMsg != newMsg) {
+  if (newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg) {
+    // if (newMsg.localeCompare(oldMsg.text) != 0 && oldMsg != newMsg) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-      // }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg))
-    }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && oldMsg != newMsg))
+    }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg))
+    // }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && oldMsg != newMsg))
   }
 }
 
@@ -1011,10 +1011,10 @@ const timeConverter = function (timestamp, { usemilis = false, countdown = false
     let hour = Math.floor(timestamp / 3600000).toFixed(0);
     let minutes = Math.floor((timestamp % 3600000) / 60000).toFixed(0);
     let seconds = ((timestamp % 60000) / 1000).toFixed(0);
-    let clock = `${hour.toString().padStart(2, '0')}: ${minutes.toString().padStart(2, '0')}: ${seconds.toString().padStart(2, '0')} `
+    let clock = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     if (usemilis) {
       let milsec = (timestamp % 1000).toFixed(0);
-      clock += `: ${milsec.toString().padStart(3, '0')} `
+      clock += `:${milsec.toString().padStart(3, '0')}`
     }
     return clock;
   } else {
@@ -1026,10 +1026,10 @@ const timeConverter = function (timestamp, { usemilis = false, countdown = false
     let hour = time.getHours();
     let min = time.getMinutes();
     let sec = time.getSeconds();
-    time = `${date} ${month} ${year} ${hour}: ${min}: ${sec} `;
+    time = `${date} ${month} ${year} ${hour}:${min}:${sec}`;
     if (usemilis) {
       let milsec = (timestamp % 1000).toFixed(0);
-      time += `: ${milsec.toString().padStart(3, '0')} `
+      time += `:${milsec.toString().padStart(3, '0')}`
     }
     return time;
   }
