@@ -604,7 +604,7 @@ bot.command('beli', async (ctx) => {
         if (
           user.infoBarang.item.stock > 0 &&
           user.config.outstok &&
-          (user.config.end) > Date.now() + 10000
+          user.config.end > Date.now() + 10000
         ) {
           let info = await getCart(ctx, true)
           if (typeof msg == 'string') msg += ` - ${info}`
