@@ -1,0 +1,39 @@
+{
+  "name": "shop-bot",
+  "version": "2.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prod": "NODE_ENV=production TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 node --max-old-space-size=128 index.js",
+    "dev": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 node --max-old-space-size=128 index.js",
+    "dev01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U node --max-old-space-size=128 index.js",
+    "dev02": "NODE_ENV=development TOKEN=1720996361:AAFsn3Z9_C8QkvC1AydAKIDQJSssxBsV0xA node --max-old-space-size=128 index.js",
+    "dev03": "NODE_ENV=development TOKEN=1745604191:AAG8dw1O10bnof2YljpyqLy_MbFgRhz6DZ0 node --max-old-space-size=128 index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Edolf/Telegram-Shopee-CRUD.git"
+  },
+  "keywords": [
+    "shop",
+    "bot"
+  ],
+  "author": "sulai",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Edolf/Telegram-Shopee-CRUD/issues"
+  },
+  "homepage": "https://github.com/Edolf/Telegram-Shopee-CRUD#readme",
+  "dependencies": {
+    "cookie": "^0.4.1",
+    "dotenv": "^8.2.0",
+    "form-data": "^2.3.3",
+    "mongoose": "^5.11.18",
+    "mongoose-findorcreate": "^3.0.0",
+    "node-fetch": "^2.6.1",
+    "node-libcurl": "^2.3.0",
+    "psl": "^1.8.0",
+    "telegraf": "^4.3.0"
+  }
+}
