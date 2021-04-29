@@ -491,7 +491,6 @@ bot.command('beli', async (ctx) => {
       skiptimer: commands['-skiptimer'] || false,
       autocancel: commands['-autocancel'] || false,
       makecache: commands['-makecache'] || false,
-      speedup: commands['-speedup'] || false,
       delay: commands.delay || 1,
       usecache: commands['-usecache'] ? await async function () {
         await Logs.findOne({
@@ -789,7 +788,7 @@ const getCheckout = async function (ctx, getCache) {
 
   await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    if (user.infoCheckoutQuick && user.config.speedup) {
+    if (user.infoCheckoutQuick) {
       sleep(user.config.delay);
     } else {
       let chunk = JSON.parse(body);

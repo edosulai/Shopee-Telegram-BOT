@@ -3,7 +3,7 @@ module.exports = async function (user) {
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
     .setOtherOtp(function (curl) {
-      if (user.infoCheckoutQuick && user.config.speedup) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
+      if (user.infoCheckoutQuick) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
     }).setHeaders([
       'authority: shopee.co.id',
       'pragma: no-cache',
