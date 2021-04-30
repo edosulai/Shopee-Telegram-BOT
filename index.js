@@ -598,8 +598,8 @@ bot.command('beli', async (ctx) => {
           }
         }
 
-        msg += timeConverter(Date.now() - user.config.end, { countdown: true }) + ' - '
-        msg += user.infoBarang.item.name
+        msg += timeConverter(Date.now() - user.config.end, { countdown: true })
+        msg += ` - ${user.infoBarang.item.name}`
 
         if (
           user.infoBarang.item.stock > 0 &&
@@ -743,7 +743,7 @@ const getCart = async function (ctx, getCache = false) {
           }
         }(user.selectedShop.items)
         user.config.price = function (item) {
-          if (item.models.length != 0) {
+          if (item.models) {
             for (const model of item.models) {
               if (
                 model.itemid == user.config.itemid &&
