@@ -835,10 +835,10 @@ const buyItem = function (ctx) {
     info += `\nPayment : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
 
     if (user.order.error) {
-      user.config.fail++
+      user.config.fail = user.config.fail + 1
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name})</b>\n${user.order.error_msg}</i>\n${isAdmin(ctx) ? user.order.error : ''}`
 
-      if (user.config.fail < 3 && user.order.error == 'error_fulfillment_info_changed_mwh' || user.order.error == 'error_payable_mismatch') {
+      if (user.config.fail < 3 && (user.order.error == 'error_fulfillment_info_changed_mwh' || user.order.error == 'error_payable_mismatch')) {
         info += `\n\nSedang Mencoba Kembali...`
         user.config.info.push(info)
         if (user.config.fail == 2) user.config.timestamp += 1000
