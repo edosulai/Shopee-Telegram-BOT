@@ -491,7 +491,7 @@ bot.command('beli', async (ctx) => {
       usedelay: commands['-usedelay'] || false,
       repeat: commands.repeat || 1,
       fail: 0,
-      outstok: false,
+      outstock: false,
       info: []
     }
   }
@@ -579,13 +579,15 @@ bot.command('beli', async (ctx) => {
 
         if (
           user.infoBarang.item.stock > 0 &&
-          user.config.outstok &&
           user.config.end > Date.now() + 10000
         ) {
-          let info = await getCart(ctx, true)
-          if (typeof msg == 'string') msg += ` - ${info}`
+          if (user.config.outstock) {
+            let info = await getCart(ctx, true)
+            if (typeof msg == 'string') msg += ` - ${info}`
+            user.config.outstock = false
+          }
         } else {
-          user.config.outstok = true
+          user.config.outstock = true
           msg += ` - Barang Sudah Di Ikat Untuk Flash Sale${function (barang) {
             for (const model of barang.item.models) {
               for (const stock of model.price_stocks) {
@@ -839,7 +841,7 @@ const buyItem = function (ctx) {
         info += `\n\nSedang Mencoba Kembali...`
         user.config.info.push(info)
         replaceMessage(ctx, user.config.message, user.config.info.join('\n\n\n'))
-        if (user.config.fail == 2) user.config.timestamp += 1000
+        // if (user.config.fail == 2) user.config.timestamp += 1000
         return buyItem(ctx)
       }
 
@@ -1095,11 +1097,11 @@ const generateString = function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVW
 }
 
 bot.command((ctx) => {
-  if (!isAdmin(ctx)) return
   let msg = ctx.message.text
   let userID = msg.match(/[^\s]+/g)[0].substring(1)
+  if (!Number.isInteger(userID)) return
   User.findOne({ teleChatId: userID }, function (err, user) {
-    if (err || !user) return ctx.reply(`User ID : ${userID} tidak ditemukan !!`, { parse_mode: 'HTML' })
+    if (err || !user) return
     let commands = msg.split(`${user.teleChatId} `)
     if (commands.length < 2) return ctx.reply(`/(user_id) <code>...message...</code>`, { parse_mode: 'HTML' })
     commands[1] = commands[1].replace(/(<([^>]+)>)/gi, "");
