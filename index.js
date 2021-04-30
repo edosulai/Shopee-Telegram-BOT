@@ -488,8 +488,8 @@ bot.command('beli', async (ctx) => {
       skiptimer: commands['-skiptimer'] || false,
       autocancel: commands['-autocancel'] || false,
       makecache: commands['-makecache'] || false,
+      usedelay: commands['-usedelay'] || false,
       repeat: commands.repeat || 1,
-      delay: commands.delay || 1,
       fail: 0,
       outstok: false,
       info: []
@@ -768,7 +768,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => sleep(user.config.delay));
+  }).catch((err) => sleep(user.config.usedelay ? Math.round(user.infoCheckoutQuick.time / 3) : 1));
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
