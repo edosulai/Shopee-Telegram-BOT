@@ -514,25 +514,6 @@ bot.command('beli', async (ctx) => {
     }
   }
 
-  if (isAdmin(ctx)) {
-    let cache = `Cache Saat Ini : `
-    cache += user.infoKeranjang ? `\n >> user.infoKeranjang` : ''
-    cache += user.updateKeranjang ? `\n >> user.updateKeranjang` : ''
-    cache += user.infoCheckoutQuick ? `\n >> user.infoCheckoutQuick` : ''
-    cache += user.infoCheckoutLong ? `\n >> user.infoCheckoutLong` : ''
-
-    await ctx.reply(cache, { parse_mode: 'HTML' }).then((replyCtx) => {
-      user.config = {
-        ...user.config, cacheMsg: {
-          chatId: replyCtx.chat.id,
-          msgId: replyCtx.message_id,
-          inlineMsgId: replyCtx.inline_message_id,
-          text: replyCtx.text
-        }
-      }
-    })
-  }
-
   if (
     !Number.isInteger(user.config.itemid) ||
     !Number.isInteger(user.config.shopid)
@@ -816,16 +797,7 @@ const getCheckout = async function (ctx, getCache) {
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
       await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name} Tidak Tersedia`)
 
-      if (isAdmin(ctx)) {
-        let cache = `Cache Saat Ini : `
-        cache += user.infoKeranjang ? `\n >> user.infoKeranjang` : ''
-        cache += user.updateKeranjang ? `\n >> user.updateKeranjang` : ''
-        cache += user.infoCheckoutQuick ? `\n >> user.infoCheckoutQuick` : ''
-        cache += user.infoCheckoutLong ? `\n >> user.infoCheckoutLong` : ''
-        await replaceMessage(ctx, user.config.cacheMsg, cache)
-      }
-
-      Logs.updateOne({
+      await Logs.updateOne({
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
         shopid: user.config.shopid,
@@ -838,7 +810,7 @@ const getCheckout = async function (ctx, getCache) {
         infoCheckoutQuick: user.infoCheckoutQuick,
         infoCheckoutLong: user.infoCheckoutLong,
         payment: user.payment
-      }, { upsert: true }).exec(() => console.log(`Cache Produk Telah Di Dapatkan ${user.selectedItem.name}`))
+      }, { upsert: true }).exec()
 
       return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name} Telah Di Dapatkan` : null}`
     }).catch((err) => {

@@ -3,34 +3,34 @@ const waitUntil = require('../../helpers/waitUntil');
 module.exports = async function (user) {
   let curl = new user.Curl()
 
-  if (user.infoCheckoutLong) {
-    user.infoCheckout = user.infoCheckoutLong
-    user.config.end = Date.now();
+  // if (user.infoCheckoutLong) {
+  //   user.infoCheckout = user.infoCheckoutLong
+  //   user.config.end = Date.now();
 
-    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
-      .setHeaders([
-        'authority: shopee.co.id',
-        'pragma: no-cache',
-        'cache-control: no-cache',
-        'x-track-id: b26f0c4411c6ec81fdd4a770b81127bf82056f7c1275832a9a5aa6dc4f1b08e4aa7c97945459d6d56907f0d8e0aadf1eb5e584ef0b961ca54eb62487baf55e7b',
-        'x-cv-id: 7',
-        `user-agent: ${user.userLoginInfo.userAgent}`,
-        'content-type: application/json',
-        'accept: application/json',
-        'x-shopee-language: id',
-        'x-requested-with: XMLHttpRequest',
-        'if-none-match-: 55b03-8e6117c82a707ccb01b22fc18e91caff',
-        'x-api-source: pc',
-        `x-csrftoken: ${user.userCookie.csrftoken}`,
-        'origin: https://shopee.co.id',
-        'sec-fetch-site: same-origin',
-        'sec-fetch-mode: cors',
-        'sec-fetch-dest: empty',
-        'referer: https://shopee.co.id/checkout',
-        'accept-language: en-US,en;q=0.9',
-        `cookie: ${curl.serializeCookie(user.userCookie)}`,
-      ]).setBody(JSON.stringify(require('../../helpers/postBuyBodyLong')(user))).post(`https://shopee.co.id/api/v2/checkout/place_order`)
-  }
+  //   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
+  //     .setHeaders([
+  //       'authority: shopee.co.id',
+  //       'pragma: no-cache',
+  //       'cache-control: no-cache',
+  //       'x-track-id: b26f0c4411c6ec81fdd4a770b81127bf82056f7c1275832a9a5aa6dc4f1b08e4aa7c97945459d6d56907f0d8e0aadf1eb5e584ef0b961ca54eb62487baf55e7b',
+  //       'x-cv-id: 7',
+  //       `user-agent: ${user.userLoginInfo.userAgent}`,
+  //       'content-type: application/json',
+  //       'accept: application/json',
+  //       'x-shopee-language: id',
+  //       'x-requested-with: XMLHttpRequest',
+  //       'if-none-match-: 55b03-8e6117c82a707ccb01b22fc18e91caff',
+  //       'x-api-source: pc',
+  //       `x-csrftoken: ${user.userCookie.csrftoken}`,
+  //       'origin: https://shopee.co.id',
+  //       'sec-fetch-site: same-origin',
+  //       'sec-fetch-mode: cors',
+  //       'sec-fetch-dest: empty',
+  //       'referer: https://shopee.co.id/checkout',
+  //       'accept-language: en-US,en;q=0.9',
+  //       `cookie: ${curl.serializeCookie(user.userCookie)}`,
+  //     ]).setBody(JSON.stringify(require('../../helpers/postBuyBodyLong')(user))).post(`https://shopee.co.id/api/v2/checkout/place_order`)
+  // }
 
   user.selectedShipping = function (logistics) {
     let channelIds = user.selectedShop.shop.enabled_channelids
