@@ -541,7 +541,6 @@ bot.command('beli', async (ctx) => {
 
     do {
       user.config.start = Date.now()
-      let msg = ``
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close();
@@ -564,6 +563,8 @@ bot.command('beli', async (ctx) => {
       ) await replaceMessage(ctx, user.config.message, `${user.infoBarang.item.name} Bukan Barang Flash Sale`)
 
       if (user.infoBarang.item.upcoming_flash_sale && user.config.start) {
+        let msg = ``
+
         user.config = {
           ...user.config, ...{
             modelid: parseInt(function (model) {
@@ -597,13 +598,13 @@ bot.command('beli', async (ctx) => {
           }(user.infoBarang)}`
         }
 
-        sleep(function (start) {
-          start = 100 - (Date.now() - start)
-          return start > 0 ? start : 0
-        }(user.config.start))
-
         await replaceMessage(ctx, user.config.message, msg)
       }
+
+      sleep(function (start) {
+        start = 100 - (Date.now() - start)
+        return start > 0 ? start : 0
+      }(user.config.start))
 
     } while (
       !user.config.skiptimer &&
@@ -840,8 +841,7 @@ const buyItem = function (ctx) {
       if (user.config.fail < 3 && user.order.error == 'error_fulfillment_info_changed_mwh' || user.order.error == 'error_payable_mismatch') {
         info += `\n\nSedang Mencoba Kembali...`
         user.config.info.push(info)
-        replaceMessage(ctx, user.config.message, user.config.info.join('\n\n\n'))
-        // if (user.config.fail == 2) user.config.timestamp += 1000
+        if (user.config.fail == 2) user.config.timestamp += 1000
         return buyItem(ctx)
       }
 
