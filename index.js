@@ -785,7 +785,7 @@ const getCheckout = async function (ctx, getCache) {
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
       await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name} Tidak Tersedia`)
 
-      Logs.updateOne({
+      await Logs.updateOne({
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
         shopid: user.config.shopid,
@@ -796,7 +796,7 @@ const getCheckout = async function (ctx, getCache) {
         infoCheckoutQuick: user.infoCheckoutQuick,
         infoCheckoutLong: user.infoCheckoutLong,
         payment: user.payment
-      }, { upsert: true }).exec(() => console.clear())
+      }, { upsert: true }).exec()
 
       return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name} Telah Di Dapatkan` : null}`
     }).catch(async (err) => {
@@ -1097,12 +1097,13 @@ const generateString = function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVW
 bot.command((ctx) => {
   if (!isAdmin(ctx)) return
   let msg = ctx.message.text
-  let userID = msg.match(/[^\s]+/g)[0]
+  let userID = msg.match(/[^\s]+/g)[0].substring(1)
   User.findOne({ teleChatId: userID }, function (err, user) {
     if (err || !user) return ctx.reply(`User ID : ${userID} tidak ditemukan !!`, { parse_mode: 'HTML' })
     let commands = msg.split(`${user.teleChatId} `)
     if (commands.length < 2) return ctx.reply(`/(user_id) <code>...message...</code>`, { parse_mode: 'HTML' })
-    return ctx.reply(commands[1], { char_id: user.teleChatId, parse_mode: 'HTML' })
+    commands[1] = commands[1].replace(/(<([^>]+)>)/gi, "");
+    return ctx.reply(`<code>${`@${ctx.message.chat.username}` || ctx.message.chat.first_name} : ${commands[1]}</code>`, { chat_id: user.teleChatId, parse_mode: 'HTML' })
   })
 })
 
