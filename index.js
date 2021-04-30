@@ -67,8 +67,6 @@ const Logs = mongoose.model('Logs', {
   itemid: Number,
   shopid: Number,
   modelid: Number,
-  infoBarang: Object,
-  infoPengiriman: Object,
   infoKeranjang: Object,
   updateKeranjang: Object,
   infoCheckoutQuick: Object,
@@ -487,30 +485,28 @@ bot.command('beli', async (ctx) => {
           }
         }(['bni', 'bri', 'bca', 'mandiri', 'bsi', 'permata'])
       },
-      repeat: commands.repeat || 1,
       skiptimer: commands['-skiptimer'] || false,
       autocancel: commands['-autocancel'] || false,
       makecache: commands['-makecache'] || false,
-      usecache: commands['-usecache'] ? await async function () {
-        await Logs.findOne({
-          teleChatId: ctx.message.chat.id,
-          itemid: parseInt(commands.url.split(".")[commands.url.split(".").length - 1]),
-        }, async function (err, logs) {
-          if (err || !logs) {
-            await replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!')
-            return false
-          }
-          logs = JSON.parse(JSON.stringify(logs))
-          for (const key in logs) {
-            if (Object.hasOwnProperty.call(logs, key) && typeof logs[key] == 'object') user[key] = logs[key]
-          }
-          return true;
-        })
-      }() : false,
+      repeat: commands.repeat || 1,
+      delay: commands.delay || 1,
       fail: 0,
       outstok: false,
       info: []
     }
+  }
+
+  if (commands['-usecache']) {
+    await Logs.findOne({
+      teleChatId: ctx.message.chat.id,
+      itemid: parseInt(commands.url.split(".")[commands.url.split(".").length - 1]),
+    }, async function (err, logs) {
+      if (err || !logs) return replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!')
+      logs = JSON.parse(JSON.stringify(logs))
+      for (const key in logs) {
+        if (Object.hasOwnProperty.call(logs, key) && typeof logs[key] == 'object') user[key] = logs[key]
+      }
+    })
   }
 
   if (
@@ -702,7 +698,7 @@ const getCart = async function (ctx, getCache = false) {
         user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       }
       curl.close()
-    }).catch((err) => console.log(err));
+    }).catch((err) => sleep(1));
 
     return waitUntil(user, 'infoKeranjang')
       .then(() => {
@@ -736,17 +732,15 @@ const getCart = async function (ctx, getCache = false) {
           return item.origin_cart_item_price
         }(user.selectedItem)
 
-        if (!user.updateKeranjang) {
-          postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
-            user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-            let chunk = JSON.parse(body);
-            if (chunk.data && chunk.error == 0) {
-              user.updateKeranjang = chunk
-              user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-            }
-            curl.close()
-          }).catch((err) => sendReportToDev(ctx, err))
-        }
+        postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
+          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+          let chunk = JSON.parse(body);
+          if (chunk.data && chunk.error == 0) {
+            user.updateKeranjang = chunk
+            user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          }
+          curl.close()
+        }).catch((err) => sendReportToDev(ctx, err))
 
         return getCheckout(ctx, getCache);
       }).catch((err) => sendReportToDev(ctx, err));
@@ -760,68 +754,56 @@ const getCheckout = async function (ctx, getCache) {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     let chunk = JSON.parse(body);
     if (chunk.shoporders) {
-      user.infoCheckoutLong = chunk
-      user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.config.infoCheckoutLong = chunk
+      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err));
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    // if (user.infoCheckoutQuick) {
-    //   sleep(user.config.delay);
-    // } else {
-    //   let chunk = JSON.parse(body);
-    //   if (chunk.shoporders) {
-    //     user.infoCheckoutQuick = chunk
-    //     user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-    //   }
-    // }
     let chunk = JSON.parse(body);
     if (chunk.shoporders) {
       user.infoCheckoutQuick = chunk
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => console.log(err));
+  }).catch((err) => sleep(user.config.delay));
 
-  return getCache ? waitUntil(user, 'updateKeranjang', 'infoCheckoutLong')
+  return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
+      user.infoCheckoutLong = user.config.infoCheckoutLong
+
       await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
       }).catch((err) => sendReportToDev(ctx, err));
 
-      if (
-        !user.updateKeranjang ||
-        !user.infoCheckoutLong
-      ) return `${isAdmin(ctx) ? `Gagal Mendapatkan Cache Produk ${user.selectedItem.name}` : null}`
+      await waitUntil(user, 'updateKeranjang').then().catch((err) => sendReportToDev(ctx, err));
 
       fs.writeFileSync('./helpers/metaPayment.json', JSON.stringify(user.infoCheckoutLong.payment_channel_info))
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
       await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name} Tidak Tersedia`)
 
-      await Logs.updateOne({
+      Logs.updateOne({
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
-        infoBarang: user.infoBarang,
-        infoPengiriman: user.infoPengiriman,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
         infoCheckoutLong: user.infoCheckoutLong,
         payment: user.payment
-      }, { upsert: true }).exec()
+      }, { upsert: true }).exec(() => console.clear())
 
       return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name} Telah Di Dapatkan` : null}`
-    }).catch((err) => {
-      return postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    }).catch(async (err) => {
+      await sendReportToDev(ctx, err)
+      return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        return sendReportToDev(ctx, err)
       }).catch((err) => sendReportToDev(ctx, err));
     }) : buyItem(ctx)
 }
@@ -910,8 +892,6 @@ const buyItem = function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
-        infoBarang: user.infoBarang,
-        infoPengiriman: user.infoPengiriman,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,

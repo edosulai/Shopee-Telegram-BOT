@@ -17,7 +17,7 @@ module.exports = function () {
   this.libcurl = Curl;
   this.curl = new Curl();
 
-  this.setOtherOtp = (callback) => {
+  this.setOtherOpt = (callback) => {
     callback(this)
     return this
   }
