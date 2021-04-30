@@ -491,7 +491,6 @@ bot.command('beli', async (ctx) => {
       skiptimer: commands['-skiptimer'] || false,
       autocancel: commands['-autocancel'] || false,
       makecache: commands['-makecache'] || false,
-      delay: commands.delay || 1,
       usecache: commands['-usecache'] ? await async function () {
         await Logs.findOne({
           teleChatId: ctx.message.chat.id,
@@ -695,7 +694,7 @@ const getCart = async function (ctx, getCache = false) {
     curl.close()
     if (user.keranjang.error != 0) return `Gagal Menambahkan Produk Ke Dalam Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
 
-    await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = JSON.parse(body);
       if (chunk.data) {
@@ -767,16 +766,21 @@ const getCheckout = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err));
 
-  await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+  await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    if (user.infoCheckoutQuick) {
-      sleep(user.config.delay);
-    } else {
-      let chunk = JSON.parse(body);
-      if (chunk.shoporders) {
-        user.infoCheckoutQuick = chunk
-        user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      }
+    // if (user.infoCheckoutQuick) {
+    //   sleep(user.config.delay);
+    // } else {
+    //   let chunk = JSON.parse(body);
+    //   if (chunk.shoporders) {
+    //     user.infoCheckoutQuick = chunk
+    //     user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+    //   }
+    // }
+    let chunk = JSON.parse(body);
+    if (chunk.shoporders) {
+      user.infoCheckoutQuick = chunk
+      user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
   }).catch((err) => console.log(err));
@@ -1110,18 +1114,17 @@ const generateString = function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVW
   return result;
 }
 
-// bot.command((ctx) => {
-//   if (!isAdmin(ctx)) return
-//   let msg = ctx.message.text
-//   let userID = msg.match(/[^\s]+/g)[0]
-//   User.findOne({ teleChatId: userID }, function (err, user) {
-//     if (err) return
-//     let commands = msg.split(`${userID} `)
-//     if (commands.length < 2) return ctx.reply(`/(user_id) <code>...message...</code>`, { parse_mode: 'HTML' })
-
-//     return ctx.reply(commands[1], { char_id: userID, parse_mode: 'HTML' })
-//   })
-// })
+bot.command((ctx) => {
+  if (!isAdmin(ctx)) return
+  let msg = ctx.message.text
+  let userID = msg.match(/[^\s]+/g)[0]
+  User.findOne({ teleChatId: userID }, function (err, user) {
+    if (err || !user) return ctx.reply(`User ID : ${userID} tidak ditemukan !!`, { parse_mode: 'HTML' })
+    let commands = msg.split(`${user.teleChatId} `)
+    if (commands.length < 2) return ctx.reply(`/(user_id) <code>...message...</code>`, { parse_mode: 'HTML' })
+    return ctx.reply(commands[1], { char_id: user.teleChatId, parse_mode: 'HTML' })
+  })
+})
 
 bot.catch((err, ctx) => sendReportToDev(ctx, err))
 

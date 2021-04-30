@@ -1,9 +1,9 @@
-module.exports = async function (user) {
+module.exports = async function (user, getCache) {
   let curl = new user.Curl()
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
     .setOtherOtp(function (curl) {
-      if (user.infoKeranjang) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
+      if (user.infoKeranjang && !getCache) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
     }).setHeaders([
       'authority: shopee.co.id',
       'pragma: no-cache',
