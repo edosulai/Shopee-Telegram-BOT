@@ -539,6 +539,8 @@ bot.command('beli', async (ctx) => {
 
     queuePromotion.push(`${getSessionKey(ctx)}:${user.config.itemid}`)
 
+    if (user.config.makecache) let firstCache = true
+
     do {
       user.config.start = Date.now()
 
@@ -580,13 +582,18 @@ bot.command('beli', async (ctx) => {
 
         if (
           user.infoBarang.item.stock > 0 &&
-          user.config.end > Date.now() + 10000
+          user.config.end > Date.now() + 7000
         ) {
-          if (user.config.outstock) {
+
+          if (user.config.outstock || firstCache) {
             let info = await getCart(ctx, true)
-            if (typeof msg == 'string') msg += ` - ${info}`
-            user.config.outstock = false
+            if (typeof msg == 'string') {
+              msg += ` - ${info}`
+              user.config.outstock = false
+              if (firstCache) firstCache = false
+            }
           }
+
         } else {
           user.config.outstock = true
           msg += ` - Barang Sudah Di Ikat Untuk Flash Sale${function (barang) {
@@ -674,7 +681,7 @@ bot.command('beli', async (ctx) => {
     let info = await getCart(ctx)
     if (typeof info == 'string') {
       if (!isAdmin(ctx)) sendReportToDev(ctx, info, 'Success')
-      return replaceMessage(ctx, user.config.message, info)
+      return replaceMessage(ctx, user.config.message, info, false)
     } else {
       return sendReportToDev(ctx, info)
     }
@@ -693,7 +700,7 @@ const getCart = async function (ctx, getCache = false) {
     curl.close()
     if (user.keranjang.error != 0) return `Gagal Menambahkan Produk Ke Dalam Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
 
-    await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = JSON.parse(body);
       if (chunk.data) {
@@ -771,7 +778,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => sleep(user.config.usedelay ? Math.round(user.infoCheckoutQuick.time / 3) : 1));
+  }).catch((err) => sleep(user.config.usedelay ? Math.round(user.infoCheckoutQuick.time / 4) : 1));
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
@@ -841,7 +848,6 @@ const buyItem = function (ctx) {
       if (user.config.fail < 3 && (user.order.error == 'error_fulfillment_info_changed_mwh' || user.order.error == 'error_payable_mismatch')) {
         info += `\n\nSedang Mencoba Kembali...`
         user.config.info.push(info)
-        if (user.config.fail == 2) user.config.timestamp += 1000
         return buyItem(ctx)
       }
 
@@ -926,14 +932,12 @@ const buyItem = function (ctx) {
   }).catch((err) => sendReportToDev(ctx, err));
 }
 
-const replaceMessage = async function (ctx, oldMsg, newMsg) {
-  newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
+const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
+  if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
   if (newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg) {
-    // if (newMsg.localeCompare(oldMsg.text) != 0 && oldMsg != newMsg) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
     }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg))
-    // }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && oldMsg != newMsg))
   }
 }
 
