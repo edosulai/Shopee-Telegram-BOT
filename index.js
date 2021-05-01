@@ -539,7 +539,7 @@ bot.command('beli', async (ctx) => {
 
     queuePromotion.push(`${getSessionKey(ctx)}:${user.config.itemid}`)
 
-    if (user.config.makecache) let firstCache = true
+    if (user.config.makecache) user.config.firstCache = true
 
     do {
       user.config.start = Date.now()
@@ -585,12 +585,12 @@ bot.command('beli', async (ctx) => {
           user.config.end > Date.now() + 7000
         ) {
 
-          if (user.config.outstock || firstCache) {
+          if (user.config.outstock || user.config.firstCache) {
             let info = await getCart(ctx, true)
             if (typeof msg == 'string') {
               msg += ` - ${info}`
               user.config.outstock = false
-              if (firstCache) firstCache = false
+              if (user.config.firstCache) user.config.firstCache = false
             }
           }
 
