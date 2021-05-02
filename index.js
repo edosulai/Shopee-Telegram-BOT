@@ -569,9 +569,7 @@ bot.command('beli', async (ctx) => {
 
         user.config = {
           ...user.config, ...{
-            modelid: parseInt(function (model) {
-              return model[model.length - 1] || model[0]
-            }(user.infoBarang.item.upcoming_flash_sale.modelids)),
+            modelid: parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0]),
             promotionid: parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid),
             end: user.infoBarang.item.upcoming_flash_sale.start_time * 1000,
           }
@@ -630,29 +628,32 @@ bot.command('beli', async (ctx) => {
       ...function (barang) {
         if (user.config.modelid && user.config.promotionid) return
         for (const model of barang.item.models) {
-          if (model.stock < 1) return
-
-          if (model.price_stocks.length < 1) {
-            return {
-              modelid: model.modelid,
-              promotionid: model.promotionid
+          if (model.stock < 1 || model.price_stocks.length < 1) continue
+          for (const stock of model.price_stocks) {
+            if (barang.item.flash_sale ? barang.item.flash_sale.promotionid == stock.promotion_id : false) {
+              return {
+                modelid: stock.model_id,
+                promotionid: stock.promotion_id
+              }
             }
           }
+        }
 
+        for (const model of barang.item.models) {
+          if (model.stock < 1 || model.price_stocks.length < 1) continue
           for (const stock of model.price_stocks) {
-            if (!barang.item.flash_sale) {
-              return {
-                modelid: stock.model_id,
-                promotionid: stock.promotion_id
-              }
+            return {
+              modelid: stock.model_id,
+              promotionid: stock.promotion_id
             }
+          }
+        }
 
-            if (barang.item.flash_sale.promotionid == stock.promotion_id) {
-              return {
-                modelid: stock.model_id,
-                promotionid: stock.promotion_id
-              }
-            }
+        for (const model of barang.item.models) {
+          if (model.stock < 1) continue
+          return {
+            modelid: model.modelid,
+            promotionid: model.promotionid
           }
         }
       }(user.infoBarang)
@@ -936,18 +937,14 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (
     newMsg.localeCompare(oldMsg.text) != 0 &&
     !newMsg.match(oldMsg.text) &&
-    oldMsg.text != newMsg &&
-    oldMsg.text !== newMsg &&
-    oldMsg.text.replace(/[^a-zA-Z]/g, "") != newMsg.replace(/[^a-zA-Z]/g, "")
+    oldMsg.text.replace(/[^a-zA-Z0-9]/gi, "") != newMsg.replace(/[^a-zA-Z0-9]/gi, "")
   ) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
     }).catch((err) => console.log(
       newMsg.localeCompare(oldMsg.text) != 0 &&
       !newMsg.match(oldMsg.text) &&
-      oldMsg.text != newMsg &&
-      oldMsg.text !== newMsg &&
-      oldMsg.text.replace(/[^a-zA-Z]/g, "") != newMsg.replace(/[^a-zA-Z]/g, "")
+      oldMsg.text.replace(/[^a-zA-Z0-9]/gi, "") != newMsg.replace(/[^a-zA-Z0-9]/gi, "")
     ))
   }
 }
