@@ -1120,7 +1120,7 @@ bot.command('xplay', async (ctx) => {
   if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
   let user = ctx.session;
   let commands = getCommands(ctx, '/xplay ')
-  if (commands == null) return ctx.reply(`/xplay <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
+  if (commands == null) return ctx.reply(`/xplay <code>url=http://...69fck.onion</code>`, { parse_mode: 'HTML' })
 
   await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
     user.message = {
