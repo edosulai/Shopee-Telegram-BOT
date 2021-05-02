@@ -32,8 +32,10 @@
     "mongoose": "^5.11.18",
     "mongoose-findorcreate": "^3.0.0",
     "node-fetch": "^2.6.1",
+    "node-html-parser": "^3.2.0",
     "node-libcurl": "^2.3.0",
     "psl": "^1.8.0",
-    "telegraf": "^4.3.0"
+    "telegraf": "^4.3.0",
+    "tor-request": "^3.1.0"
   }
 }

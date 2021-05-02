@@ -19,6 +19,8 @@ const packageJson = require('./package.json'),
   crypto = require('crypto'),
   findOrCreate = require('mongoose-findorcreate'),
   psl = require('psl'),
+  { parse } = require('node-html-parser'),
+  tr = require('tor-request'),
 
   Curl = require('./helpers/curl'),
   waitUntil = require('./helpers/waitUntil'),
@@ -1131,44 +1133,48 @@ bot.command('xplay', async (ctx) => {
     }
   })
 
-  let curl = new user.Curl();
-  curl.newTorIdentity()
-  curl.setProxy('127.0.0.1:9050').setHeaders([
-    "User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0",
-    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language: en-US,en;q=0.5",
-    `Referer: http://${psl.get(extractRootDomain(commands.url))}/index.php?option=com_users&view=login`,
-    "DNT: 1",
-    "Connection: keep-alive",
-    `Cookie: ${process.env.COOKIE}`,
-    "Upgrade-Insecure-Requests: 1",
-    "Cache-Control: max-age=0"
-  ]).get(commands.url).then(async ({ statusCode, body, headers }) => {
+  return tr.request({
+    url: commands.url,
+    headers: {
+      'connection': 'keep-alive',
+      'pragma': 'no-cache',
+      'cache-control': 'no-cache',
+      'DNT': '1',
+      'upgrade-insecure-requests': '1',
+      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
+      'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+      'accept-language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+      'cookie': process.env.XPLAY_COOKIE
+    }
+  }, async function (err, response, body) {
     let document = parse(body)
     let videoTitle = document.querySelector('title').childNodes[0].rawText
     let videoName = document.querySelector('source').rawAttrs.split('src="')[1].split('" ')[0].split('/')
 
     if (fs.existsSync(`./temp/${videoName[videoName.length - 1]}`)) {
-      return replaceMessage(ctx, message, `File Sudah Video <code>${commands.url}</code> Sudah Ada`, false)
+      return replaceMessage(ctx, user.message, `File Sudah Video <code>${commands.url}</code> Sudah Ada`, false)
     } else {
-      let header = [
-        `${process.env.DOMAIN}/hwdvideos/uploads/${videoName[videoName.length - 2]}/${videoName[videoName.length - 1]}`,
-        'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0',
-        'Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
-        'Accept-Language: en-US,en;q=0.5',
-        'Range: bytes=0-',
-        'DNT: 1',
-        'Connection: keep-alive'
-      ]
-
       await replaceMessage(ctx, user.message, `Sedang Mendownload Video <code>${commands.url}</code>`, false)
-      return exec(`curl --socks5-hostname 127.0.0.1:9050 '${header.join(`' -H '`)}' --output temp/${videoName[videoName.length - 1]}`, async (err, stdout, stderr) => {
-        if (err) return sendReportToDev(ctx, err)
-        return replaceMessage(ctx, user.message, `Video <code>${commands.url}</code> ${videoTitle} ${videoName[videoName.length - 1]} Terdownload\n${stderr}`, false)
-      });
+      return tr.request({
+        url: `${process.env.XPLAY_DOMAIN}/hwdvideos/uploads/${videoName[videoName.length - 2]}/${videoName[videoName.length - 1]}`,
+        headers: {
+          'connection': 'keep-alive',
+          'DNT': '1',
+          'range': 'bytes=0-',
+          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
+          'accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
+          'accept-language': 'en-US,en;q=0.5'
+        },
+        strictSSL: true,
+        agentOptions: {
+          socksHost: '127.0.0.1',
+          socksPort: 9050,
+        }
+      }, function (err, response, body) {
+        return replaceMessage(ctx, user.message, `Video <code>${commands.url}</code> ${videoTitle} ${videoName[videoName.length - 1]} Terdownload`, false)
+      }).pipe(fs.createWriteStream(`./temp/${videoName[videoName.length - 1]}`))
     }
-
-  }).catch((err) => sendReportToDev(ctx, err));
+  })
 })
 
 bot.command((ctx) => {
