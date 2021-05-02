@@ -3,33 +3,16 @@ const waitUntil = require('../../helpers/waitUntil');
 module.exports = async function (user) {
   let curl = new user.Curl()
 
-  if (user.infoCheckoutLong) {
-    user.infoCheckout = user.infoCheckoutLong
-    user.config.end = Date.now();
-
-    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
-      .setHeaders([
-        'authority: shopee.co.id',
-        'pragma: no-cache',
-        'cache-control: no-cache',
-        'x-track-id: b26f0c4411c6ec81fdd4a770b81127bf82056f7c1275832a9a5aa6dc4f1b08e4aa7c97945459d6d56907f0d8e0aadf1eb5e584ef0b961ca54eb62487baf55e7b',
-        'x-cv-id: 7',
-        `user-agent: ${user.userLoginInfo.userAgent}`,
-        'content-type: application/json',
-        'accept: application/json',
-        'x-shopee-language: id',
-        'x-requested-with: XMLHttpRequest',
-        'if-none-match-: 55b03-8e6117c82a707ccb01b22fc18e91caff',
-        'x-api-source: pc',
-        `x-csrftoken: ${user.userCookie.csrftoken}`,
-        'origin: https://shopee.co.id',
-        'sec-fetch-site: same-origin',
-        'sec-fetch-mode: cors',
-        'sec-fetch-dest: empty',
-        'referer: https://shopee.co.id/checkout',
-        'accept-language: en-US,en;q=0.9',
-        `cookie: ${curl.serializeCookie(user.userCookie)}`,
-      ]).setBody(JSON.stringify(require('../../helpers/postBuyBodyLong')(user))).post(`https://shopee.co.id/api/v2/checkout/place_order`)
+  const addDots = function (nStr) {
+    nStr += '';
+    x = nStr.split('.');
+    x1 = x[0];
+    x2 = x.length > 1 ? '.' + x[1] : '';
+    var rgx = /(\d+)(\d{3})/;
+    while (rgx.test(x1)) {
+      x1 = x1.replace(rgx, '$1' + '.' + '$2');
+    }
+    return x1 + x2;
   }
 
   user.selectedShipping = function (logistics) {
@@ -219,6 +202,7 @@ module.exports = async function (user) {
             "buyer_ic_number": null,
             "items": function () {
               user.infoCheckoutQuick.shoporders[0].items[0].stock = 0
+              user.infoCheckoutQuick.shoporders[0].items[0].price = user.config.price
               return user.infoCheckoutQuick.shoporders[0].items
             }(),
             "shipping_fee_discount": user.infoCheckoutQuick.shoporders[0].shipping_fee_discount,
@@ -242,14 +226,12 @@ module.exports = async function (user) {
       let checkout_price_data = user.infoCheckout.checkout_price_data
       let shoporders = user.infoCheckout.shoporders[0]
 
-      user.config.price = shoporders.items[0].price
-
       user.shipinfo = {
         "selected_logistic_channelid": user.selectedShipping.channel.channelid,
         "cod_fee": shipping_orders.cod_fee,
-        "order_total": user.selectedShipping.cost_info.estimated_shipping_fee + (user.config.price * user.config.quantity) - user.selectedShipping.cost_info.discounts.seller,//
+        "order_total": user.selectedShipping.cost_info.estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity),
         "shipping_id": shipping_orders.shipping_id,
-        "shipping_fee_discount": shipping_orders.shipping_fee_discount + user.selectedShipping.cost_info.discounts.seller,//
+        "shipping_fee_discount": shipping_orders.shipping_fee_discount + user.selectedShipping.cost_info.discounts.seller,
         "selected_preferred_delivery_time_option_id": shipping_orders.selected_preferred_delivery_time_option_id,
         "buyer_remark": shipping_orders.buyer_remark || "",
         "buyer_address_data": {
@@ -261,7 +243,7 @@ module.exports = async function (user) {
         "order_total_without_shipping": user.config.price * user.config.quantity,
         "tax_payable": shipping_orders.tax_payable,
         "buyer_ic_number": shipping_orders.buyer_ic_number || "",
-        "shipping_fee": user.selectedShipping.cost_info.estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller,//
+        "shipping_fee": user.selectedShipping.cost_info.estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller,
         "tax_exemption": shipping_orders.tax_exemption,
         "amount_detail": {
           "BASIC_SHIPPING_FEE": user.selectedShipping.cost_info.estimated_shipping_fee,
@@ -311,7 +293,7 @@ module.exports = async function (user) {
           "credit_card_promotion": checkout_price_data.credit_card_promotion,
           "promocode_applied": checkout_price_data.promocode_applied,
           "shopee_coins_redeemed": checkout_price_data.shopee_coins_redeemed,
-          "total_payable": user.selectedShipping.cost_info.estimated_shipping_fee + (user.config.price * user.config.quantity) + user.tax.value - user.selectedShipping.cost_info.discounts.seller,//
+          "total_payable": user.selectedShipping.cost_info.estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity) + user.tax.value,
           "tax_exemption": checkout_price_data.tax_exemption
         },
         "client_id": user.infoCheckout.client_id,
@@ -352,7 +334,7 @@ module.exports = async function (user) {
               }]
             }
           }(user.updateKeranjang.data.shop_vouchers),
-          // }(user.infoVoucher.data.voucher_list),
+
           "card_promotion_enabled": user.updateKeranjang.data.card_promotion_enabled,
           "invalid_message": user.updateKeranjang.data.invalid_message || null,
           "card_promotion_id": user.updateKeranjang.data.card_promotion_id || null,
@@ -364,61 +346,6 @@ module.exports = async function (user) {
         "shoporders": [
           {
             ...user.shipinfo,
-            // "shop": {
-            //   "remark_type": shoporders.shop.remark_type,
-            //   "support_ereceipt": shoporders.shop.support_ereceipt,
-            //   "images": shoporders.shop.images,
-            //   "is_official_shop": user.selectedShop.shop.show_official_shop_label || false,
-            //   "cb_option": user.selectedShop.shop.cb_option ? user.selectedShop.shop.cb_option : false,
-            //   "shopid": user.config.shopid,
-            //   "shop_name": user.selectedShop.shop.shopname
-            // },
-            // "items": [
-            //   {
-            //     "itemid": user.config.itemid,
-            //     "is_add_on_sub_item": user.selectedItem.is_add_on_sub_item ? user.selectedItem.is_add_on_sub_item : false,
-            //     "image": user.selectedItem.image,
-            //     "shopid": user.config.shopid,
-            //     "opc_extra_data": shoporders.items[0].opc_extra_data,
-            //     "promotion_id": user.config.promotionid,
-            //     ...function (item) {
-            //       if (item.add_on_deal_id) {
-            //         return {
-            //           "add_on_deal_id": item.add_on_deal_id,
-            //           "add_on_deal_label": user.infoBarang.item.add_on_deal_info.add_on_deal_label,
-            //           "addon_deal_sub_type": item.add_on_deal_info.sub_type || 0
-            //         }
-            //       }
-            //       return {
-            //         "add_on_deal_id": 0,
-            //       }
-            //     }(user.selectedItem),
-            //     "modelid": user.config.modelid,
-            //     "offerid": user.selectedItem.offerid ? user.selectedItem.offerid : 0,
-            //     "source": shoporders.items[0].source,
-            //     "checkout": shoporders.items[0].checkout,
-            //     "item_group_id": user.selectedItem.item_group_id ? user.selectedItem.item_group_id : 0,
-            //     "service_by_shopee_flag": shoporders.items[0].service_by_shopee_flag,
-            //     "none_shippable_full_reason": shoporders.items[0].none_shippable_full_reason || "",
-            //     "price": user.config.price,
-            //     "is_flash_sale": user.config.nonflash ? false : true,
-            //     // "categories": function () {
-            //     //   let chuck = []
-            //     //   user.infoBarang.item.categories.forEach(category => {
-            //     //     chuck.push(category.catid)
-            //     //   });
-            //     //   return [{ "catids": chuck }]
-            //     // }(),
-            //     "categories": shoporders.items[0].categories,
-            //     "shippable": shoporders.items[0].shippable,
-            //     "name": user.selectedItem.name,
-            //     "none_shippable_reason": shoporders.items[0].none_shippable_reason || "",
-            //     "is_pre_order": user.selectedItem.is_pre_order,
-            //     "stock": 0,
-            //     "model_name": user.selectedItem.model_name,
-            //     "quantity": user.config.quantity
-            //   }
-            // ],
             "shop": shoporders.shop,
             "items": shoporders.items,
             "tax_info": shoporders.tax_info,
@@ -462,16 +389,4 @@ module.exports = async function (user) {
         return reject(err)
       })
     });
-}
-
-const addDots = function (nStr) {
-  nStr += '';
-  x = nStr.split('.');
-  x1 = x[0];
-  x2 = x.length > 1 ? '.' + x[1] : '';
-  var rgx = /(\d+)(\d{3})/;
-  while (rgx.test(x1)) {
-    x1 = x1.replace(rgx, '$1' + '.' + '$2');
-  }
-  return x1 + x2;
 }

@@ -124,7 +124,7 @@ bot.telegram.getMe().then((botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
   console.log("Server has Initialized By Nick : " + process.env.BOT_USERNAME)
-}).catch((err) => sendReportToDev(ctx, err))
+})
 
 bot.use(session())
 
@@ -144,9 +144,7 @@ bot.use((ctx, next) => {
     ctx.session = user
     ctx.session.Curl = Curl
     if (process.env.NODE_ENV == 'development' && !isAdmin(ctx)) {
-      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => {
-        return sendReportToDev(ctx, `Mencoba Akses BOT`, 'Info')
-      })
+      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `Mencoba Akses BOT`, 'Info'))
       return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info'));
     }
     return next(ctx)
@@ -489,6 +487,7 @@ bot.command('beli', async (ctx) => {
       autocancel: commands['-autocancel'] || false,
       makecache: commands['-makecache'] || false,
       usedelay: commands['-usedelay'] || false,
+      price: commands['-seribu'] ? 100000000 : false,
       repeat: commands.repeat || 1,
       fail: 0,
       outstock: false,
@@ -538,10 +537,13 @@ bot.command('beli', async (ctx) => {
     }(user.address.addresses)
 
     queuePromotion.push(`${getSessionKey(ctx)}:${user.config.itemid}`)
-
     if (user.config.makecache) user.config.firstCache = true
 
     do {
+      if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
+        return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang ? user.infoBarang.item.name : ''} Sudah Di Matikan`)
+      }
+
       user.config.start = Date.now()
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -554,10 +556,6 @@ bot.command('beli', async (ctx) => {
           user.infoBarang = chunk;
         }
       }).catch((err) => sendReportToDev(ctx, err));
-
-      if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
-        return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name} Sudah Di Matikan`)
-      }
 
       if (
         user.infoBarang.item.upcoming_flash_sale == null &&
@@ -658,32 +656,30 @@ bot.command('beli', async (ctx) => {
       }(user.infoBarang)
     }
 
-    if (!user.config.modelid) return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis`)
-    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Tidak Terbaca`)
+    if (!user.config.modelid) return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis - ${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
+    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Tidak Terbaca - ${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
 
     if (user.config.makecache && user.infoBarang.item.stock > 0) {
       let info = await getCart(ctx, true)
       if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
     }
 
-    do {
-      continue;
-    } while (!user.config.skiptimer && (user.config.end) - Date.now() >= 0);
+    if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
+      return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name} Sudah Di Matikan`)
+    }
 
-    do {
-      continue;
-    } while (function (now) {
-      const limit = now - (Math.floor(now / 1000) * 1000)
-      if (limit > 100) return true
-      return false
-    }(Date.now()));
+    while (
+      (!user.config.skiptimer && (user.config.end) - Date.now() >= 0) ||
+      function (now) {
+        return (now - (Math.floor(now / 1000) * 1000)) > 100 ? true : false
+      }(Date.now())
+    ) continue;
 
     let info = await getCart(ctx)
+    dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
     if (typeof info == 'string') {
       if (!isAdmin(ctx)) sendReportToDev(ctx, info, 'Success')
       return replaceMessage(ctx, user.config.message, info, false)
-    } else {
-      return sendReportToDev(ctx, info)
     }
   }).catch((err) => sendReportToDev(ctx, err));
 })
@@ -728,7 +724,7 @@ const getCart = async function (ctx, getCache = false) {
             }
           }
         }(user.selectedShop.items)
-        user.config.price = function (item) {
+        user.config.price = user.config.price || function (item) {
           if (item.models) {
             for (const model of item.models) {
               if (
@@ -846,7 +842,7 @@ const buyItem = function (ctx) {
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name})</b>\n${user.order.error_msg}</i>\n${isAdmin(ctx) ? user.order.error : ''}`
 
       if (user.config.fail < 3 && (user.order.error == 'error_fulfillment_info_changed_mwh' || user.order.error == 'error_payable_mismatch')) {
-        info += `\n\nSedang Mencoba Kembali...`
+        info += `\n\n<b>Sedang Mencoba Kembali...</b>`
         user.config.info.push(info)
         return buyItem(ctx)
       }
@@ -857,14 +853,16 @@ const buyItem = function (ctx) {
 
         if (!user.infoCheckoutLong) {
           await postInfoCheckout(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-            curl.close()
             user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-            user.infoCheckoutLong = JSON.parse(body);
-            fs.writeFileSync('./helpers/metaPayment.json', JSON.stringify(user.infoCheckout.payment_channel_info))
+            let chunk = JSON.parse(body);
+            if (chunk.shoporders) {
+              user.infoCheckoutLong = chunk
+              user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+              fs.writeFileSync('./helpers/metaPayment.json', JSON.stringify(user.infoCheckoutLong.payment_channel_info))
+            }
+            curl.close()
           }).catch((err) => sendReportToDev(ctx, err));
         }
-
-        user.infoCheckout = user.infoCheckoutLong
 
         await Failures.updateOne({
           teleChatId: ctx.message.chat.id,
@@ -916,28 +914,39 @@ const buyItem = function (ctx) {
       }
     }
 
-    info += `\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`
     info += `\n\n============================================= `
 
     user.config.info.push(info)
     user.config.repeat--
     if (user.config.repeat > 0 && user.config.fail < 3 && user.order.error != 'error_stock') {
-      replaceMessage(ctx, user.config.message, user.config.info.join('\n\n\n'))
+      replaceMessage(ctx, user.config.message, user.config.info.join('\n\n'))
       return getCart(ctx)
     }
 
     await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
-    return user.config.info.join('\n\n\n')
+    return user.config.info.join('\n\n')
 
   }).catch((err) => sendReportToDev(ctx, err));
 }
 
 const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
-  if (newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg) {
+  if (
+    newMsg.localeCompare(oldMsg.text) != 0 &&
+    !newMsg.match(oldMsg.text) &&
+    oldMsg.text != newMsg &&
+    oldMsg.text !== newMsg &&
+    oldMsg.text.replace(/[^a-zA-Z]/g, "") != newMsg.replace(/[^a-zA-Z]/g, "")
+  ) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-    }).catch((err) => console.log(newMsg.localeCompare(oldMsg.text) != 0 && !newMsg.match(oldMsg.text) && oldMsg != newMsg))
+    }).catch((err) => console.log(
+      newMsg.localeCompare(oldMsg.text) != 0 &&
+      !newMsg.match(oldMsg.text) &&
+      oldMsg.text != newMsg &&
+      oldMsg.text !== newMsg &&
+      oldMsg.text.replace(/[^a-zA-Z]/g, "") != newMsg.replace(/[^a-zA-Z]/g, "")
+    ))
   }
 }
 
@@ -1076,16 +1085,22 @@ const extractRootDomain = function (url) {
   return domain;
 }
 
-const getCommands = function (ctx, sparator) {
+const getCommands = function (ctx, prefix, sparator = '=') {
   let commands = {};
-  let firstSplit = ctx.message.text.split(sparator)
+  let firstSplit = ctx.message.text.split(prefix)
   Object.prototype.toString.call(firstSplit)
   if (firstSplit.length > 1) {
     let everyCommand = firstSplit[1].split(" ")
     Object.prototype.toString.call(everyCommand)
     everyCommand.forEach(command => {
-      command = command.split("=")
-      commands[command[0].replace(/(<([^>]+)>)/gi, "")] = command[1] ? command[1].replace(/(<([^>]+)>)/gi, "") : true
+      command = command.split(sparator)
+      command.forEach((cmd, i) => {
+        command[i] = cmd.replace(/(<([^>]+)>)/gi, "")
+      });
+      commands[command[0]] = command[1] ? function () {
+        delete command[0]
+        return command.join(sparator).substring(1)
+      }() : true
     })
     return commands
   }
@@ -1099,6 +1114,62 @@ const generateString = function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVW
   }
   return result;
 }
+
+bot.command('xplay', async (ctx) => {
+  if (!isAdmin(ctx)) return
+  if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
+  let user = ctx.session;
+  let commands = getCommands(ctx, '/xplay ')
+  if (commands == null) return ctx.reply(`/xplay <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
+
+  await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+    user.message = {
+      chatId: replyCtx.chat.id,
+      msgId: replyCtx.message_id,
+      inlineMsgId: replyCtx.inline_message_id,
+      text: replyCtx.text
+    }
+  })
+
+  let curl = new user.Curl();
+  curl.newTorIdentity()
+  curl.setProxy('127.0.0.1:9050').setHeaders([
+    "User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0",
+    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language: en-US,en;q=0.5",
+    `Referer: http://${psl.get(extractRootDomain(commands.url))}/index.php?option=com_users&view=login`,
+    "DNT: 1",
+    "Connection: keep-alive",
+    `Cookie: ${process.env.COOKIE}`,
+    "Upgrade-Insecure-Requests: 1",
+    "Cache-Control: max-age=0"
+  ]).get(commands.url).then(async ({ statusCode, body, headers }) => {
+    let document = parse(body)
+    let videoTitle = document.querySelector('title').childNodes[0].rawText
+    let videoName = document.querySelector('source').rawAttrs.split('src="')[1].split('" ')[0].split('/')
+
+    if (fs.existsSync(`./temp/${videoName[videoName.length - 1]}`)) {
+      return replaceMessage(ctx, message, `File Sudah Video <code>${commands.url}</code> Sudah Ada`, false)
+    } else {
+      let header = [
+        `${process.env.DOMAIN}/hwdvideos/uploads/${videoName[videoName.length - 2]}/${videoName[videoName.length - 1]}`,
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0',
+        'Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
+        'Accept-Language: en-US,en;q=0.5',
+        'Range: bytes=0-',
+        'DNT: 1',
+        'Connection: keep-alive'
+      ]
+
+      await replaceMessage(ctx, user.message, `Sedang Mendownload Video <code>${commands.url}</code>`, false)
+      return exec(`curl --socks5-hostname 127.0.0.1:9050 '${header.join(`' -H '`)}' --output temp/${videoName[videoName.length - 1]}`, async (err, stdout, stderr) => {
+        if (err) return sendReportToDev(ctx, err)
+        return replaceMessage(ctx, user.message, `Video <code>${commands.url}</code> ${videoTitle} ${videoName[videoName.length - 1]} Terdownload\n${stderr}`, false)
+      });
+    }
+
+  }).catch((err) => sendReportToDev(ctx, err));
+})
 
 bot.command((ctx) => {
   let msg = ctx.message.text
