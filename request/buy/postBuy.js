@@ -3,6 +3,52 @@ const waitUntil = require('../../helpers/waitUntil');
 module.exports = async function (user) {
   let curl = new user.Curl()
 
+  const addDots = function (nStr) {
+    nStr += '';
+    x = nStr.split('.');
+    x1 = x[0];
+    x2 = x.length > 1 ? '.' + x[1] : '';
+    var rgx = /(\d+)(\d{3})/;
+    while (rgx.test(x1)) {
+      x1 = x1.replace(rgx, '$1' + '.' + '$2');
+    }
+    return x1 + x2;
+  }
+
+  user.tax = function (payment) {
+    if (payment.payment_channelid) {
+      let value = parseInt(user.selectedShipping.cost_info.estimated_shipping_fee + user.config.price) / 100 * 3 * 3
+      return {
+        value: value,
+        msg: {
+          "learn_more_url": "https://shopee.co.id/m/biaya-penanganan-cod/",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
+          "title": "Biaya Penanganan"
+        }
+      }
+    } else if (payment.channel_id) {
+      let value = parseInt(100000000)
+      return {
+        value: value,
+        msg: {
+          "learn_more_url": "https://shopee.co.id/events3/code/634289435/",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
+          "title": "Biaya Penanganan"
+        }
+      }
+    } else {
+      let value = parseInt(0)
+      return {
+        value: value,
+        msg: {
+          "learn_more_url": "",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
+          "title": "Biaya Penanganan"
+        }
+      }
+    }
+  }(user.payment.method)
+
   if (user.infoCheckoutLong) {
     user.config.end = Date.now();
     user.infoCheckout = user.infoCheckoutLong
@@ -30,18 +76,6 @@ module.exports = async function (user) {
         'accept-language: en-US,en;q=0.9',
         `cookie: ${curl.serializeCookie(user.userCookie)}`,
       ]).setBody(JSON.stringify(require('../../helpers/postBuyBodyLong')(user))).post(`https://shopee.co.id/api/v2/checkout/place_order`)
-  }
-
-  const addDots = function (nStr) {
-    nStr += '';
-    x = nStr.split('.');
-    x1 = x[0];
-    x2 = x.length > 1 ? '.' + x[1] : '';
-    var rgx = /(\d+)(\d{3})/;
-    while (rgx.test(x1)) {
-      x1 = x1.replace(rgx, '$1' + '.' + '$2');
-    }
-    return x1 + x2;
   }
 
   user.selectedShipping = function (logistics) {
@@ -89,40 +123,6 @@ module.exports = async function (user) {
     chunk.promotionChannels = channelIds
     return chunk
   }(user.infoPengiriman)
-
-  user.tax = function (payment) {
-    if (payment.payment_channelid) {
-      let value = parseInt(user.selectedShipping.cost_info.estimated_shipping_fee + user.config.price) / 100 * 3 * 3
-      return {
-        value: value,
-        msg: {
-          "learn_more_url": "https://shopee.co.id/m/biaya-penanganan-cod/",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
-          "title": "Biaya Penanganan"
-        }
-      }
-    } else if (payment.channel_id) {
-      let value = parseInt(100000000)
-      return {
-        value: value,
-        msg: {
-          "learn_more_url": "https://shopee.co.id/events3/code/634289435/",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
-          "title": "Biaya Penanganan"
-        }
-      }
-    } else {
-      let value = parseInt(0)
-      return {
-        value: value,
-        msg: {
-          "learn_more_url": "",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
-          "title": "Biaya Penanganan"
-        }
-      }
-    }
-  }(user.payment.method)
 
   return waitUntil(user, 'updateKeranjang', 'infoCheckoutQuick')
     .then(async () => {
