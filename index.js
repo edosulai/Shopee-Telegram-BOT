@@ -949,10 +949,10 @@ const buyItem = function (ctx) {
 
 const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
-  if (oldMsg.text.replace(/[^a-zA-Z0-9/\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9/\s]/gi, "")) {
+  if (oldMsg.text.replace(/[^a-zA-Z0-9\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\s]/gi, "")) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-    }).catch((err) => console.log(oldMsg.text.replace(/[^a-zA-Z0-9/\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9/\s]/gi, "")))
+    }).catch((err) => console.log(oldMsg.text.replace(/[^a-zA-Z0-9\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\s]/gi, "")))
   }
 }
 
