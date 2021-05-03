@@ -719,7 +719,7 @@ const getCart = async function (ctx, getCache = false) {
             return shop
           }
         }
-        return shop[0]
+        return shops[0]
       }(user.infoKeranjang.data.shop_orders)
 
       user.selectedItem = function (items) {
@@ -728,7 +728,7 @@ const getCart = async function (ctx, getCache = false) {
             return item
           }
         }
-        return item[0]
+        return items[0]
       }(user.selectedShop.items)
 
       user.config.price = user.config.predictPrice || function (item) {
