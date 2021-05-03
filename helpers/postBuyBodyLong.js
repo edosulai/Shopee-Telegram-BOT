@@ -53,7 +53,7 @@ module.exports = function (user) {
       "shipping_subtotal_before_discount": user.infoCheckout.checkout_price_data.shipping_subtotal,
       "bundle_deals_discount": user.infoCheckout.checkout_price_data.shipping_subtotal,
       "group_buy_discount": user.infoCheckout.checkout_price_data.shipping_subtotal,
-      "merchandise_subtotal": user.config.price * user.config.quantity.shipping_subtotal,
+      "merchandise_subtotal": user.config.price * user.config.quantity,
       "tax_payable": user.infoCheckout.checkout_price_data.shipping_subtotal,
       "buyer_txn_fee": user.infoCheckout.checkout_price_data.shipping_subtotal,
       "credit_card_promotion": user.infoCheckout.checkout_price_data.shipping_subtotal,

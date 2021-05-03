@@ -702,7 +702,7 @@ const getCart = async function (ctx, getCache = false) {
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     let chunk = JSON.parse(body);
-    if (chunk.data) {
+    if (chunk.data.shop_orders.length > 0) {
       user.infoKeranjang = chunk
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
@@ -715,20 +715,14 @@ const getCart = async function (ctx, getCache = false) {
 
       user.selectedShop = function (shops) {
         for (const shop of shops) {
-          if (shop.shop.shopid == user.config.shopid) {
-            return shop
-          }
+          if (shop.shop.shopid == user.config.shopid) return shop
         }
-        return shops[0]
       }(user.infoKeranjang.data.shop_orders)
 
       user.selectedItem = function (items) {
         for (const item of items) {
-          if (item.modelid == user.config.modelid) {
-            return item
-          }
+          if (item.modelid == user.config.modelid) return item
         }
-        return items[0]
       }(user.selectedShop.items)
 
       user.config.price = user.config.predictPrice || function (item) {
