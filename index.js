@@ -540,11 +540,11 @@ bot.command('beli', async (ctx) => {
     if (user.config.makecache) user.config.firstCache = true
 
     do {
+      user.config.start = Date.now()
+
       if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
         return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang ? user.infoBarang.item.name : ''} Sudah Di Matikan`)
       }
-
-      user.config.start = Date.now()
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close();
@@ -555,61 +555,47 @@ bot.command('beli', async (ctx) => {
         } else {
           user.infoBarang = chunk;
         }
-      }).catch((err) => sendReportToDev(ctx, err));
+      }).catch((err) => userLogs(ctx, err, 'Error', () => user.config.start = false));
 
-      if (
-        user.infoBarang.item.upcoming_flash_sale == null &&
-        user.infoBarang.item.flash_sale == null
-      ) await replaceMessage(ctx, user.config.message, `${user.infoBarang.item.name} Bukan Barang Flash Sale`)
+      if (!user.infoBarang || !user.config.start) continue;
+      if (!user.infoBarang.item.upcoming_flash_sale) break;
 
-      if (user.infoBarang.item.upcoming_flash_sale && user.config.start) {
-        let msg = ``
+      user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
+      user.config.promotionid = parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid)
+      user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
 
-        user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
-        user.config.promotionid = parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid)
-        user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
+      if ((user.config.end) < Date.now() + 7000) break;
 
-        msg += timeConverter(Date.now() - user.config.end, { countdown: true })
-        msg += ` - ${user.infoBarang.item.name}`
+      let msg = ``
+      msg += timeConverter(Date.now() - user.config.end, { countdown: true })
+      msg += ` - ${user.infoBarang.item.name}`
 
-        if (
-          user.infoBarang.item.stock > 0 &&
-          user.config.end > Date.now() + 7000
-        ) {
-
-          if (user.config.outstock || user.config.firstCache) {
-            let info = await getCart(ctx, true)
-            if (typeof msg == 'string') {
-              msg += ` - ${info}`
-              user.config.outstock = false
-              if (user.config.firstCache) user.config.firstCache = false
+      if (user.infoBarang.item.stock < 1) {
+        user.config.outstock = true
+        msg += ` - Barang Sudah Di Ikat Untuk Flash Sale${function (barang) {
+          for (const model of barang.item.models) {
+            for (const stock of model.price_stocks) {
+              if (stock.stockout_time) return ` Sejak : ${timeConverter(stock.stockout_time * 1000, { usemilis: false })}`
             }
           }
-
-        } else {
-          user.config.outstock = true
-          msg += ` - Barang Sudah Di Ikat Untuk Flash Sale${function (barang) {
-            for (const model of barang.item.models) {
-              for (const stock of model.price_stocks) {
-                if (stock.stockout_time) return ` Sejak : ${timeConverter(stock.stockout_time * 1000, { usemilis: false })}`
-              }
-            }
-          }(user.infoBarang)}`
+        }(user.infoBarang)}`
+      } else if (user.config.outstock || user.config.firstCache) {
+        let info = await getCart(ctx, true)
+        if (typeof msg == 'string') {
+          msg += ` - ${info}`
+          user.config.outstock = false
+          if (user.config.firstCache) user.config.firstCache = false
         }
-
-        await replaceMessage(ctx, user.config.message, msg)
       }
+
+      await replaceMessage(ctx, user.config.message, msg)
 
       sleep(function (start) {
         start = 100 - (Date.now() - start)
         return start > 0 ? start : 0
       }(user.config.start))
 
-    } while (
-      !user.config.skiptimer &&
-      user.infoBarang.item.upcoming_flash_sale != null &&
-      (user.config.end) > Date.now() + 7000
-    )
+    } while (!user.config.skiptimer)
 
     await getInfoPengiriman(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
@@ -653,12 +639,16 @@ bot.command('beli', async (ctx) => {
       }(user.infoBarang)
     }
 
-    if (!user.config.modelid) return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis - ${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
-    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Tidak Terbaca - ${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
+    if (!user.config.modelid) return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
+    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Tidak Terbaca\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
 
     if (user.config.makecache && user.infoBarang.item.stock > 0) {
       let info = await getCart(ctx, true)
       if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
+    }
+
+    if (!user.payment) {
+      return replaceMessage(ctx, user.config.message, `Semua Metode Pembayaran Untuk Item ${user.infoBarang.item.name} Tidak Tersedia\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
     }
 
     if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
@@ -706,8 +696,8 @@ const getCart = async function (ctx, getCache = false) {
     user.keranjang = JSON.parse(body)
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
-  }).catch((err) => sleep(1));
-  if (user.keranjang.error != 0) return `Gagal Menambahkan Produk Ke Dalam Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
+  }).catch((err) => user.keranjang ? sleep(Math.round(user.keranjang.time / 4)) : sendReportToDev(ctx, err));
+  if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -715,6 +705,13 @@ const getCart = async function (ctx, getCache = false) {
     if (chunk.data) {
       user.infoKeranjang = chunk
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+    }
+    curl.close()
+  }).catch((err) => user.infoKeranjang ? sleep(1) : sendReportToDev(ctx, err));
+  if (user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
+
+  return waitUntil(user, 'infoKeranjang')
+    .then(() => {
 
       user.selectedShop = function (shops) {
         for (const shop of shops) {
@@ -733,14 +730,6 @@ const getCart = async function (ctx, getCache = false) {
         }
         return item[0]
       }(user.selectedShop.items)
-
-    }
-    curl.close()
-  }).catch((err) => sleep(1));
-  if (user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
-
-  return waitUntil(user, 'infoKeranjang', 'selectedShop', 'selectedItem')
-    .then(() => {
 
       user.config.price = user.config.predictPrice || function (item) {
         if (item.models) {
@@ -764,10 +753,11 @@ const getCart = async function (ctx, getCache = false) {
           user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
         }
         curl.close()
-      }).catch((err) => sendReportToDev(ctx, err))
+      }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out PostUpdateKeranjang') }))
 
       return getCheckout(ctx, getCache);
-    }).catch((err) => sendReportToDev(ctx, err));
+
+    }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until PostInfoKeranjang') }));
 }
 
 const getCheckout = async function (ctx, getCache) {
@@ -781,7 +771,7 @@ const getCheckout = async function (ctx, getCache) {
       user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => sendReportToDev(ctx, err));
+  }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out PostInfoCheckout') }));
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -791,19 +781,19 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => sleep(user.config.usedelay ? Math.round(user.infoCheckoutQuick.time / 4) : 1));
+  }).catch((err) => user.infoCheckoutQuick ? sleep(Math.round(user.infoCheckoutQuick.time / 4)) : sendReportToDev(ctx, err));
   if (user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
       user.infoCheckoutLong = user.config.infoCheckoutLong
 
+      await waitUntil(user, 'updateKeranjang').then().catch((err) => sendReportToDev(ctx, err));
+
       await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      }).catch((err) => sendReportToDev(ctx, err));
-
-      await waitUntil(user, 'updateKeranjang').then().catch((err) => sendReportToDev(ctx, err));
+      }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until Delete PostUpdateKeranjang') }));
 
       fs.writeFileSync('./helpers/metaPayment.json', JSON.stringify(user.infoCheckoutLong.payment_channel_info))
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
@@ -824,11 +814,12 @@ const getCheckout = async function (ctx, getCache) {
 
       return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name} Telah Di Dapatkan` : null}`
     }).catch(async (err) => {
-      await sendReportToDev(ctx, err)
-      return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      }).catch((err) => sendReportToDev(ctx, err));
+      return sendReportToDev(ctx, err, 'Error', () => {
+        return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
+          curl.close()
+          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        }).catch((err) => sendReportToDev(ctx, err));
+      })
     }) : buyItem(ctx)
 }
 
@@ -859,15 +850,13 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name})</b>\n${user.order.error_msg}</i>\n${isAdmin(ctx) ? user.order.error : ''}`
 
-      if (user.config.fail < 3 && (user.order.error == 'error_fulfillment_info_changed_mwh' || user.order.error == 'error_payable_mismatch')) {
+      if (user.config.fail < 3 && ['error_empty_cart', 'error_fulfillment_info_changed_mwh', 'error_payable_mismatch'].includes(user.order.error)) {
         info += `\n\n<b>Sedang Mencoba Kembali...</b>`
         user.config.info.push(info)
         return buyItem(ctx)
       }
 
-      if (
-        user.order.error != 'error_opc_channel_not_available'
-      ) {
+      if (user.order.error != 'error_opc_channel_not_available') {
 
         if (!user.infoCheckoutLong) {
           await postInfoCheckout(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -947,6 +936,11 @@ const buyItem = function (ctx) {
   }).catch((err) => sendReportToDev(ctx, err));
 }
 
+const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
+  console.log(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`);
+  if (typeof callback == 'function') return callback()
+}
+
 const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
   if (oldMsg.text.replace(/[^a-zA-Z0-9\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\s]/gi, "")) {
@@ -956,8 +950,9 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   }
 }
 
-const sendReportToDev = async function (ctx, msg, type = 'Error') {
-  return await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+const sendReportToDev = async function (ctx, msg, type = 'Error', callback = null) {
+  await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+  if (typeof callback == 'function') return callback()
 }
 
 const setNewCookie = function (oldcookies, ...newcookies) {
@@ -1051,12 +1046,13 @@ const checkAccount = function (ctx) {
   return false;
 }
 
-const sleep = function (milliseconds) {
+const sleep = function (milliseconds, callback = null) {
   const date = Date.now();
   let currentDate = null;
   do {
     currentDate = Date.now();
   } while (currentDate - date < milliseconds);
+  if (typeof callback == 'function') return callback()
 }
 
 const replaceAll = function (str, find, replace) {

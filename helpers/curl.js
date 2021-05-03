@@ -167,7 +167,7 @@ module.exports = function () {
           resolve({ statusCode, body, headers, curlInstance, curl: this.curl });
         });
 
-        this.curl.on('error', (err) => {
+        this.curl.on('error', (err, errorCode, curlInstance) => {
           this.curl.close();
           reject(err);
         });
