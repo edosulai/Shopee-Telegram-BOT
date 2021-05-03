@@ -98,17 +98,7 @@ module.exports = async function (user) {
   return waitUntil(user, 'updateKeranjang', 'infoCheckoutQuick')
     .then(async () => {
 
-      if (user.updateKeranjang.error != 0) {
-        return new Promise((resolve, reject) => {
-          return reject(`Gagal Mendapatkan Update Keranjang Belanja : ${user.updateKeranjang.error}`)
-        })
-      }
-
-      if (user.infoCheckoutQuick.error != null) {
-        return new Promise((resolve, reject) => {
-          return reject(`Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`)
-        })
-      }
+      if (user.updateKeranjang.error != 0) return new Promise((resolve, reject) => reject(`Gagal Mendapatkan Update Keranjang Belanja : ${user.updateKeranjang.error}`))
 
       user.infoCheckout = {
         "cart_type": 0,
@@ -334,7 +324,6 @@ module.exports = async function (user) {
               }]
             }
           }(user.updateKeranjang.data.shop_vouchers),
-
           "card_promotion_enabled": user.updateKeranjang.data.card_promotion_enabled,
           "invalid_message": user.updateKeranjang.data.invalid_message || null,
           "card_promotion_id": user.updateKeranjang.data.card_promotion_id || null,
@@ -384,9 +373,5 @@ module.exports = async function (user) {
           `cookie: ${curl.serializeCookie(user.userCookie)}`,
         ]).setBody(JSON.stringify(user.postBuyBody)).post(`https://shopee.co.id/api/v2/checkout/place_order`)
 
-    }).catch((err) => {
-      return new Promise((resolve, reject) => {
-        return reject(err)
-      })
-    });
+    }).catch((err) => new Promise((resolve, reject) => reject(err)));
 }

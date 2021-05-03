@@ -489,7 +489,7 @@ bot.command('beli', async (ctx) => {
       autocancel: commands['-autocancel'] || false,
       makecache: commands['-makecache'] || false,
       usedelay: commands['-usedelay'] || false,
-      price: commands['-seribu'] ? 100000000 : false,
+      predictPrice: commands.price ? parseInt(commands.price) * 100000 : false,
       repeat: commands.repeat || 1,
       fail: 0,
       outstock: false,
@@ -517,13 +517,11 @@ bot.command('beli', async (ctx) => {
 
   user.payment = user.payment || require('./helpers/paymentMethod')(user.config.payment, require('./helpers/metaPayment.json').channels)
   await ctx.reply(`Metode Pembayaran Saat Ini : ${user.payment.msg}`, { parse_mode: 'HTML' }).then((replyCtx) => {
-    user.config = {
-      ...user.config, paymentMsg: {
-        chatId: replyCtx.chat.id,
-        msgId: replyCtx.message_id,
-        inlineMsgId: replyCtx.inline_message_id,
-        text: replyCtx.text
-      }
+    user.config.paymentMsg = {
+      chatId: replyCtx.chat.id,
+      msgId: replyCtx.message_id,
+      inlineMsgId: replyCtx.inline_message_id,
+      text: replyCtx.text
     }
   })
 
@@ -567,13 +565,9 @@ bot.command('beli', async (ctx) => {
       if (user.infoBarang.item.upcoming_flash_sale && user.config.start) {
         let msg = ``
 
-        user.config = {
-          ...user.config, ...{
-            modelid: parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0]),
-            promotionid: parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid),
-            end: user.infoBarang.item.upcoming_flash_sale.start_time * 1000,
-          }
-        }
+        user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
+        user.config.promotionid = parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid)
+        user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
 
         msg += timeConverter(Date.now() - user.config.end, { countdown: true })
         msg += ` - ${user.infoBarang.item.name}`
@@ -683,6 +677,21 @@ bot.command('beli', async (ctx) => {
     if (typeof info == 'string') {
       if (!isAdmin(ctx)) sendReportToDev(ctx, info, 'Success')
       return replaceMessage(ctx, user.config.message, info, false)
+    } else {
+      await Failures.updateOne({
+        teleChatId: ctx.message.chat.id,
+        itemid: user.config.itemid,
+        shopid: user.config.shopid,
+        modelid: user.config.modelid
+      }, {
+        postBuyBody: user.postBuyBody,
+        infoBarang: user.infoBarang,
+        infoPengiriman: user.infoPengiriman,
+        infoKeranjang: user.infoKeranjang,
+        updateKeranjang: user.updateKeranjang,
+        infoCheckoutQuick: user.infoCheckoutQuick,
+        infoCheckoutLong: user.infoCheckoutLong
+      }, { upsert: true }).exec()
     }
   }).catch((err) => sendReportToDev(ctx, err));
 })
@@ -692,68 +701,73 @@ const getCart = async function (ctx, getCache = false) {
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
-  return postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  await postKeranjang(user, getCache).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     user.keranjang = JSON.parse(body)
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
-    if (user.keranjang.error != 0) return `Gagal Menambahkan Produk Ke Dalam Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
+  }).catch((err) => sleep(1));
+  if (user.keranjang.error != 0) return `Gagal Menambahkan Produk Ke Dalam Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
 
-    postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = JSON.parse(body);
-      if (chunk.data) {
-        user.infoKeranjang = chunk
-        user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      }
-      curl.close()
-    }).catch((err) => sleep(1));
+  await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = JSON.parse(body);
+    if (chunk.data) {
+      user.infoKeranjang = chunk
+      user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
 
-    return waitUntil(user, 'infoKeranjang')
-      .then(() => {
-        if (user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
-
-        user.selectedShop = function (shops) {
-          for (const shop of shops) {
-            if (shop.shop.shopid == user.config.shopid) {
-              return shop
-            }
+      user.selectedShop = function (shops) {
+        for (const shop of shops) {
+          if (shop.shop.shopid == user.config.shopid) {
+            return shop
           }
-        }(user.infoKeranjang.data.shop_orders)
-        user.selectedItem = function (items) {
-          for (const item of items) {
-            if (item.modelid == user.config.modelid) {
-              return item
-            }
-          }
-        }(user.selectedShop.items)
-        user.config.price = user.config.price || function (item) {
-          if (item.models) {
-            for (const model of item.models) {
-              if (
-                model.itemid == user.config.itemid &&
-                model.shop_id == user.config.shopid &&
-                model.modelid == user.config.modelid &&
-                model.promotionid == user.config.promotionid
-              ) return model.price
-            }
-          }
-          return item.origin_cart_item_price
-        }(user.selectedItem)
+        }
+        return shop[0]
+      }(user.infoKeranjang.data.shop_orders)
 
-        postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
-          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-          let chunk = JSON.parse(body);
-          if (chunk.data && chunk.error == 0) {
-            user.updateKeranjang = chunk
-            user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.selectedItem = function (items) {
+        for (const item of items) {
+          if (item.modelid == user.config.modelid) {
+            return item
           }
-          curl.close()
-        }).catch((err) => sendReportToDev(ctx, err))
+        }
+        return item[0]
+      }(user.selectedShop.items)
 
-        return getCheckout(ctx, getCache);
-      }).catch((err) => sendReportToDev(ctx, err));
-  }).catch((err) => sendReportToDev(ctx, err));
+    }
+    curl.close()
+  }).catch((err) => sleep(1));
+  if (user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
+
+  return waitUntil(user, 'infoKeranjang', 'selectedShop', 'selectedItem')
+    .then(() => {
+
+      user.config.price = user.config.predictPrice || function (item) {
+        if (item.models) {
+          for (const model of item.models) {
+            if (
+              model.itemid == user.config.itemid &&
+              model.shop_id == user.config.shopid &&
+              model.modelid == user.config.modelid &&
+              model.promotionid == user.config.promotionid
+            ) return model.price
+          }
+        }
+        return item.origin_cart_item_price
+      }(user.selectedItem)
+
+      postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        let chunk = JSON.parse(body);
+        if (chunk.data && chunk.error == 0) {
+          user.updateKeranjang = chunk
+          user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        }
+        curl.close()
+      }).catch((err) => sendReportToDev(ctx, err))
+
+      return getCheckout(ctx, getCache);
+    }).catch((err) => sendReportToDev(ctx, err));
 }
 
 const getCheckout = async function (ctx, getCache) {
@@ -778,6 +792,7 @@ const getCheckout = async function (ctx, getCache) {
     }
     curl.close()
   }).catch((err) => sleep(user.config.usedelay ? Math.round(user.infoCheckoutQuick.time / 4) : 1));
+  if (user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
@@ -1141,9 +1156,9 @@ bot.command('xplay', async (ctx) => {
     let videoName = document.querySelector('source').rawAttrs.split('src="')[1].split('" ')[0].split('/')
 
     if (fs.existsSync(`./temp/${videoName[videoName.length - 1]}`)) {
-      return replaceMessage(ctx, user.message, `File Sudah Video <code>${commands.url}</code> Sudah Ada`, false)
+      return replaceMessage(ctx, user.message, `File Sudah Video ${videoTitle} ${videoName[videoName.length - 1]} <code>${commands.url}</code> Sudah Ada`, false)
     } else {
-      await replaceMessage(ctx, user.message, `Sedang Mendownload Video <code>${commands.url}</code>`, false)
+      await replaceMessage(ctx, user.message, `Sedang Mendownload Video ${videoTitle} ${videoName[videoName.length - 1]} <code>${commands.url}</code>`, false)
       return tr.request({
         url: `${process.env.XPLAY_DOMAIN}/hwdvideos/uploads/${videoName[videoName.length - 2]}/${videoName[videoName.length - 1]}`,
         headers: {
@@ -1160,7 +1175,7 @@ bot.command('xplay', async (ctx) => {
           socksPort: 9050,
         }
       }, function (err, response, body) {
-        return replaceMessage(ctx, user.message, `Video <code>${commands.url}</code> ${videoTitle} ${videoName[videoName.length - 1]} Terdownload`, false)
+        return replaceMessage(ctx, user.message, `Video ${videoTitle} ${videoName[videoName.length - 1]} <code>${commands.url}</code> Terdownload`, false)
       }).pipe(fs.createWriteStream(`./temp/${videoName[videoName.length - 1]}`))
     }
   })
