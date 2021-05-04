@@ -26,24 +26,21 @@ module.exports = async function (user, getCache) {
       'accept-language: en-US,en;q=0.9',
       `cookie: ${curl.serializeCookie(user.userCookie)}`
     ]).setBody(JSON.stringify({
-      ...{
-        "quantity": user.config.quantity,
-        "checkout": true,
-        "update_checkout_only": false,
-        "donot_add_quantity": false,
-        "source": "{\"refer_urls\":[]}",
-        "client_source": 1,
-        "shopid": user.config.shopid,
-        "itemid": user.config.itemid,
-        "modelid": user.config.modelid
-      }, ... function () {
-        if (user.infoBarang.item.add_on_deal_info != null) {
+      "quantity": user.config.quantity,
+      "checkout": true,
+      "update_checkout_only": false,
+      "donot_add_quantity": false,
+      "source": "{\"refer_urls\":[]}",
+      "client_source": 1,
+      "shopid": user.config.shopid,
+      "itemid": user.config.itemid,
+      "modelid": user.config.modelid,
+      ...function (item) {
+        if (item.add_on_deal_info != null) {
           return {
-            "add_on_deal_id": user.infoBarang.item.add_on_deal_id
+            "add_on_deal_id": item.add_on_deal_id
           }
-        } else {
-          return
         }
-      }()
+      }(user.infoBarang.item)
     })).post(`https://shopee.co.id/api/v2/cart/add_to_cart`)
 }

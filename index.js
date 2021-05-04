@@ -64,6 +64,15 @@ const User = mongoose.model('User', new mongoose.Schema({
   }
 }).plugin(findOrCreate))
 
+const Others = mongoose.model('Others', new mongoose.Schema({
+  prohibitedProducts: Array,
+  metaPayment: Object,
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}).plugin(findOrCreate))
+
 const Logs = mongoose.model('Logs', {
   teleChatId: Number,
   itemid: Number,
@@ -99,17 +108,6 @@ const Failures = mongoose.model('Failures', {
   }
 })
 
-const Prohibited = mongoose.model('Prohibited', {
-  typeOlShop: String,
-  data: Object,
-  allowed: Array,
-  exception: String,
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-})
-
 // const express = require("express");
 
 // const app = express();
@@ -130,15 +128,34 @@ bot.telegram.getMe().then((botInfo) => {
 
 bot.use(session())
 
+// bot.use((ctx, next) => {
+//   return User.findOrCreate({ teleChatId: process.env.ADMIN_ID }, {
+//     teleChatData: ctx.message.chat,
+//     userLoginInfo: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74', },
+//     userCookie: { csrftoken: null },
+//     userRole: "admin"
+//   }, async function (err, user, created) {
+//     if (err) return sendReportToDev(ctx, err)
+//     if (created) sendReportToDev(ctx, `Akun Admin Terbuat`, 'Info')
+//     return next(ctx)
+//   })
+// })
+
+bot.use((ctx, next) => {
+  return Others.findOrCreate({}, {
+    "prohibitedProducts": [{ "itemid": null, "allowed": ["admin"], "message": "..." }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
+  }, async function (err, other, created) {
+    if (err) return sendReportToDev(ctx, err)
+    if (created) sendReportToDev(ctx, `Meta Data Other Berhasil Terbuat`, 'Info')
+    return next(ctx)
+  })
+})
+
 bot.use((ctx, next) => {
   return User.findOrCreate({ teleChatId: ctx.message.chat.id }, {
     teleChatData: ctx.message.chat,
-    userLoginInfo: {
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74',
-    },
-    userCookie: {
-      csrftoken: null
-    },
+    userLoginInfo: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74', },
+    userCookie: { csrftoken: null },
     userRole: "member"
   }, async function (err, user, created) {
     if (err) return sendReportToDev(ctx, err)
@@ -465,6 +482,8 @@ bot.command('beli', async (ctx) => {
     if (queue.split(':')[0] == getSessionKey(ctx)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
+  user.others = (await Others.find())[0]
+
   user.config = {
     ...user.config, ...{
       itemid: parseInt(commands.url.split(".")[commands.url.split(".").length - 1]),
@@ -515,7 +534,7 @@ bot.command('beli', async (ctx) => {
     !Number.isInteger(user.config.shopid)
   ) return replaceMessage(ctx, user.config.message, 'Identitas Barang Tidak Terbaca, Harap Coba Kembali')
 
-  user.payment = user.payment || require('./helpers/paymentMethod')(user.config.payment, require('./helpers/metaPayment.json').channels)
+  user.payment = user.payment || require('./helpers/paymentMethod')(user.config.payment, user.others.metaPayment.channels)
   await ctx.reply(`Metode Pembayaran Saat Ini : ${user.payment.msg}`, { parse_mode: 'HTML' }).then((replyCtx) => {
     user.config.paymentMsg = {
       chatId: replyCtx.chat.id,
@@ -656,7 +675,7 @@ bot.command('beli', async (ctx) => {
     }
 
     while (
-      (!user.config.skiptimer && (user.config.end) - Date.now() >= 0) ||
+      (user.config.end - Date.now() >= 0) ||
       function (now) {
         return (now - (Math.floor(now / 1000) * 1000)) > 100 ? true : false
       }(Date.now())
@@ -696,7 +715,7 @@ const getCart = async function (ctx, getCache = false) {
     user.keranjang = JSON.parse(body)
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
-  }).catch((err) => user.keranjang ? sleep(Math.round(user.keranjang.time / 4)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(Math.round(user.keranjang.time / 2)) : sendReportToDev(ctx, err));
   if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -707,8 +726,8 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => user.infoKeranjang ? sleep(1) : sendReportToDev(ctx, err));
-  if (user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
+  }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 8)) : sendReportToDev(ctx, err));
+  if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
   user.selectedShop = function (shops) {
     for (const shop of shops) {
@@ -747,8 +766,6 @@ const getCart = async function (ctx, getCache = false) {
   }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out PostUpdateKeranjang') }))
 
   return getCheckout(ctx, getCache);
-
-  // return waitUntil(user, 'infoKeranjang').then().catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until PostInfoKeranjang') }));
 }
 
 const getCheckout = async function (ctx, getCache) {
@@ -772,8 +789,8 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => user.infoCheckoutQuick ? sleep(Math.round(user.infoCheckoutQuick.time / 4)) : sendReportToDev(ctx, err));
-  if (user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
+  }).catch((err) => !getCache ? sleep(Math.round(user.infoCheckoutQuick.time / 4)) : sendReportToDev(ctx, err));
+  if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
@@ -786,7 +803,6 @@ const getCheckout = async function (ctx, getCache) {
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
       }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until Delete PostUpdateKeranjang') }));
 
-      fs.writeFileSync('./helpers/metaPayment.json', JSON.stringify(user.infoCheckoutLong.payment_channel_info))
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
       await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name} Tidak Tersedia`)
 
