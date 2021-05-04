@@ -479,7 +479,7 @@ bot.command('beli', async (ctx) => {
   if (commands['-cod'] && commands['-shopeepay']) return replaceMessage(ctx, user.config.message, 'Silahkan Pilih Hanya Salah Satu Metode Pembayaran')
 
   for (let queue of queuePromotion) {
-    if (queue.split(':')[0] == getSessionKey(ctx)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
+    if (queue.split(':')[0] == getSessionKey(ctx) && !isAdmin(ctx, true)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
   user.others = (await Others.find())[0]
@@ -583,7 +583,7 @@ bot.command('beli', async (ctx) => {
       user.config.promotionid = parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid)
       user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
 
-      if ((user.config.end) < Date.now() + 7000) break;
+      if ((user.config.end) < Date.now() + 10000) break;
 
       let msg = ``
       msg += timeConverter(Date.now() - user.config.end, { countdown: true })
@@ -1033,9 +1033,9 @@ const isValidURL = function (string) {
   return url.protocol === "http:" || url.protocol === "https:";
 }
 
-const isAdmin = function (ctx) {
+const isAdmin = function (ctx, ignore = false) {
   if (ctx.session.userRole == 'admin') return true
-  sendReportToDev(ctx, `Mencoba Mengakses Fitur Admin`, 'Info')
+  if (!ignore) sendReportToDev(ctx, `Mencoba Mengakses Fitur Admin`, 'Info')
   return false
 }
 
@@ -1183,6 +1183,11 @@ bot.command('xplay', async (ctx) => {
     }
   })
 })
+
+// bot.command('env', async (ctx) => {
+//   let user = ctx.session
+//   let commands = getCommands(ctx, '/env ')
+// })
 
 bot.command((ctx) => {
   let msg = ctx.message.text
