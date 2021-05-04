@@ -9,6 +9,7 @@
     "dev01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U node --max-old-space-size=256 index.js",
     "dev02": "NODE_ENV=development TOKEN=1720996361:AAFsn3Z9_C8QkvC1AydAKIDQJSssxBsV0xA node --max-old-space-size=256 index.js",
     "dev03": "NODE_ENV=development TOKEN=1745604191:AAG8dw1O10bnof2YljpyqLy_MbFgRhz6DZ0 node --max-old-space-size=256 index.js",
+    "dev04": "NODE_ENV=development TOKEN=1673487047:AAGq9F-5ATFCbeFR5Nl5Ke5tszptxlXd40s node --max-old-space-size=256 index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
