@@ -6,8 +6,9 @@ Object.size = function (obj) {
   }
   return size;
 }
+const dotenv = require('dotenv')
+dotenv.config()
 
-require('dotenv').config()
 const packageJson = require('./package.json'),
   { Telegraf, session } = require('telegraf'),
   mongoose = require('mongoose'),
@@ -83,6 +84,8 @@ const Logs = mongoose.model('Logs', {
   infoCheckoutQuick: Object,
   infoCheckoutLong: Object,
   payment: Object,
+  selectedShop: Object,
+  selectedItem: Object,
   updatedAt: {
     type: Date,
     default: Date.now
@@ -124,22 +127,22 @@ bot.telegram.getMe().then((botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
   console.log("Server has Initialized By Nick : " + process.env.BOT_USERNAME)
-})
+}).catch((err) => console.log(err))
 
 bot.use(session())
 
-// bot.use((ctx, next) => {
-//   return User.findOrCreate({ teleChatId: process.env.ADMIN_ID }, {
-//     teleChatData: ctx.message.chat,
-//     userLoginInfo: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74', },
-//     userCookie: { csrftoken: null },
-//     userRole: "admin"
-//   }, async function (err, user, created) {
-//     if (err) return sendReportToDev(ctx, err)
-//     if (created) sendReportToDev(ctx, `Akun Admin Terbuat`, 'Info')
-//     return next(ctx)
-//   })
-// })
+bot.use((ctx, next) => {
+  return User.findOrCreate({ teleChatId: process.env.ADMIN_ID }, {
+    teleChatData: ctx.message.chat,
+    userLoginInfo: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74', },
+    userCookie: { csrftoken: null },
+    userRole: "admin"
+  }, async function (err, user, created) {
+    if (err) return sendReportToDev(ctx, err)
+    if (created) sendReportToDev(ctx, `Akun Admin Terbuat`, 'Info')
+    return next(ctx)
+  })
+})
 
 bot.use((ctx, next) => {
   return Others.findOrCreate({}, {
@@ -223,7 +226,7 @@ bot.command('announce', (ctx) => {
 
 bot.command('speedtest', async (ctx) => {
   if (!isAdmin(ctx)) return
-  let commands = getCommands(ctx, '/speedtest ')
+  let commands = getCommands(ctx.message.text, '/speedtest ')
   if (commands == null) return ctx.reply(`/speedtest <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
 
   if (typeof commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
@@ -281,34 +284,34 @@ bot.command('speedtest', async (ctx) => {
 bot.command('logs', async (ctx) => {
   if (!isAdmin(ctx)) return
   let user = ctx.session;
-  let commands = getCommands(ctx, '/logs ')
+  let commands = getCommands(ctx.message.text, '/logs ')
   if (commands == null) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
-  switch (commands.opsi) {
-    case 'clear':
-      return Logs.deleteMany()
-        .then((result) => {
-          return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
-        }).catch((err) => sendReportToDev(ctx, err));
+
+  if (commands['-clear']) {
+    return Logs.deleteMany()
+      .then((result) => {
+        return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
+      }).catch((err) => sendReportToDev(ctx, err));
   }
 })
 
 bot.command('failures', async (ctx) => {
   if (!isAdmin(ctx)) return
   let user = ctx.session;
-  let commands = getCommands(ctx, '/failures ')
+  let commands = getCommands(ctx.message.text, '/failures ')
   if (commands == null) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
-  switch (commands.opsi) {
-    case 'clear':
-      return Failures.deleteMany()
-        .then((result) => {
-          return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
-        }).catch((err) => sendReportToDev(ctx, err));
+
+  if (commands['-clear']) {
+    return Failures.deleteMany()
+      .then((result) => {
+        return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
+      }).catch((err) => sendReportToDev(ctx, err));
   }
 })
 
 bot.command('user', async (ctx) => {
   if (!isAdmin(ctx)) return
-  let commands = getCommands(ctx, '/user ')
+  let commands = getCommands(ctx.message.text, '/user ')
 
   if (commands == null) {
     return User.find(function (err, users) {
@@ -353,7 +356,7 @@ bot.command('user', async (ctx) => {
 
 bot.command('login', async (ctx) => {
   let user = ctx.session;
-  let commands = getCommands(ctx, '/login ')
+  let commands = getCommands(ctx.message.text, '/login ')
   if (commands == null) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
 
   for (let command in commands) {
@@ -450,7 +453,7 @@ bot.command('otp', async (ctx) => {
 })
 
 bot.command('stop', async (ctx) => {
-  let commands = getCommands(ctx, '/stop ')
+  let commands = getCommands(ctx.message.text, '/stop ')
   if (commands == null) return ctx.reply(`/stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
   if (!checkAccount(ctx) || !isValidURL(commands.url)) return ctx.reply('Format Url Salah')
@@ -460,7 +463,7 @@ bot.command('stop', async (ctx) => {
 
 bot.command('beli', async (ctx) => {
   let user = ctx.session
-  let commands = getCommands(ctx, '/beli ')
+  let commands = getCommands(ctx.message.text, '/beli ')
   if (commands == null) return ctx.reply(`/beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
   await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
@@ -516,6 +519,11 @@ bot.command('beli', async (ctx) => {
     }
   }
 
+  if (
+    !Number.isInteger(user.config.itemid) ||
+    !Number.isInteger(user.config.shopid)
+  ) return replaceMessage(ctx, user.config.message, 'Identitas Barang Tidak Terbaca, Harap Coba Kembali')
+
   if (commands['-usecache']) {
     await Logs.findOne({
       teleChatId: ctx.message.chat.id,
@@ -528,11 +536,6 @@ bot.command('beli', async (ctx) => {
       }
     })
   }
-
-  if (
-    !Number.isInteger(user.config.itemid) ||
-    !Number.isInteger(user.config.shopid)
-  ) return replaceMessage(ctx, user.config.message, 'Identitas Barang Tidak Terbaca, Harap Coba Kembali')
 
   user.payment = user.payment || require('./helpers/paymentMethod')(user.config.payment, user.others.metaPayment.channels)
   await ctx.reply(`Metode Pembayaran Saat Ini : ${user.payment.msg}`, { parse_mode: 'HTML' }).then((replyCtx) => {
@@ -715,7 +718,7 @@ const getCart = async function (ctx, getCache = false) {
     user.keranjang = JSON.parse(body)
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.keranjang.time / 2)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(Math.round(user.keranjang.time / 3)) : sendReportToDev(ctx, err));
   if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -726,7 +729,7 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 8)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 12)) : sendReportToDev(ctx, err));
   if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
   user.selectedShop = function (shops) {
@@ -801,7 +804,7 @@ const getCheckout = async function (ctx, getCache) {
       await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until Delete PostUpdateKeranjang') }));
+      }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Inside Wait Until Delete PostUpdateKeranjang') }));
 
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
       await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name} Tidak Tersedia`)
@@ -816,7 +819,9 @@ const getCheckout = async function (ctx, getCache) {
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
         infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment
+        payment: user.payment,
+        selectedShop: user.selectedShop,
+        selectedItem: user.selectedItem
       }, { upsert: true }).exec()
 
       return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name} Telah Di Dapatkan` : null}`
@@ -916,7 +921,9 @@ const buyItem = function (ctx) {
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
         infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment
+        payment: user.payment,
+        selectedShop: user.selectedShop,
+        selectedItem: user.selectedItem
       }, { upsert: true }).exec()
 
       if (user.config.autocancel) {
@@ -1045,9 +1052,9 @@ const checkAccount = function (ctx) {
     ctx.session.userLoginInfo.password
   ) return true;
 
-  let info = `Informasi Akun Anda Belum Lengkap: `
-  info += `\nEmail: ${ctx.session.userLoginInfo.email || ''} `
-  info += `\nPassword: ${(ctx.session.userLoginInfo.metaPassword ? '**********' : '')} `
+  let info = `Informasi Akun Shopee Anda Belum Lengkap: `
+  info += `\nEmail : ${ctx.session.userLoginInfo.email || ''} `
+  info += `\nPassword : ${(ctx.session.userLoginInfo.metaPassword ? '**********' : '')} `
 
   ctx.reply(info)
   return false;
@@ -1094,9 +1101,9 @@ const extractRootDomain = function (url) {
   return domain;
 }
 
-const getCommands = function (ctx, prefix, sparator = '=') {
+const getCommands = function (str, prefix, sparator = '=') {
   let commands = {};
-  let firstSplit = ctx.message.text.split(prefix)
+  let firstSplit = str.split(prefix)
   Object.prototype.toString.call(firstSplit)
   if (firstSplit.length > 1) {
     let everyCommand = firstSplit[1].split(" ")
@@ -1128,7 +1135,7 @@ bot.command('xplay', async (ctx) => {
   if (!isAdmin(ctx)) return
   if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
   let user = ctx.session;
-  let commands = getCommands(ctx, '/xplay ')
+  let commands = getCommands(ctx.message.text, '/xplay ')
   if (commands == null) return ctx.reply(`/xplay <code>url=http://...69fck.onion</code>`, { parse_mode: 'HTML' })
 
   await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
@@ -1184,9 +1191,17 @@ bot.command('xplay', async (ctx) => {
   })
 })
 
-// bot.command('env', async (ctx) => {
-//   let user = ctx.session
-//   let commands = getCommands(ctx, '/env ')
+bot.command('env', async (ctx) => {
+  if (!isAdmin(ctx)) return
+  let commands = getCommands(ctx.message.text, '/env ')
+  if (commands == null) {
+    return ctx.reply(`<code>${JSON.stringify(dotenv.parse(Buffer.from(fs.readFileSync('./.env'))), null, "\t")}</code>`, { parse_mode: 'HTML' })
+  }
+})
+
+// bot.command('restart', async (ctx) => {
+//   if (!isAdmin(ctx)) return
+//   process.exit(1);
 // })
 
 bot.command((ctx) => {

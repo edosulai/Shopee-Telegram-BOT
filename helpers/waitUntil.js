@@ -16,11 +16,11 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
         x &= 3;
         if (Date.now() - start > 3000) {
           clearInterval(until)
-          return reject(`Wait Until TimeOut`)
+          return reject(`Wait Until TimeOut ${wantToCheckValueIsExist.join(' ')}`)
         }
       }, 0)
     } catch (error) {
-      return reject(`Wait Until Error ${error}`)
+      return reject(`Wait Until Error ${wantToCheckValueIsExist.join(' ')} ${error}`)
     }
   });
 }
