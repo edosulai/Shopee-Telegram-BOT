@@ -729,13 +729,13 @@ const getCart = async function (ctx, getCache = false) {
   }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 8)) : sendReportToDev(ctx, err));
   if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
-  user.selectedShop = function (shops) {
+  user.selectedShop = user.selectedShop || function (shops) {
     for (const shop of shops) {
       if (shop.shop.shopid == user.config.shopid) return shop
     }
   }(user.infoKeranjang.data.shop_orders)
 
-  user.selectedItem = function (items) {
+  user.selectedItem = user.selectedItem || function (items) {
     for (const item of items) {
       if (item.modelid == user.config.modelid) return item
     }
