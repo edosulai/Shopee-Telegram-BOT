@@ -729,17 +729,17 @@ const getCart = async function (ctx, getCache = false) {
   }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 8)) : sendReportToDev(ctx, err));
   if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
-  user.selectedShop = user.selectedShop || function (shops) {
+  user.selectedShop = function (shops) {
     for (const shop of shops) {
       if (shop.shop.shopid == user.config.shopid) return shop
     }
-  }(user.infoKeranjang.data.shop_orders)
+  }(user.infoKeranjang.data.shop_orders) || user.selectedShop
 
-  user.selectedItem = user.selectedItem || function (items) {
+  user.selectedItem = function (items) {
     for (const item of items) {
       if (item.modelid == user.config.modelid) return item
     }
-  }(user.selectedShop.items)
+  }(user.selectedShop.items) || user.selectedItem
 
   user.config.price = user.config.predictPrice || function (item) {
     if (item.models) {
@@ -753,7 +753,7 @@ const getCart = async function (ctx, getCache = false) {
       }
     }
     return item.origin_cart_item_price
-  }(user.selectedItem)
+  }(user.selectedItem) || user.config.price
 
   postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
