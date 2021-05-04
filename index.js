@@ -156,7 +156,7 @@ bot.use((ctx, next) => {
 bot.start((ctx) => {
   let banner = `${process.env.BOT_NAME} <b>v.${packageJson.version}</b>`
   banner += `\n\n<b>==== LIST OPSI SHOP BOT ====</b>`
-  banner += `\n\nOpsi <code>/beli</code> ini lah BOT online shopee nya, Agan akan Diperingatkan Login terlebih dahulu apabila email password dan token Agan masih kosong`
+  banner += `\n\nOpsi <code>/beli</code> ini lah BOT online shopee nya, Agan akan Diperingatkan Login terlebih dahulu apabila email password Agan masih kosong`
   banner += `\n >> Contohnya : /beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
   banner += `\n\nOpsi <code>/stop</code> Digunakan untuk membatalkan atau stop antrian pembelian flashsale berjadwal`
   banner += `\n >> Contohnya : /stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
@@ -710,48 +710,45 @@ const getCart = async function (ctx, getCache = false) {
   }).catch((err) => user.infoKeranjang ? sleep(1) : sendReportToDev(ctx, err));
   if (user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
-  return waitUntil(user, 'infoKeranjang')
-    .then(() => {
+  user.selectedShop = function (shops) {
+    for (const shop of shops) {
+      if (shop.shop.shopid == user.config.shopid) return shop
+    }
+  }(user.infoKeranjang.data.shop_orders)
 
-      user.selectedShop = function (shops) {
-        for (const shop of shops) {
-          if (shop.shop.shopid == user.config.shopid) return shop
-        }
-      }(user.infoKeranjang.data.shop_orders)
+  user.selectedItem = function (items) {
+    for (const item of items) {
+      if (item.modelid == user.config.modelid) return item
+    }
+  }(user.selectedShop.items)
 
-      user.selectedItem = function (items) {
-        for (const item of items) {
-          if (item.modelid == user.config.modelid) return item
-        }
-      }(user.selectedShop.items)
+  user.config.price = user.config.predictPrice || function (item) {
+    if (item.models) {
+      for (const model of item.models) {
+        if (
+          model.itemid == user.config.itemid &&
+          model.shop_id == user.config.shopid &&
+          model.modelid == user.config.modelid &&
+          model.promotionid == user.config.promotionid
+        ) return model.price
+      }
+    }
+    return item.origin_cart_item_price
+  }(user.selectedItem)
 
-      user.config.price = user.config.predictPrice || function (item) {
-        if (item.models) {
-          for (const model of item.models) {
-            if (
-              model.itemid == user.config.itemid &&
-              model.shop_id == user.config.shopid &&
-              model.modelid == user.config.modelid &&
-              model.promotionid == user.config.promotionid
-            ) return model.price
-          }
-        }
-        return item.origin_cart_item_price
-      }(user.selectedItem)
+  postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = JSON.parse(body);
+    if (chunk.data && chunk.error == 0) {
+      user.updateKeranjang = chunk
+      user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+    }
+    curl.close()
+  }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out PostUpdateKeranjang') }))
 
-      postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        let chunk = JSON.parse(body);
-        if (chunk.data && chunk.error == 0) {
-          user.updateKeranjang = chunk
-          user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        }
-        curl.close()
-      }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out PostUpdateKeranjang') }))
+  return getCheckout(ctx, getCache);
 
-      return getCheckout(ctx, getCache);
-
-    }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until PostInfoKeranjang') }));
+  // return waitUntil(user, 'infoKeranjang').then().catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Wait Until PostInfoKeranjang') }));
 }
 
 const getCheckout = async function (ctx, getCache) {
