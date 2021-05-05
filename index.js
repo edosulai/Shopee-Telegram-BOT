@@ -798,7 +798,7 @@ const getCheckout = async function (ctx, getCache) {
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
     .then(async () => {
       user.infoCheckoutLong = user.config.infoCheckoutLong
-
+      delete user.config.infoCheckoutLong
       await waitUntil(user, 'updateKeranjang').then().catch((err) => sendReportToDev(ctx, err));
 
       await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -957,10 +957,10 @@ const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
 
 const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
-  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
+  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-    }).catch(async (err) => process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`))
+    }).catch((err) => console.log(oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")))
   }
 }
 
