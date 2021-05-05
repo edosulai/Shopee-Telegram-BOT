@@ -729,7 +729,7 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 12)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 15)) : sendReportToDev(ctx, err));
   if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
   user.selectedShop = function (shops) {
@@ -792,7 +792,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.infoCheckoutQuick.time / 4)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(Math.round(user.infoCheckoutQuick.time / 6)) : sendReportToDev(ctx, err));
   if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
@@ -962,6 +962,7 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
       oldMsg.text = replyCtx.text
     }).catch(async (err) => {
       newMsg = `${timeConverter(Date.now())} Maaf Ada Sedikit Kesalahan Kecil.. Jangan Di Hiraukan.. ${generateString(16)}`
+      oldMsg.text = newMsg
       process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`)
     })
   }
