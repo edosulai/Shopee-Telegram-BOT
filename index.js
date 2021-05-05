@@ -960,7 +960,10 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-    }).catch((err) => console.log(oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")))
+    }).catch(async (err) => {
+      await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, `${timeConverter(Date.now())} Maaf Ada Sedikit Kesalahan Kecil.. Jangan Di Hiraukan.. ${generateString(16)}`, { parse_mode: 'HTML' })
+      return process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`)
+    })
   }
 }
 
