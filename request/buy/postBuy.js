@@ -23,12 +23,11 @@ module.exports = async function (user) {
     let typeLogist = { priority: Number.MAX_VALUE }
     for (const logisticType in logistics.logistic_service_types) {
       if (!Object.hasOwnProperty.call(logistics.logistic_service_types, logisticType)) continue;
-
       const type = logistics.logistic_service_types[logisticType];
       if (
         type.enabled &&
         type.priority < typeLogist.priority &&
-        !['instant', 'next_day', 'self_collection', 'regular_cargo'].includes(type.identifier)
+        !['instant', 'next_day', 'self_collection'].includes(type.identifier)
       ) {
         typeLogist = type
       }
