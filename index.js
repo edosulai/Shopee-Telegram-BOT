@@ -957,14 +957,10 @@ const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
 
 const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
-  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
+  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-    }).catch(async (err) => {
-      newMsg = `${timeConverter(Date.now())} Maaf Ada Sedikit Kesalahan Kecil.. Jangan Di Hiraukan.. ${generateString(16)}`
-      oldMsg.text = newMsg
-      process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`)
-    })
+    }).catch(async (err) => process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`))
   }
 }
 
