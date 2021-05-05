@@ -962,13 +962,7 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
       oldMsg.text = replyCtx.text
     }).catch(async (err) => {
       newMsg = `${timeConverter(Date.now())} Maaf Ada Sedikit Kesalahan Kecil.. Jangan Di Hiraukan.. ${generateString(16)}`
-      oldMsg.text = newMsg
-      return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg).then((replyCtx) => {
-        oldMsg.text = replyCtx.text
-      }).catch((err) => {
-        oldMsg.text = newMsg
-        process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`)
-      });
+      process.stdout.write(`${timeConverter(Date.now())} ${oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")} ${newMsg}`)
     })
   }
 }
