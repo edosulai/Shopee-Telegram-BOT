@@ -792,7 +792,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.infoCheckoutQuick.time / 6)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(Math.round(user.infoCheckoutQuick.time / 5)) : sendReportToDev(ctx, err));
   if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
