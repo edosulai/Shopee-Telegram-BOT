@@ -565,7 +565,7 @@ bot.command('beli', async (ctx) => {
       user.config.start = Date.now()
 
       if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
-        return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang ? user.infoBarang.item.name : ''} Sudah Di Matikan`)
+        return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Sudah Di Matikan`)
       }
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -590,7 +590,7 @@ bot.command('beli', async (ctx) => {
 
       let msg = ``
       msg += timeConverter(Date.now() - user.config.end, { countdown: true })
-      msg += ` - ${user.infoBarang.item.name}`
+      msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`
 
       if (user.infoBarang.item.stock < 1) {
         user.config.outstock = true
@@ -670,11 +670,11 @@ bot.command('beli', async (ctx) => {
     }
 
     if (!user.payment) {
-      return replaceMessage(ctx, user.config.message, `Semua Metode Pembayaran Untuk Item ${user.infoBarang.item.name} Tidak Tersedia\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
+      return replaceMessage(ctx, user.config.message, `Semua Metode Pembayaran Untuk Item ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
     }
 
     if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
-      return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name} Sudah Di Matikan`)
+      return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} Sudah Di Matikan`)
     }
 
     while (
@@ -729,7 +729,7 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.infoKeranjang.time / 15)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
   if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
   user.selectedShop = function (shops) {
@@ -792,7 +792,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(Math.round(user.infoCheckoutQuick.time / 5)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
   if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong')
@@ -807,7 +807,7 @@ const getCheckout = async function (ctx, getCache) {
       }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Inside Wait Until Delete PostUpdateKeranjang') }));
 
       user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
-      await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name} Tidak Tersedia`)
+      await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia`)
 
       await Logs.updateOne({
         teleChatId: ctx.message.chat.id,
@@ -824,7 +824,7 @@ const getCheckout = async function (ctx, getCache) {
         selectedItem: user.selectedItem
       }, { upsert: true }).exec()
 
-      return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name} Telah Di Dapatkan` : null}`
+      return `${isAdmin(ctx) ? `Cache Produk ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Telah Di Dapatkan` : null}`
     }).catch(async (err) => {
       return sendReportToDev(ctx, err, 'Error', () => {
         return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -860,10 +860,9 @@ const buyItem = function (ctx) {
 
     if (user.order.error) {
       user.config.fail = user.config.fail + 1
-      info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name})</b>\n${user.order.error_msg}</i>\n${isAdmin(ctx) ? user.order.error : ''}`
+      info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${isAdmin(ctx) ? user.order.error : ''}`
 
       if (user.config.fail < 3 && ['error_empty_cart', 'error_fulfillment_info_changed_mwh', 'error_payable_mismatch'].includes(user.order.error)) {
-        info += `\n\n<b>Sedang Mencoba Kembali...</b>`
         user.config.info.push(info)
         return buyItem(ctx)
       }
@@ -909,7 +908,7 @@ const buyItem = function (ctx) {
 
     } else {
       user.config.fail = 0
-      info += `\n\n<i>Barang <b>(${user.selectedItem.name})</b> Berhasil Di Pesan</i>`
+      info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
 
       await Logs.updateOne({
         teleChatId: ctx.message.chat.id,
@@ -956,7 +955,7 @@ const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
 }
 
 const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
-  if (filter) newMsg = newMsg.replace(/(<([^>]+)>)/gi, "");
+  if (filter) newMsg = newMsg.replace(/<[^>]*>?/gm, "");
   if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
     return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
@@ -985,10 +984,10 @@ const dropQueue = function (queue, user = {}) {
   for (let i = 0; i < queuePromotion.length; i++) {
     if (queuePromotion[i].match(queue)) {
       queuePromotion.splice(i)
-      return `Barang ${user.infoBarang ? user.infoBarang.item.name : ''} Telah Di Hapus Dari Queue`;
+      return `Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Telah Di Hapus Dari Queue`;
     }
   }
-  return `Queue Barang ${user.infoBarang ? user.infoBarang.item.name : ''} Tidak Ditemukan`;
+  return `Queue Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Tidak Ditemukan`;
 }
 
 const timeConverter = function (timestamp, { usemilis = false, countdown = false }) {
@@ -1067,11 +1066,6 @@ const sleep = function (milliseconds, callback = null) {
     currentDate = Date.now();
   } while (currentDate - date < milliseconds);
   if (typeof callback == 'function') return callback()
-}
-
-const replaceAll = function (str, find, replace) {
-  let escapedFind = find.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-  return str.replace(new RegExp(escapedFind, 'g'), replace);
 }
 
 const extractHostname = function (url) {
