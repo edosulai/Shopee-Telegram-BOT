@@ -10,13 +10,13 @@ module.exports = async function (user) {
       'x-api-source: pc',
       'x-shopee-language: id',
       'x-requested-with: XMLHttpRequest',
-      'if-none-match-: 55b03-dbb521e77da51939fe525a9a29145ae1',
+      'if-none-match-: 55b03-cb72fe71c780542b58b0250425d63565',
       'accept: */*',
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      'referer: https://shopee.co.id/user/purchase/list/?type=7',
+      'referer: https://shopee.co.id/user/purchase/list/?checkout=true&type=9',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       `cookie: ${curl.serializeCookie(user.userCookie)}`
-    ]).get(`https://shopee.co.id/api/v1/orders/?order_type=7&offset=0&limit=5`)
+    ]).get(`https://shopee.co.id/api/v1/checkouts/?limit=5`)
 }

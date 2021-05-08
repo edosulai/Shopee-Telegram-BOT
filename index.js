@@ -27,7 +27,6 @@ const packageJson = require('./package.json'),
   waitUntil = require('./helpers/waitUntil'),
 
   getLogin = require('./request/auth/getLogin'),
-  getLogout = require('./request/auth/getLogout'),
   postLogin = require('./request/auth/postlogin'),
   postSendOtp = require('./request/auth/postSendOtp'),
   postVerifyOtp = require('./request/auth/postVerifyOtp'),
@@ -36,15 +35,14 @@ const packageJson = require('./package.json'),
   postKeranjang = require('./request/buy/postKeranjang'),
   postUpdateKeranjang = require('./request/buy/postUpdateKeranjang'),
   postInfoKeranjang = require('./request/buy/postInfoKeranjang'),
-  postCheckout = require('./request/buy/postCheckout'),
   postInfoCheckoutQuick = require('./request/buy/postInfoCheckoutQuick'),
   postInfoCheckout = require('./request/buy/postInfoCheckout'),
   postBuy = require('./request/buy/postBuy'),
 
   getInfoPengiriman = require('./request/other/getInfoPengiriman'),
   getAddress = require('./request/other/getAddress'),
-  getShopVoucher = require('./request/other/getShopVoucher'),
   getOrders = require('./request/other/getOrders'),
+  getCheckouts = require('./request/other/getCheckouts'),
   postCancel = require('./request/other/postCancel')
 
 let queuePromotion = []
@@ -165,7 +163,7 @@ bot.use((ctx, next) => {
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
     ctx.session.Curl = Curl
-    if (process.env.NODE_ENV == 'development' && !isAdmin(ctx, true)) {
+    if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
       ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `Mencoba Akses BOT`, 'Info'))
       return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info'));
     }
@@ -212,7 +210,7 @@ bot.help(async (ctx) => {
 bot.command('quit', (ctx) => ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info')))
 
 bot.command('announce', (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   let commands = ctx.message.text.split('/announce ')
   if (commands.length < 2) return ctx.reply(`/announce <code>...message...</code>`, { parse_mode: 'HTML' })
   let msg = commands[1].replace(/(<([^>]+)>)/gi, "")
@@ -225,7 +223,7 @@ bot.command('announce', (ctx) => {
 })
 
 bot.command('speedtest', async (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/speedtest ')
   if (commands == null) return ctx.reply(`/speedtest <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
 
@@ -282,7 +280,7 @@ bot.command('speedtest', async (ctx) => {
 })
 
 bot.command('logs', async (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/logs ')
   if (commands == null) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
@@ -296,7 +294,7 @@ bot.command('logs', async (ctx) => {
 })
 
 bot.command('failures', async (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/failures ')
   if (commands == null) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
@@ -310,7 +308,7 @@ bot.command('failures', async (ctx) => {
 })
 
 bot.command('user', async (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/user ')
 
   if (commands == null) {
@@ -482,7 +480,7 @@ bot.command('beli', async (ctx) => {
   if (commands['-cod'] && commands['-shopeepay']) return replaceMessage(ctx, user.config.message, 'Silahkan Pilih Hanya Salah Satu Metode Pembayaran')
 
   for (let queue of queuePromotion) {
-    if (queue.split(':')[0] == getSessionKey(ctx) && !isAdmin(ctx, true)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
+    if (queue.split(':')[0] == getSessionKey(ctx) && !ensureRole(ctx, true)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
   user.others = (await Others.find())[0]
@@ -509,8 +507,8 @@ bot.command('beli', async (ctx) => {
       },
       skiptimer: commands['-skiptimer'] || false,
       autocancel: commands['-autocancel'] || false,
-      makecache: commands['-makecache'] || false,
-      repeat: commands['-repeat'] || false,
+      makecache: commands['-makecache'] ? ensureRole(ctx) : false,
+      repeat: commands['-repeat'] ? ensureRole(ctx) : false,
       predictPrice: commands.price ? parseInt(commands.price) * 100000 : false,
       fail: 0,
       outstock: false,
@@ -523,7 +521,7 @@ bot.command('beli', async (ctx) => {
     !Number.isInteger(user.config.shopid)
   ) return replaceMessage(ctx, user.config.message, 'Identitas Barang Tidak Terbaca, Harap Coba Kembali')
 
-  if (commands['-usecache']) {
+  if (commands['-usecache'] ? ensureRole(ctx) : false) {
     await Logs.findOne({
       teleChatId: ctx.message.chat.id,
       itemid: parseInt(commands.url.split(".")[commands.url.split(".").length - 1]),
@@ -611,10 +609,7 @@ bot.command('beli', async (ctx) => {
 
       await replaceMessage(ctx, user.config.message, msg)
 
-      sleep(function (start) {
-        start = (200 * queuePromotion.length) - (Date.now() - start)
-        return start > 0 ? start : 0
-      }(user.config.start))
+      sleep(ensureRole(ctx, true) ? 200 : (200 * queuePromotion.length) - (Date.now() - user.config.start))
 
     } while (!user.config.skiptimer)
 
@@ -686,23 +681,23 @@ bot.command('beli', async (ctx) => {
     let info = await getCart(ctx)
     dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
     if (typeof info == 'string') {
-      if (!isAdmin(ctx, true)) sendReportToDev(ctx, info, 'Success')
+      if (!ensureRole(ctx, true)) sendReportToDev(ctx, info, 'Success')
       return replaceMessage(ctx, user.config.message, info, false)
     } else {
-      // await Failures.updateOne({
-      //   teleChatId: ctx.message.chat.id,
-      //   itemid: user.config.itemid,
-      //   shopid: user.config.shopid,
-      //   modelid: user.config.modelid
-      // }, {
-      //   postBuyBody: user.postBuyBody,
-      //   infoBarang: user.infoBarang,
-      //   infoPengiriman: user.infoPengiriman,
-      //   infoKeranjang: user.infoKeranjang,
-      //   updateKeranjang: user.updateKeranjang,
-      //   infoCheckoutQuick: user.infoCheckoutQuick,
-      //   infoCheckoutLong: user.infoCheckoutLong
-      // }, { upsert: true }).exec()
+      await Failures.updateOne({
+        teleChatId: ctx.message.chat.id,
+        itemid: user.config.itemid,
+        shopid: user.config.shopid,
+        modelid: user.config.modelid
+      }, {
+        postBuyBody: user.postBuyBody,
+        infoBarang: user.infoBarang,
+        infoPengiriman: user.infoPengiriman,
+        infoKeranjang: user.infoKeranjang,
+        updateKeranjang: user.updateKeranjang,
+        infoCheckoutQuick: user.infoCheckoutQuick,
+        infoCheckoutLong: user.infoCheckoutLong
+      }, { upsert: true }).exec()
     }
   }).catch((err) => sendReportToDev(ctx, err));
 })
@@ -823,7 +818,7 @@ const getCheckout = async function (ctx, getCache) {
         selectedItem: user.selectedItem
       }, { upsert: true }).exec()
 
-      return `${isAdmin(ctx, true) ? `Cache Produk ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Telah Di Dapatkan` : null}`
+      return `${ensureRole(ctx, true) ? `Cache Produk ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Telah Di Dapatkan` : null}`
     }).catch(async (err) => {
       return sendReportToDev(ctx, err, 'Error', () => {
         return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -845,7 +840,7 @@ const buyItem = function (ctx) {
 
     let info = `Detail Informasi : `
 
-    if (isAdmin(ctx, true)) {
+    if (ensureRole(ctx, true)) {
       info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
       info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
       info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
@@ -860,7 +855,7 @@ const buyItem = function (ctx) {
 
     if (user.order.error) {
       user.config.fail = user.config.fail + 1
-      info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${isAdmin(ctx, true) ? user.order.error : ''}`
+      info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : ''}`
 
       if (user.config.fail < 3 && ['error_empty_cart', 'error_fulfillment_info_changed_mwh', 'error_payable_mismatch'].includes(user.order.error)) {
         user.config.info.push(info)
@@ -933,98 +928,157 @@ const buyRepeat = async function (ctx) {
 
   do {
     await postBuy(user).then().catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 200);
+  } while (Date.now() - user.config.start < 2000);
 
-  return getOrders(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    curl.close()
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+  sleep(1000);
 
-    let info = `Detail Informasi : `
+  if (user.payment.method.payment_channelid) {
 
-    if (isAdmin(ctx, true)) {
-      info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
-      info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
-      info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
-      info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
-      info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
-      info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-    }
+    return getOrders(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      curl.close()
+      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      if (!body) return sendReportToDev(ctx, 'Body buyRepeat Kosong', 'Error')
 
-    info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-    info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
-    info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
+      let info = `Detail Informasi : `
 
-    if (user.payment.method.payment_channelid) {
+      if (ensureRole(ctx, true)) {
+        info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
+        info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
+        info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
+        info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
+        info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
+        info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
+        info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
+      }
+
+      info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
+      info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
+
       for (const orders of JSON.parse(body).orders) {
         if (
-          Date.now() - orders.mtime <= 1 &&
+          Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
           orders.extinfo.first_itemid == user.config.itemid &&
           orders.extinfo.modelid == user.config.modelid &&
           orders.shopid == user.config.shopid
         ) {
-          user.orders = orders;
-          break;
+          user.order = orders;
+          info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+          if (user.config.autocancel) {
+            await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              curl.close()
+              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
+            }).catch((err) => sendReportToDev(ctx, err));
+          }
         }
       }
-    } else {
+
+      if (user.order) {
+        await Logs.updateOne({
+          teleChatId: ctx.message.chat.id,
+          itemid: user.config.itemid,
+          shopid: user.config.shopid,
+          modelid: user.config.modelid
+        }, {
+          infoKeranjang: user.infoKeranjang,
+          updateKeranjang: user.updateKeranjang,
+          infoCheckoutQuick: user.infoCheckoutQuick,
+          infoCheckoutLong: user.infoCheckoutLong,
+          payment: user.payment,
+          selectedShop: user.selectedShop,
+          selectedItem: user.selectedItem
+        }, { upsert: true }).exec()
+      } else {
+        info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b></i>`
+        await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
+          curl.close()
+          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+          info += `\n\nBarang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
+        }).catch((err) => sendReportToDev(ctx, err));
+      }
+
+      await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
+
+      info += `\n\n============================================= `
+      user.config.info.push(info)
+      return user.config.info.join('\n\n')
+    }).catch((err) => sendReportToDev(ctx, err));
+
+  } else {
+
+    return getCheckouts(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      curl.close()
+      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      if (!body) return sendReportToDev(ctx, 'Body buyRepeat Kosong', 'Error')
+
+      let info = `Detail Informasi : `
+
+      if (ensureRole(ctx, true)) {
+        info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
+        info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
+        info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
+        info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
+        info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
+        info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
+        info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
+      }
+
+      info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
+      info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
+
       for (const checkouts of JSON.parse(body).checkouts) {
         for (const orders of checkouts.orders) {
           if (
-            Date.now() - orders.mtime <= 1 &&
+            Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
             orders.extinfo.first_itemid == user.config.itemid &&
             orders.extinfo.modelid == user.config.modelid &&
             orders.shopid == user.config.shopid
           ) {
-            user.orders = orders;
-            break;
+            user.order = orders;
+            info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+            if (user.config.autocancel) {
+              await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+                curl.close()
+                user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+                info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
+              }).catch((err) => sendReportToDev(ctx, err));
+            }
           }
         }
       }
-    }
 
-    if (user.orders) {
-      info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-
-      await Logs.updateOne({
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        shopid: user.config.shopid,
-        modelid: user.config.modelid
-      }, {
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment,
-        selectedShop: user.selectedShop,
-        selectedItem: user.selectedItem
-      }, { upsert: true }).exec()
-
-      if (user.config.autocancel) {
-        await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      if (user.order) {
+        await Logs.updateOne({
+          teleChatId: ctx.message.chat.id,
+          itemid: user.config.itemid,
+          shopid: user.config.shopid,
+          modelid: user.config.modelid
+        }, {
+          infoKeranjang: user.infoKeranjang,
+          updateKeranjang: user.updateKeranjang,
+          infoCheckoutQuick: user.infoCheckoutQuick,
+          infoCheckoutLong: user.infoCheckoutLong,
+          payment: user.payment,
+          selectedShop: user.selectedShop,
+          selectedItem: user.selectedItem
+        }, { upsert: true }).exec()
+      } else {
+        info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b></i>`
+        await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
           curl.close()
           user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-          info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
+          info += `\n\nBarang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
         }).catch((err) => sendReportToDev(ctx, err));
       }
 
-    } else {
-      info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b></i>`
+      await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
 
-      await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        info += `\n\nBarang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-      }).catch((err) => sendReportToDev(ctx, err));
+      info += `\n\n============================================= `
+      user.config.info.push(info)
+      return user.config.info.join('\n\n')
+    }).catch((err) => sendReportToDev(ctx, err));
 
-    }
-
-    await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
-
-    info += `\n\n============================================= `
-    user.config.info.push(info)
-    return user.config.info.join('\n\n')
-  }).catch((err) => sendReportToDev(ctx, err));
+  }
 }
 
 const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
@@ -1042,7 +1096,7 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
 }
 
 const sendReportToDev = async function (ctx, msg, type = 'Error', callback = null) {
-  await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+  await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
   if (typeof callback == 'function') return callback()
 }
 
@@ -1117,9 +1171,9 @@ const isValidURL = function (string) {
   return url.protocol === "http:" || url.protocol === "https:";
 }
 
-const isAdmin = function (ctx, ignore = false) {
-  if (ctx.session.userRole == 'admin') return true
-  if (!ignore) sendReportToDev(ctx, `Mencoba Mengakses Fitur Admin`, 'Info')
+const ensureRole = function (ctx, ignoreReport = false, allowRole = ['admin']) {
+  if (allowRole.includes(ctx.session.userRole)) return true
+  if (!ignoreReport) sendReportToDev(ctx, `Mencoba Mengakses Fitur ${allowRole.join(' ')}`, 'Info')
   return false
 }
 
@@ -1204,7 +1258,7 @@ const generateString = function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVW
 }
 
 bot.command('xplay', async (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/xplay ')
@@ -1264,7 +1318,7 @@ bot.command('xplay', async (ctx) => {
 })
 
 bot.command('env', async (ctx) => {
-  if (!isAdmin(ctx)) return
+  if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/env ')
   if (commands == null) {
     return ctx.reply(`<code>${JSON.stringify(dotenv.parse(Buffer.from(fs.readFileSync('./.env'))), null, "\t")}</code>`, { parse_mode: 'HTML' })
@@ -1272,7 +1326,7 @@ bot.command('env', async (ctx) => {
 })
 
 // bot.command('restart', async (ctx) => {
-//   if (!isAdmin(ctx)) return
+//   if (!ensureRole(ctx)) return
 //   process.exit(1);
 // })
 
