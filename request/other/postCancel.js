@@ -22,10 +22,10 @@ module.exports = async function (user) {
         'sec-fetch-site: same-origin',
         'sec-fetch-mode: cors',
         'sec-fetch-dest: empty',
-        `referer: https://shopee.co.id/user/purchase/order/${user.order.orderids[0]}/?shopid=${user.order.shopid}`,
+        `referer: https://shopee.co.id/user/purchase/order/${user.order.orderids ? user.order.orderids[0] : user.order.orderid}/?shopid=${user.order.shopid}`,
         'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
         `cookie: ${curl.serializeCookie(user.userCookie)}`,
-      ]).setBody(JSON.stringify({ "orderid": user.order.orderids[0], "shopid": user.order.shopid, "reason": 9 })).post(`https://shopee.co.id/api/v2/order/buyer_cancel_order`)
+      ]).setBody(JSON.stringify({ "orderid": user.order.orderids ? user.order.orderids[0] : user.order.orderid, "shopid": user.order.shopid, "reason": 9 })).post(`https://shopee.co.id/api/v2/order/buyer_cancel_order`)
 
   } else {
 
