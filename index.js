@@ -47,7 +47,7 @@ const packageJson = require('./package.json'),
 
 let queuePromotion = []
 
-mongoose.connect('mongodb://localhost:27017/shopbot', { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((res, err) => console.log('Database Connected...'))
   .catch((err) => console.error(err))
 
