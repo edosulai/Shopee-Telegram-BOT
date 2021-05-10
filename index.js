@@ -928,7 +928,7 @@ const buyRepeat = async function (ctx) {
 
   do {
     await postBuy(user).then().catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 2000);
+  } while (Date.now() - user.config.start < 1500);
 
   sleep(1000);
 
