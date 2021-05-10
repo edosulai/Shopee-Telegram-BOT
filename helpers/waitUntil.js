@@ -1,18 +1,38 @@
 module.exports = function (fromObject, ...wantToCheckValueIsExist) {
-  let start = Date.now()
+  const start = Date.now()
   let x = 0;
+  let check = true
+  let callback = null
+
   return new Promise((resolve, reject) => {
     try {
+      for (const each of wantToCheckValueIsExist) {
+        if (typeof each == 'function') {
+          callback = each;
+          continue;
+        }
+        check = check && typeof fromObject[each] != 'undefined'
+      }
+      if (check) {
+        if (typeof callback == 'function') return callback(resolve, reject)
+        return resolve()
+      }
+
       const until = setInterval(function () {
-        let check = true
+        check = true
         for (const each of wantToCheckValueIsExist) {
+          if (typeof each == 'function') {
+            callback = each;
+            continue;
+          }
           check = check && typeof fromObject[each] != 'undefined'
         }
         if (check) {
           clearInterval(until)
+          if (typeof callback == 'function') return callback(resolve, reject)
           return resolve()
         }
-        process.stdout.write(`\r ${["\\", "|", "/", "-"][x++]} `);
+        process.stdout.write(`\rLoading ${["\\", "|", "/", "-"][x++]}`);
         x &= 3;
         if (Date.now() - start > 3000) {
           clearInterval(until)

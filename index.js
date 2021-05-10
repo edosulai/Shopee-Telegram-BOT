@@ -713,7 +713,7 @@ const getCart = async function (ctx, getCache = false) {
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
   }).catch((err) => !getCache ? sleep(Math.round(user.keranjang.time / 3)) : sendReportToDev(ctx, err));
-  if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja <code>${user.keranjang.error_msg}</code>`
+  if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja`
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -724,7 +724,6 @@ const getCart = async function (ctx, getCache = false) {
     }
     curl.close()
   }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
-  if (!user.infoKeranjang || user.infoKeranjang.error != 0) return `Gagal Mendapatkan Info Keranjang Belanja <code>${user.infoKeranjang.error_msg}</code>`
 
   user.selectedShop = function (shops) {
     for (const shop of shops) {
@@ -789,44 +788,44 @@ const getCheckout = async function (ctx, getCache) {
   }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
   if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
-  return getCache ? waitUntil(user.config, 'infoCheckoutLong')
-    .then(async () => {
-      user.infoCheckoutLong = user.config.infoCheckoutLong
-      delete user.config.infoCheckoutLong
-      await waitUntil(user, 'updateKeranjang').then().catch((err) => sendReportToDev(ctx, err));
+  return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
+    return waitUntil(user, 'updateKeranjang').then(() => resolve()).catch((err) => reject(err));
+  }).then(async () => {
+    user.infoCheckoutLong = user.config.infoCheckoutLong
+    delete user.config.infoCheckoutLong
 
-      await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      curl.close()
+      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Inside Wait Until Delete PostUpdateKeranjang') }));
+
+    user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
+    await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia`)
+
+    await Logs.updateOne({
+      teleChatId: ctx.message.chat.id,
+      itemid: user.config.itemid,
+      shopid: user.config.shopid,
+      modelid: user.config.modelid
+    }, {
+      infoKeranjang: user.infoKeranjang,
+      updateKeranjang: user.updateKeranjang,
+      infoCheckoutQuick: user.infoCheckoutQuick,
+      infoCheckoutLong: user.infoCheckoutLong,
+      payment: user.payment,
+      selectedShop: user.selectedShop,
+      selectedItem: user.selectedItem
+    }, { upsert: true }).exec()
+
+    return `${ensureRole(ctx, true) ? `Cache Produk ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Telah Di Dapatkan` : null}`
+  }).catch(async (err) => {
+    return sendReportToDev(ctx, err, 'Error', () => {
+      return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Time Out Inside Wait Until Delete PostUpdateKeranjang') }));
-
-      user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
-      await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia`)
-
-      await Logs.updateOne({
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        shopid: user.config.shopid,
-        modelid: user.config.modelid
-      }, {
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment,
-        selectedShop: user.selectedShop,
-        selectedItem: user.selectedItem
-      }, { upsert: true }).exec()
-
-      return `${ensureRole(ctx, true) ? `Cache Produk ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Telah Di Dapatkan` : null}`
-    }).catch(async (err) => {
-      return sendReportToDev(ctx, err, 'Error', () => {
-        return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-          curl.close()
-          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        }).catch((err) => sendReportToDev(ctx, err));
-      })
-    }) : !user.config.repeat ? buyItem(ctx) : buyRepeat(ctx);
+      }).catch((err) => sendReportToDev(ctx, err));
+    })
+  }) : !user.config.repeat ? buyItem(ctx) : buyRepeat(ctx);
 }
 
 const buyItem = function (ctx) {
@@ -1086,10 +1085,10 @@ const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
   if (typeof callback == 'function') return callback()
 }
 
-const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
+const replaceMessage = function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/<[^>]*>?/gm, "");
   if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
-    return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
+    return ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
     }).catch((err) => process.stdout.write(`\r${err}`))
   }

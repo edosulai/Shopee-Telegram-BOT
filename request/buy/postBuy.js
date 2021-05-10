@@ -535,10 +535,11 @@ module.exports = async function (user) {
     return buyIt(user.postBuyBodyLong)
   }
 
-  return waitUntil(user, 'updateKeranjang', 'infoCheckoutQuick')
-    .then(async () => {
-      if (user.updateKeranjang.error != 0) return new Promise((resolve, reject) => reject(`Gagal Mendapatkan Update Keranjang Belanja : ${user.updateKeranjang.error}`))
-      user.postBuyBody = user.postBuyBody || postBuyBody(user)
-      return buyIt(user.postBuyBody)
-    }).catch((err) => new Promise((resolve, reject) => reject(err)));
+  return waitUntil(user, 'updateKeranjang', 'infoCheckoutQuick', function (resolve, reject) {
+    if (user.updateKeranjang.error != 0) return reject(`Gagal Mendapatkan Update Keranjang Belanja : ${user.updateKeranjang.error}`)
+    return resolve()
+  }).then(async () => {
+    user.postBuyBody = user.postBuyBody || postBuyBody(user)
+    return buyIt(user.postBuyBody)
+  }).catch((err) => new Promise((resolve, reject) => reject(err)));
 }
