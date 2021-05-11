@@ -759,7 +759,7 @@ const getCart = async function (ctx, getCache = false) {
       user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Timeout PostUpdateKeranjang') }))
+  }).catch((err) => sendReportToDev(ctx, err, 'Error', () => userLogs(ctx, 'Timeout PostUpdateKeranjang')))
 
   return getCheckout(ctx, getCache);
 }
@@ -775,7 +775,7 @@ const getCheckout = async function (ctx, getCache) {
       user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Timeout PostInfoCheckout') }));
+  }).catch((err) => sendReportToDev(ctx, err, 'Error', () => userLogs(ctx, 'Timeout PostInfoCheckout')));
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -785,7 +785,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err, () => userLogs(ctx, 'Timeout postInfoCheckoutQuick')));
   if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
@@ -797,7 +797,7 @@ const getCheckout = async function (ctx, getCache) {
     await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    }).catch((err) => sendReportToDev(ctx, err, 'Error', () => { userLogs(ctx, 'Timeout Inside Wait Until Delete PostUpdateKeranjang') }));
+    }).catch((err) => sendReportToDev(ctx, err, 'Error', () => userLogs(ctx, 'Timeout Inside Wait Until Delete PostUpdateKeranjang')));
 
     user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
     await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia`)
