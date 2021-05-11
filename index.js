@@ -929,7 +929,7 @@ const buyRepeat = async function (ctx) {
     await postBuy(user).then().catch((err) => sleep(1));
   } while (Date.now() - user.config.start < 1500);
 
-  sleep(1000);
+  sleep(500);
 
   if (user.payment.method.payment_channelid) {
 
