@@ -972,29 +972,22 @@ const buyRepeat = async function (ctx) {
         }
       }
 
-      if (user.order) {
-        await Logs.updateOne({
-          teleChatId: ctx.message.chat.id,
-          itemid: user.config.itemid,
-          shopid: user.config.shopid,
-          modelid: user.config.modelid
-        }, {
-          infoKeranjang: user.infoKeranjang,
-          updateKeranjang: user.updateKeranjang,
-          infoCheckoutQuick: user.infoCheckoutQuick,
-          infoCheckoutLong: user.infoCheckoutLong,
-          payment: user.payment,
-          selectedShop: user.selectedShop,
-          selectedItem: user.selectedItem
-        }, { upsert: true }).exec()
-      } else {
-        info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b></i>`
-        await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-          curl.close()
-          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-          info += `\n\nBarang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-        }).catch((err) => sendReportToDev(ctx, err));
-      }
+      if (!user.order) return buyItem(ctx)
+
+      await Logs.updateOne({
+        teleChatId: ctx.message.chat.id,
+        itemid: user.config.itemid,
+        shopid: user.config.shopid,
+        modelid: user.config.modelid
+      }, {
+        infoKeranjang: user.infoKeranjang,
+        updateKeranjang: user.updateKeranjang,
+        infoCheckoutQuick: user.infoCheckoutQuick,
+        infoCheckoutLong: user.infoCheckoutLong,
+        payment: user.payment,
+        selectedShop: user.selectedShop,
+        selectedItem: user.selectedItem
+      }, { upsert: true }).exec()
 
       await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
 
@@ -1046,29 +1039,22 @@ const buyRepeat = async function (ctx) {
         }
       }
 
-      if (user.order) {
-        await Logs.updateOne({
-          teleChatId: ctx.message.chat.id,
-          itemid: user.config.itemid,
-          shopid: user.config.shopid,
-          modelid: user.config.modelid
-        }, {
-          infoKeranjang: user.infoKeranjang,
-          updateKeranjang: user.updateKeranjang,
-          infoCheckoutQuick: user.infoCheckoutQuick,
-          infoCheckoutLong: user.infoCheckoutLong,
-          payment: user.payment,
-          selectedShop: user.selectedShop,
-          selectedItem: user.selectedItem
-        }, { upsert: true }).exec()
-      } else {
-        info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b></i>`
-        await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-          curl.close()
-          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-          info += `\n\nBarang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-        }).catch((err) => sendReportToDev(ctx, err));
-      }
+      if (!user.order) return buyItem(ctx)
+
+      await Logs.updateOne({
+        teleChatId: ctx.message.chat.id,
+        itemid: user.config.itemid,
+        shopid: user.config.shopid,
+        modelid: user.config.modelid
+      }, {
+        infoKeranjang: user.infoKeranjang,
+        updateKeranjang: user.updateKeranjang,
+        infoCheckoutQuick: user.infoCheckoutQuick,
+        infoCheckoutLong: user.infoCheckoutLong,
+        payment: user.payment,
+        selectedShop: user.selectedShop,
+        selectedItem: user.selectedItem
+      }, { upsert: true }).exec()
 
       await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
 
