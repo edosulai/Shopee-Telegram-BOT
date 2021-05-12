@@ -1073,14 +1073,15 @@ const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
 
 const replaceMessage = function (ctx, oldMsg, newMsg, filter = true) {
   if (filter) newMsg = newMsg.replace(/<[^>]*>?/gm, "");
-  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") != newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
+  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
     return ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
       oldMsg.text = replyCtx.text
-    }).catch((err) => process.stdout.write(`\r${err}`))
+    }).catch((err) => process.stdout.write(`\r ${err}`))
   }
 }
 
 const sendReportToDev = async function (ctx, msg, type = 'Error', callback = null) {
+  if (type == 'Error' && !msg.stack) msg = new Error(msg)
   await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
   if (typeof callback == 'function') return callback()
 }

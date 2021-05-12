@@ -169,7 +169,7 @@ module.exports = function () {
 
         this.curl.on('error', (err, errorCode, curlInstance) => {
           this.curl.close();
-          reject(new Error(err));
+          reject(err);
         });
         this.curl.perform();
       } catch (e) {
