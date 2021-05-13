@@ -1,20 +1,7 @@
-Object.size = function (obj) {
-  var size = 0,
-    key;
-  for (key in obj) {
-    if (obj.hasOwnProperty(key)) size++;
-  }
-  return size;
-}
-const dotenv = require('dotenv')
-dotenv.config()
-
-const packageJson = require('./package.json'),
+const dotenv = require('dotenv'),
   { Telegraf, session } = require('telegraf'),
   mongoose = require('mongoose'),
   fs = require('fs'),
-  path = require('path'),
-  cookie = require('cookie'),
   { exec } = require('child_process'),
   fetch = require('node-fetch'),
   crypto = require('crypto'),
@@ -23,6 +10,7 @@ const packageJson = require('./package.json'),
   { parse } = require('node-html-parser'),
   tr = require('tor-request'),
 
+  packageJson = require('./package.json'),
   Curl = require('./helpers/curl'),
   waitUntil = require('./helpers/waitUntil'),
 
@@ -43,7 +31,13 @@ const packageJson = require('./package.json'),
   getAddress = require('./request/other/getAddress'),
   getOrders = require('./request/other/getOrders'),
   getCheckouts = require('./request/other/getCheckouts'),
-  postCancel = require('./request/other/postCancel')
+  postCancel = require('./request/other/postCancel');
+
+dotenv.config();
+
+(function (helpers) {
+  for (const key in helpers) global[key] = helpers[key];
+})(require('./helpers/helpers'))
 
 let queuePromotion = []
 
@@ -124,7 +118,7 @@ const bot = new Telegraf(process.env.TOKEN)
 bot.telegram.getMe().then((botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
-  console.log("Server has Initialized By Nick : " + process.env.BOT_USERNAME)
+  return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>Server has Initialized By Nick : ${process.env.BOT_USERNAME}</code>`, { parse_mode: 'HTML' })
 }).catch((err) => console.log(err))
 
 bot.use(session())
@@ -336,7 +330,7 @@ bot.command('user', async (ctx) => {
       }
     }
 
-    if (Object.size(someUser) > 0) {
+    if (objectSize(someUser) > 0) {
       return User.updateOne({
         teleChatId: commands.id
       }, someUser).exec(async (err) => {
@@ -1066,38 +1060,6 @@ const buyRepeat = async function (ctx) {
   }
 }
 
-const userLogs = async function (ctx, msg, type = 'Info', callback = null) {
-  console.log(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`);
-  if (typeof callback == 'function') return callback()
-}
-
-const replaceMessage = function (ctx, oldMsg, newMsg, filter = true) {
-  if (filter) newMsg = newMsg.replace(/<[^>]*>?/gm, "");
-  if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
-    return ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
-      oldMsg.text = replyCtx.text
-    }).catch((err) => process.stdout.write(`\r ${err}`))
-  }
-}
-
-const sendReportToDev = async function (ctx, msg, type = 'Error', callback = null) {
-  if (type == 'Error') msg = new Error(msg.message || msg)
-  await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
-  if (typeof callback == 'function') return callback()
-}
-
-const setNewCookie = function (oldcookies, ...newcookies) {
-  let temp = oldcookies;
-  for (const cookies of newcookies) {
-    for (const cook of cookies) {
-      let parseCookie = cookie.parse(cook);
-      let cookieName = Object.keys(parseCookie)[0]
-      temp[cookieName] = parseCookie[cookieName]
-    }
-  }
-  return temp;
-}
-
 const dropQueue = function (queue, user = {}) {
   for (let i = 0; i < queuePromotion.length; i++) {
     if (queuePromotion[i].match(queue)) {
@@ -1106,141 +1068,6 @@ const dropQueue = function (queue, user = {}) {
     }
   }
   return `Queue Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Tidak Ditemukan`;
-}
-
-const timeConverter = function (timestamp, { usemilis = false, countdown = false }) {
-  if (countdown) {
-    timestamp = Math.abs(timestamp)
-    let hour = Math.floor(timestamp / 3600000).toFixed(0);
-    let minutes = Math.floor((timestamp % 3600000) / 60000).toFixed(0);
-    let seconds = ((timestamp % 60000) / 1000).toFixed(0);
-    let clock = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    if (usemilis) {
-      let milsec = (timestamp % 1000).toFixed(0);
-      clock += `:${milsec.toString().padStart(3, '0')}`
-    }
-    return clock;
-  } else {
-    let time = new Date(timestamp);
-    let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    let year = time.getFullYear();
-    let month = months[time.getMonth()];
-    let date = time.getDate();
-    let hour = time.getHours();
-    let min = time.getMinutes();
-    let sec = time.getSeconds();
-    time = `${date} ${month} ${year} ${hour}:${min}:${sec}`;
-    if (usemilis) {
-      let milsec = (timestamp % 1000).toFixed(0);
-      time += `:${milsec.toString().padStart(3, '0')}`
-    }
-    return time;
-  }
-}
-
-const getSessionKey = function (ctx) {
-  if (ctx.from && ctx.chat) {
-    return ctx.from.id
-  } else if (ctx.from && ctx.inlineQuery) {
-    return ctx.from.id
-  }
-  return null
-}
-
-const isValidURL = function (string) {
-  let url;
-  try {
-    url = new URL(string);
-  } catch (_) {
-    return false;
-  }
-  return url.protocol === "http:" || url.protocol === "https:";
-}
-
-const ensureRole = function (ctx, ignoreReport = false, allowRole = ['admin']) {
-  if (allowRole.includes(ctx.session.userRole)) return true
-  if (!ignoreReport) sendReportToDev(ctx, `Mencoba Mengakses Fitur ${allowRole.join(' ')}`, 'Info')
-  return false
-}
-
-const checkAccount = function (ctx) {
-  if (
-    ctx.session.userLoginInfo.email &&
-    ctx.session.userLoginInfo.password
-  ) return true;
-
-  let info = `Informasi Akun Shopee Anda Belum Lengkap: `
-  info += `\nEmail : ${ctx.session.userLoginInfo.email || ''} `
-  info += `\nPassword : ${(ctx.session.userLoginInfo.metaPassword ? '**********' : '')} `
-
-  ctx.reply(info)
-  return false;
-}
-
-const sleep = function (milliseconds, callback = null) {
-  const date = Date.now();
-  let currentDate = null;
-  do {
-    currentDate = Date.now();
-  } while (currentDate - date < milliseconds);
-  if (typeof callback == 'function') return callback()
-}
-
-const extractHostname = function (url) {
-  let hostname;
-  if (url.indexOf("//") > -1) {
-    hostname = url.split('/')[2];
-  } else {
-    hostname = url.split('/')[0];
-  }
-
-  hostname = hostname.split(':')[0];
-  hostname = hostname.split('?')[0];
-  return hostname;
-}
-
-const extractRootDomain = function (url) {
-  let domain = extractHostname(url),
-    splitArr = domain.split('.'),
-    arrLen = splitArr.length;
-
-  if (arrLen > 2) {
-    domain = splitArr[arrLen - 2] + '.' + splitArr[arrLen - 1];
-    if (splitArr[arrLen - 2].length == 2 && splitArr[arrLen - 1].length == 2) {
-      domain = splitArr[arrLen - 3] + '.' + domain;
-    }
-  }
-  return domain;
-}
-
-const getCommands = function (str, prefix, sparator = '=') {
-  let commands = {};
-  let firstSplit = str.split(prefix)
-  Object.prototype.toString.call(firstSplit)
-  if (firstSplit.length > 1) {
-    let everyCommand = firstSplit[1].split(" ")
-    Object.prototype.toString.call(everyCommand)
-    everyCommand.forEach(command => {
-      command = command.split(sparator)
-      command.forEach((cmd, i) => {
-        command[i] = cmd.replace(/(<([^>]+)>)/gi, "")
-      });
-      commands[command[0]] = command[1] ? function () {
-        delete command[0]
-        return command.join(sparator).substring(1)
-      }() : true
-    })
-    return commands
-  }
-  return null
-}
-
-const generateString = function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chartset.charAt(Math.floor(Math.random() * chartset.length));
-  }
-  return result;
 }
 
 bot.command('xplay', async (ctx) => {
@@ -1311,10 +1138,10 @@ bot.command('env', async (ctx) => {
   }
 })
 
-// bot.command('restart', async (ctx) => {
-//   if (!ensureRole(ctx)) return
-//   process.exit(1);
-// })
+bot.command('restart', async (ctx) => {
+  if (!ensureRole(ctx)) return
+  process.exit(1);
+})
 
 bot.command((ctx) => {
   let msg = ctx.message.text
