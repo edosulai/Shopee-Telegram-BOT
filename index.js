@@ -37,7 +37,7 @@ dotenv.config();
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
-})(require('./helpers/helpers'))
+})(require('./helpers'))
 
 let queuePromotion = []
 
