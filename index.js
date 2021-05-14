@@ -710,7 +710,7 @@ const getCart = async function (ctx, getCache = false) {
   }).catch((err) => !getCache ? sleep(Math.round(user.keranjang.time / 3)) : sendReportToDev(ctx, err));
   if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja`
 
-  await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
+  await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     let chunk = JSON.parse(body);
     if (chunk.data.shop_orders.length > 0) {
@@ -719,7 +719,7 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.now = Date.now()
     }
     curl.close()
-  }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
+  }).catch((err) => user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
 
   user.selectedShop = function (shops) {
     for (const shop of shops) {
