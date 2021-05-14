@@ -705,6 +705,7 @@ const getCart = async function (ctx, getCache = false) {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     user.keranjang = JSON.parse(body)
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+    user.keranjang.now = Date.now()
     curl.close()
   }).catch((err) => !getCache ? sleep(Math.round(user.keranjang.time / 3)) : sendReportToDev(ctx, err));
   if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja`
@@ -715,6 +716,7 @@ const getCart = async function (ctx, getCache = false) {
     if (chunk.data.shop_orders.length > 0) {
       user.infoKeranjang = chunk
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.infoKeranjang.now = Date.now()
     }
     curl.close()
   }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
@@ -751,6 +753,7 @@ const getCart = async function (ctx, getCache = false) {
     if (chunk.data && chunk.error == 0) {
       user.updateKeranjang = chunk
       user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.updateKeranjang.now = Date.now()
     }
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err))
@@ -767,6 +770,7 @@ const getCheckout = async function (ctx, getCache) {
     if (chunk.shoporders) {
       user.config.infoCheckoutLong = chunk
       user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.config.infoCheckoutLong.now = Date.now()
     }
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err));
@@ -777,6 +781,7 @@ const getCheckout = async function (ctx, getCache) {
     if (chunk.shoporders) {
       user.infoCheckoutQuick = chunk
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.infoCheckoutQuick.now = Date.now()
     }
     curl.close()
   }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
@@ -850,7 +855,7 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : ''}`
 
-      if (user.config.fail < 3 && ['error_empty_cart', 'error_fulfillment_info_changed_mwh', 'error_payable_mismatch'].includes(user.order.error)) {
+      if (user.config.fail < 3 && ['error_empty_cart', 'error_fulfillment_info_changed_mwh', 'error_payable_mismatch'].includes(user.order.error) && !user.config.repeat) {
         user.config.info.push(info)
         return buyItem(ctx)
       }
