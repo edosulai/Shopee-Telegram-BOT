@@ -26,9 +26,8 @@ module.exports = {
           return command.join(sparator).substring(1)
         }() : true
       })
-      return commands
     }
-    return null
+    return commands
   },
 
   timeConverter: function (timestamp, { usemilis = false, countdown = false }) {

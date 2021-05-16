@@ -219,7 +219,7 @@ bot.command('announce', (ctx) => {
 bot.command('speedtest', async (ctx) => {
   if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/speedtest ')
-  if (commands == null) return ctx.reply(`/speedtest <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/speedtest <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
 
   if (typeof commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
   if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
@@ -277,7 +277,7 @@ bot.command('logs', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/logs ')
-  if (commands == null) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
 
   if (commands['-clear']) {
     return Logs.deleteMany()
@@ -291,7 +291,7 @@ bot.command('failures', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/failures ')
-  if (commands == null) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
 
   if (commands['-clear']) {
     return Failures.deleteMany()
@@ -305,7 +305,7 @@ bot.command('user', async (ctx) => {
   if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/user ')
 
-  if (commands == null) {
+  if (objectSize(commands) < 1) {
     return User.find(function (err, users) {
       if (err) return sendReportToDev(ctx, err)
       let alluser = ``
@@ -349,7 +349,6 @@ bot.command('user', async (ctx) => {
 bot.command('login', async (ctx) => {
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/login ')
-  if (commands == null) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
 
   for (let command in commands) {
     command = command.toLowerCase()
@@ -365,7 +364,7 @@ bot.command('login', async (ctx) => {
 
   if (!user.userCookie.csrftoken) user.userCookie.csrftoken = generateString(32)
 
-  if (!checkAccount(ctx)) return
+  if (!checkAccount(ctx)) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
 
   user.config = {
     otp: function (otp) {
@@ -446,7 +445,7 @@ bot.command('otp', async (ctx) => {
 
 bot.command('stop', async (ctx) => {
   let commands = getCommands(ctx.message.text, '/stop ')
-  if (commands == null) return ctx.reply(`/stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
   if (!checkAccount(ctx) || !isValidURL(commands.url)) return ctx.reply('Format Url Salah')
   if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
@@ -456,7 +455,7 @@ bot.command('stop', async (ctx) => {
 bot.command('beli', async (ctx) => {
   let user = ctx.session
   let commands = getCommands(ctx.message.text, '/beli ')
-  if (commands == null) return ctx.reply(`/beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
   await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
     user.config = {
@@ -717,6 +716,8 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang = chunk
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.infoKeranjang.now = Date.now()
+    } else {
+      sendReportToDev(ctx, 'postInfoKeranjang Kosong', 'Info')
     }
     curl.close()
   }).catch((err) => user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
@@ -754,6 +755,8 @@ const getCart = async function (ctx, getCache = false) {
       user.updateKeranjang = chunk
       user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.updateKeranjang.now = Date.now()
+    } else {
+      sendReportToDev(ctx, 'postUpdateKeranjang Kosong', 'Info')
     }
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err))
@@ -771,6 +774,8 @@ const getCheckout = async function (ctx, getCache) {
       user.config.infoCheckoutLong = chunk
       user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.config.infoCheckoutLong.now = Date.now()
+    } else {
+      sendReportToDev(ctx, 'postInfoCheckout Kosong', 'Info')
     }
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err));
@@ -782,6 +787,8 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick = chunk
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.infoCheckoutQuick.now = Date.now()
+    } else {
+      sendReportToDev(ctx, 'postInfoCheckoutQuick Kosong', 'Info')
     }
     curl.close()
   }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
@@ -1080,7 +1087,7 @@ bot.command('xplay', async (ctx) => {
   if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/xplay ')
-  if (commands == null) return ctx.reply(`/xplay <code>url=http://...69fck.onion</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/xplay <code>url=http://...69fck.onion</code>`, { parse_mode: 'HTML' })
 
   await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
     user.message = {
@@ -1138,7 +1145,7 @@ bot.command('xplay', async (ctx) => {
 bot.command('env', async (ctx) => {
   if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/env ')
-  if (commands == null) {
+  if (objectSize(commands) < 1) {
     return ctx.reply(`<code>${JSON.stringify(dotenv.parse(Buffer.from(fs.readFileSync('./.env'))), null, "\t")}</code>`, { parse_mode: 'HTML' })
   }
 })
