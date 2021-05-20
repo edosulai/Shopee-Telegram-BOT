@@ -4,7 +4,7 @@
   <p align="center">
     Excellent Scraper BOT for your Cuan!
     <br />
-    <a href="https://t.me/ikosulaibot">View Demo</a>
+    <a href="https://t.me/ShopeeBuyBot">View Demo</a>
     ·
     <a href="https://github.com/Edolf/Telegram-Shopee-CRUD/issues">Report Bug</a>
   </p>

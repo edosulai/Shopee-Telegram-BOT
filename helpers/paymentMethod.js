@@ -25,25 +25,11 @@ module.exports = function (payment, channels, checkEnable = false) {
 
   // let allowingPayment = paymentMethod.filter(method => typeof method == 'object');
 
-  if (payment.cod && paymentMethod.cod) {
-    return paymentMethod.cod
-  }
-
-  if (payment.shopeePay && paymentMethod.shopeePay) {
-    return paymentMethod.shopeePay
-  }
-
-  if (paymentMethod.transferBank) {
-    return paymentMethod.transferBank
-  }
-
-  if (paymentMethod.cod) {
-    return paymentMethod.cod
-  }
-
-  if (paymentMethod.shopeePay) {
-    return paymentMethod.shopeePay
-  }
+  if (payment.cod && paymentMethod.cod) return paymentMethod.cod
+  if (payment.shopeePay && paymentMethod.shopeePay) return paymentMethod.shopeePay
+  if (paymentMethod.transferBank) return paymentMethod.transferBank
+  if (paymentMethod.cod) return paymentMethod.cod
+  if (paymentMethod.shopeePay) return paymentMethod.shopeePay
 
   return false
 }
