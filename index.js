@@ -706,7 +706,7 @@ const getCart = async function (ctx, getCache = false) {
     user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     user.keranjang.now = Date.now()
     curl.close()
-  }).catch((err) => !getCache && user.config.predictPrice ? sleep(Math.round(user.keranjang.time / 3)) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache && user.config.predictPrice ? sleep(Math.round(user.keranjang.time / 6)) : sendReportToDev(ctx, err));
   if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja`
 
   await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
