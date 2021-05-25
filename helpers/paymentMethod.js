@@ -14,24 +14,14 @@ module.exports = function (payment, channels, checkEnable = false) {
     if (Object.hasOwnProperty.call(channel, 'banks')) {
       paymentMethod.transferBank = BankTransFunc(payment, channel, checkEnable)
     }
-
-  }
-
-  if (!checkEnable) {
-    if (payment.cod) return paymentMethod.cod
-    if (payment.shopeePay) return paymentMethod.shopeePay
-    return paymentMethod.transferBank
   }
 
   // let allowingPayment = paymentMethod.filter(method => typeof method == 'object');
 
-  if (payment.cod && paymentMethod.cod) return paymentMethod.cod
-  if (payment.shopeePay && paymentMethod.shopeePay) return paymentMethod.shopeePay
-  if (paymentMethod.transferBank) return paymentMethod.transferBank
-  if (paymentMethod.cod) return paymentMethod.cod
-  if (paymentMethod.shopeePay) return paymentMethod.shopeePay
+  if (payment.cod) return paymentMethod.cod
+  if (payment.shopeePay) return paymentMethod.shopeePay
 
-  return false
+  return paymentMethod.transferBank
 }
 
 let BankTransFunc = function (payment, channel, checkEnable) {
