@@ -20,8 +20,13 @@ module.exports = function (payment, channels, checkEnable = false) {
 
   if (payment.cod) return paymentMethod.cod
   if (payment.shopeePay) return paymentMethod.shopeePay
+  if (paymentMethod.transferBank) return paymentMethod.transferBank
 
-  return paymentMethod.transferBank
+  return {
+    method: payment.method,
+    msg: `Semua Metode Pembayaran Tidak Tersedia`,
+    enable: false
+  }
 }
 
 let BankTransFunc = function (payment, channel, checkEnable) {
@@ -46,7 +51,8 @@ let BankTransFunc = function (payment, channel, checkEnable) {
             version: channel.version,
             text_info: {}
           },
-          msg: `Transfer ${bank.bank_name}`
+          msg: `Transfer ${bank.bank_name}`,
+          enable: true
         }
       }
 
@@ -59,7 +65,8 @@ let BankTransFunc = function (payment, channel, checkEnable) {
           version: channel.version,
           text_info: {}
         },
-        msg: `Transfer ${bank.bank_name}`
+        msg: `Transfer ${bank.bank_name}`,
+        enable: true
       }
     }
   }
@@ -74,7 +81,8 @@ let ShopeePayTransFunc = function (channel, checkEnable) {
         channel_id: channel.channel_id,
         version: channel.version
       },
-      msg: 'ShopeePay'
+      msg: 'ShopeePay',
+      enable: true
     }
   }
 
@@ -85,7 +93,8 @@ let ShopeePayTransFunc = function (channel, checkEnable) {
       channel_id: channel.channel_id,
       version: channel.version
     },
-    msg: 'ShopeePay'
+    msg: 'ShopeePay',
+    enable: true
   }
 }
 
@@ -96,7 +105,8 @@ let CODTransFunc = function (channel, checkEnable) {
         payment_channelid: channel.channelid,
         version: channel.version
       },
-      msg: 'COD'
+      msg: 'COD',
+      enable: true
     }
   }
 
@@ -107,6 +117,7 @@ let CODTransFunc = function (channel, checkEnable) {
       payment_channelid: channel.channelid,
       version: channel.version
     },
-    msg: 'COD'
+    msg: 'COD',
+    enable: true
   }
 }

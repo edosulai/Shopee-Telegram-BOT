@@ -527,15 +527,8 @@ bot.command('beli', async (ctx) => {
     })
   }
 
-  user.payment = user.payment || require('./helpers/paymentMethod')(user.config.payment, user.others.metaPayment.channels)
-  await ctx.reply(`Metode Pembayaran Saat Ini : ${user.payment.msg}`, { parse_mode: 'HTML' }).then((replyCtx) => {
-    user.config.paymentMsg = {
-      chatId: replyCtx.chat.id,
-      msgId: replyCtx.message_id,
-      inlineMsgId: replyCtx.inline_message_id,
-      text: replyCtx.text
-    }
-  })
+  user.payment = require('./helpers/paymentMethod')(user.config.payment, user.others.metaPayment.channels)
+  await replaceMessage(ctx, user.config.message, `Metode Pembayaran : ${user.payment.msg}`)
 
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
@@ -580,7 +573,7 @@ bot.command('beli', async (ctx) => {
 
       let msg = ``
       msg += timeConverter(Date.now() - user.config.end, { countdown: true })
-      msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`
+      msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 
       if (user.infoBarang.item.stock < 1) {
         user.config.outstock = true
@@ -649,20 +642,14 @@ bot.command('beli', async (ctx) => {
     }
 
     if (!user.config.modelid) return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
-    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Tidak Terbaca\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
+    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Barang Tidak Terbaca\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
 
     if (user.config.cache && user.infoBarang.item.stock > 0) {
       let info = await getCart(ctx, true)
       if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
     }
 
-    if (!user.payment) {
-      return replaceMessage(ctx, user.config.message, `Semua Metode Pembayaran Untuk Item ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
-    }
-
-    if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
-      return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} Sudah Di Matikan`)
-    }
+    if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} Sudah Di Matikan`)
 
     while (
       (user.config.end - Date.now() >= 0) ||
@@ -707,7 +694,6 @@ const getCart = async function (ctx, getCache = false) {
     user.keranjang.now = Date.now()
     curl.close()
   }).catch((err) => !getCache && user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
-  // }).catch((err) => !getCache && user.config.predictPrice ? sleep(Math.round(user.keranjang.time / 6)) : sendReportToDev(ctx, err));
   if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja`
 
   await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -795,7 +781,6 @@ const getCheckout = async function (ctx, getCache) {
     }).catch((err) => sendReportToDev(ctx, err));
 
     user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
-    await replaceMessage(ctx, user.config.paymentMsg, user.payment ? `Metode Pembayaran Berubah Ke : ${user.payment.msg} Karena Suatu Alasan` : `Semua Metode Pembayaran Untuk Item ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Tidak Tersedia`)
 
     await Logs.updateOne({
       teleChatId: ctx.message.chat.id,
@@ -812,7 +797,7 @@ const getCheckout = async function (ctx, getCache) {
       selectedItem: user.selectedItem
     }, { upsert: true }).exec()
 
-    return `${ensureRole(ctx, true) ? `Cache Produk ${user.selectedItem.name.replace(/<[^>]*>?/gm, "")} Telah Di Dapatkan` : null}`
+    return `${ensureRole(ctx, true) ? `Cache Produk Telah Di Dapatkan` : null}`
   }).catch(async (err) => {
     return sendReportToDev(ctx, err, 'Error', () => {
       return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -841,6 +826,7 @@ const buyItem = function (ctx) {
       info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
       info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
       info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
+      info += `\n\nMetode Pembayaran : ${user.payment.msg}`
     }
 
     info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
@@ -942,9 +928,10 @@ const buyRepeat = async function (ctx) {
         info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
         info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
         info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-        info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
+        info += `\n\nMetode Pembayaran : ${user.payment.msg}`
       }
 
+      info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
       info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
       info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
 
@@ -1007,9 +994,10 @@ const buyRepeat = async function (ctx) {
         info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
         info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
         info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-        info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
+        info += `\n\nMetode Pembayaran : ${user.payment.msg}`
       }
 
+      info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
       info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
       info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
 
