@@ -6,7 +6,7 @@
     <br />
     <a href="https://t.me/ShopeeBuyBot">View Demo</a>
     ·
-    <a href="https://github.com/Edolf/Telegram-Shopee-CRUD/issues">Report Bug</a>
+    <a href="https://github.com/Edolf/Shopee-Telegram-BOT/issues">Report Bug</a>
   </p>
 </p>
 

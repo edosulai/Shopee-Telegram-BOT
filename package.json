@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Edolf/Telegram-Shopee-CRUD.git"
+    "url": "git+https://github.com/Edolf/Shopee-Telegram-BOT.git"
   },
   "keywords": [
     "shop",
@@ -24,9 +24,9 @@
   "author": "sulai",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Edolf/Telegram-Shopee-CRUD/issues"
+    "url": "https://github.com/Edolf/Shopee-Telegram-BOT/issues"
   },
-  "homepage": "https://github.com/Edolf/Telegram-Shopee-CRUD#readme",
+  "homepage": "https://github.com/Edolf/Shopee-Telegram-BOT#readme",
   "dependencies": {
     "cookie": "^0.4.1",
     "dotenv": "^8.2.0",
