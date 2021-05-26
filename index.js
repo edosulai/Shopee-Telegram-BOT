@@ -689,12 +689,8 @@ const getCart = async function (ctx, getCache = false) {
 
   await postKeranjang(user, getCache).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    user.keranjang = JSON.parse(body)
-    user.keranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-    user.keranjang.now = Date.now()
     curl.close()
   }).catch((err) => !getCache && user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
-  if (user.keranjang.error != 0) return `Gagal Mendapatkan Keranjang Belanja`
 
   await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
