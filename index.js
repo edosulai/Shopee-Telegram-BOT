@@ -547,9 +547,7 @@ bot.command('beli', async (ctx) => {
     do {
       user.config.start = Date.now()
 
-      if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) {
-        return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Sudah Di Matikan`)
-      }
+      if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close();
@@ -649,7 +647,7 @@ bot.command('beli', async (ctx) => {
       if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
     }
 
-    if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} Sudah Di Matikan`)
+    if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
 
     while (
       (user.config.end - Date.now() >= 0) ||
@@ -692,23 +690,34 @@ const getCart = async function (ctx, getCache = false) {
     curl.close()
   }).catch((err) => !getCache && user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
 
-  await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+  await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     let chunk = JSON.parse(body);
     if (chunk.data.shop_orders.length > 0) {
       user.infoKeranjang = chunk
       user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.infoKeranjang.now = Date.now()
-    } else sendReportToDev(ctx, 'postInfoKeranjang Kosong', 'Info')
+    } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoKeranjang')
     curl.close()
-  }).catch((err) => user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache && user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
 
   user.selectedShop = function (shops) {
     for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
   }(user.infoKeranjang.data.shop_orders) || user.selectedShop
 
   user.selectedItem = function (items) {
-    for (const item of items) if (item.modelid == user.config.modelid) return item
+    for (const item of items) {
+      if (item.modelid == user.config.modelid) return item
+      if (item.models) {
+        for (const model of item.models) {
+          if (
+            model.itemid == user.config.itemid &&
+            model.shop_id == user.config.shopid &&
+            model.modelid == user.config.modelid
+          ) return item
+        }
+      }
+    }
   }(user.selectedShop.items) || user.selectedItem
 
   user.config.price = user.config.predictPrice || function (item) {
@@ -732,7 +741,7 @@ const getCart = async function (ctx, getCache = false) {
       user.updateKeranjang = chunk
       user.updateKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.updateKeranjang.now = Date.now()
-    } else sendReportToDev(ctx, 'postUpdateKeranjang Kosong', 'Info')
+    } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postUpdateKeranjang')
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err))
 
@@ -749,7 +758,7 @@ const getCheckout = async function (ctx, getCache) {
       user.config.infoCheckoutLong = chunk
       user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.config.infoCheckoutLong.now = Date.now()
-    } else sendReportToDev(ctx, 'postInfoCheckout Kosong', 'Info')
+    } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
     curl.close()
   }).catch((err) => sendReportToDev(ctx, err));
 
@@ -760,10 +769,10 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick = chunk
       user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.infoCheckoutQuick.now = Date.now()
-    } else sendReportToDev(ctx, 'postInfoCheckoutQuick Kosong', 'Info')
+    } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckoutQuick')
     curl.close()
   }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
-  if (!user.infoCheckoutQuick || user.infoCheckoutQuick.error != null) return `Gagal Mendapatkan Info Checkout Belanja : ${user.infoCheckoutQuick.error}`
+  if (!user.infoCheckoutQuick) return `Gagal Mendapatkan Info Checkout Belanja`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
     return waitUntil(user, 'updateKeranjang').then(() => resolve()).catch((err) => reject(err));

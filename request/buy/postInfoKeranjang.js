@@ -1,5 +1,5 @@
-module.exports = async function (user) {
-  if (user.infoKeranjang && user.config.predictPrice) return new Promise((resolve, reject) => reject())
+module.exports = async function (user, getCache) {
+  if (!getCache && user.infoKeranjang && user.config.predictPrice) return new Promise((resolve, reject) => reject())
 
   let curl = new user.Curl()
 
