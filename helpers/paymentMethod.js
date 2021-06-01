@@ -1,4 +1,6 @@
-module.exports = function (payment, channels, checkEnable = false) {
+module.exports = function (user, channels, checkEnable = false) {
+  let payment = user.config.payment
+
   let paymentMethod = {}
   for (const channel of channels) {
     if (!Object.hasOwnProperty.call(channel, 'name')) continue;
@@ -18,12 +20,12 @@ module.exports = function (payment, channels, checkEnable = false) {
 
   // let allowingPayment = paymentMethod.filter(method => typeof method == 'object');
 
-  if (payment.cod) return paymentMethod.cod
-  if (payment.shopeePay) return paymentMethod.shopeePay
-  if (paymentMethod.transferBank) return paymentMethod.transferBank
+  if (payment.cod && paymentMethod.cod) return paymentMethod.cod
+  if (payment.shopeePay && paymentMethod.shopeePay) return paymentMethod.shopeePay
+  if (paymentMethod.transferBank && paymentMethod.transferBank) return paymentMethod.transferBank
 
   return {
-    method: payment.method,
+    method: user.payment.method,
     msg: `Semua Metode Pembayaran Tidak Tersedia`,
     enable: false
   }

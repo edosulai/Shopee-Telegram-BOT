@@ -527,7 +527,7 @@ bot.command('beli', async (ctx) => {
     })
   }
 
-  user.payment = require('./helpers/paymentMethod')(user.config.payment, user.others.metaPayment.channels)
+  user.payment = require('./helpers/paymentMethod')(user, user.others.metaPayment.channels)
   await replaceMessage(ctx, user.config.message, `Metode Pembayaran : ${user.payment.msg}`)
 
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -785,7 +785,7 @@ const getCheckout = async function (ctx, getCache) {
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => sendReportToDev(ctx, err));
 
-    user.payment = require('./helpers/paymentMethod')(user.config.payment, user.infoCheckoutLong.payment_channel_info.channels, true)
+    user.payment = require('./helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
 
     await Logs.updateOne({
       teleChatId: ctx.message.chat.id,
