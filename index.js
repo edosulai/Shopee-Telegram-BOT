@@ -688,7 +688,7 @@ const getCart = async function (ctx, getCache = false) {
   await postKeranjang(user, getCache).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     curl.close()
-  }).catch((err) => !getCache && user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache && user.config.predictPrice ? sleep(0) : sendReportToDev(ctx, err));
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -699,7 +699,7 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoKeranjang')
     curl.close()
-  }).catch((err) => !getCache && user.config.predictPrice ? sleep(1) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache && user.config.predictPrice ? sleep(0) : sendReportToDev(ctx, err));
 
   user.selectedShop = function (shops) {
     for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
@@ -771,7 +771,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckoutQuick')
     curl.close()
-  }).catch((err) => !getCache ? sleep(1) : sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(0) : sendReportToDev(ctx, err));
   if (!user.infoCheckoutQuick) return `Gagal Mendapatkan Info Checkout Belanja`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
@@ -915,7 +915,7 @@ const buyRepeat = async function (ctx) {
     await postBuy(user, user.config.repeat).then().catch((err) => sleep(1));
   } while (Date.now() - user.config.start < 1500);
 
-  sleep(500);
+  sleep(300);
 
   if (user.payment.method.payment_channelid) {
 
