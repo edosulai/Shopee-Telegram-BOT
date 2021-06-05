@@ -282,17 +282,18 @@ bot.command('logs', async (ctx) => {
   if (commands.url) {
     if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
     user.itemid = parseInt(commands.url.split(".")[commands.url.split(".").length - 1]);
+    user.shopid = parseInt(commands.url.split(".")[commands.url.split(".").length - 2]);
   }
 
   if (commands['-clear']) {
-    return Logs.deleteMany(user.itemid ? { itemid: user.itemid } : null)
+    return Logs.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
       }).catch((err) => sendReportToDev(ctx, err));
   }
 
-  return Logs.findOne({ itemid: user.itemid }, async function (err, logs) {
-    if (err || !logs) return ctx.reply('Cache Untuk Produk Ini Tidak Tersedia!!')
+  return Logs.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, logs) {
+    if (err || !logs) return ctx.reply('Logs Untuk Produk Ini Tidak Tersedia!!')
     fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(logs));
     await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.log(err))
     return fs.unlinkSync(`./log-${user.itemid}.json`);
@@ -308,17 +309,18 @@ bot.command('failures', async (ctx) => {
   if (commands.url) {
     if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
     user.itemid = parseInt(commands.url.split(".")[commands.url.split(".").length - 1]);
+    user.shopid = parseInt(commands.url.split(".")[commands.url.split(".").length - 2]);
   }
 
   if (commands['-clear']) {
-    return Failures.deleteMany(user.itemid ? { itemid: user.itemid } : null)
+    return Failures.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
       }).catch((err) => sendReportToDev(ctx, err));
   }
 
-  return Failures.findOne({ itemid: user.itemid }, async function (err, failures) {
-    if (err || !failures) return ctx.reply('Cache Untuk Produk Ini Tidak Tersedia!!')
+  return Failures.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, failures) {
+    if (err || !failures) return ctx.reply('Failures Untuk Produk Ini Tidak Tersedia!!')
     fs.writeFileSync(`failure-${user.itemid}.json`, JSON.stringify(failures));
     await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./failure-${user.itemid}.json` }).catch((err) => console.log(err))
     return fs.unlinkSync(`./failure-${user.itemid}.json`);
