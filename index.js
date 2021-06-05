@@ -279,12 +279,24 @@ bot.command('logs', async (ctx) => {
   let commands = getCommands(ctx.message.text, '/logs ')
   if (objectSize(commands) < 1) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
 
+  if (commands.url) {
+    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+    user.itemid = parseInt(commands.url.split(".")[commands.url.split(".").length - 1]);
+  }
+
   if (commands['-clear']) {
-    return Logs.deleteMany()
+    return Logs.deleteMany(user.itemid ? { itemid: user.itemid } : null)
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
       }).catch((err) => sendReportToDev(ctx, err));
   }
+
+  return Logs.findOne({ itemid: user.itemid }, async function (err, logs) {
+    if (err || !logs) return ctx.reply('Cache Untuk Produk Ini Tidak Tersedia!!')
+    fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(logs));
+    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.log(err))
+    return fs.unlinkSync(`./log-${user.itemid}.json`);
+  })
 })
 
 bot.command('failures', async (ctx) => {
@@ -293,12 +305,24 @@ bot.command('failures', async (ctx) => {
   let commands = getCommands(ctx.message.text, '/failures ')
   if (objectSize(commands) < 1) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
 
+  if (commands.url) {
+    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+    user.itemid = parseInt(commands.url.split(".")[commands.url.split(".").length - 1]);
+  }
+
   if (commands['-clear']) {
-    return Failures.deleteMany()
+    return Failures.deleteMany(user.itemid ? { itemid: user.itemid } : null)
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
       }).catch((err) => sendReportToDev(ctx, err));
   }
+
+  return Failures.findOne({ itemid: user.itemid }, async function (err, failures) {
+    if (err || !failures) return ctx.reply('Cache Untuk Produk Ini Tidak Tersedia!!')
+    fs.writeFileSync(`failure-${user.itemid}.json`, JSON.stringify(failures));
+    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./failure-${user.itemid}.json` }).catch((err) => console.log(err))
+    return fs.unlinkSync(`./failure-${user.itemid}.json`);
+  })
 })
 
 bot.command('user', async (ctx) => {
@@ -772,7 +796,6 @@ const getCheckout = async function (ctx, getCache) {
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckoutQuick')
     curl.close()
   }).catch((err) => !getCache ? sleep(0) : sendReportToDev(ctx, err));
-  if (!user.infoCheckoutQuick) return `Gagal Mendapatkan Info Checkout Belanja`
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
     return waitUntil(user, 'updateKeranjang').then(() => resolve()).catch((err) => reject(err));
