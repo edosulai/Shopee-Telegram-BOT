@@ -687,13 +687,10 @@ bot.command('beli', async (ctx) => {
     let info = await getCart(ctx)
     dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
 
-    if (typeof info == 'string') {
-      // if (!ensureRole(ctx, true)) sendReportToDev(ctx, info, 'Success')
-      await replaceMessage(ctx, user.config.message, info, false)
-    }
+    if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
 
     if (!user.config.success) {
-      await Failures.updateOne({
+      return Failures.updateOne({
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
         shopid: user.config.shopid,
@@ -709,11 +706,9 @@ bot.command('beli', async (ctx) => {
       }, { upsert: true }).exec()
     }
 
-    delete ctx.session
-
   }).catch((err) => sendReportToDev(ctx, err, async function () {
 
-    await Failures.updateOne({
+    return Failures.updateOne({
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
       shopid: user.config.shopid,
@@ -727,8 +722,6 @@ bot.command('beli', async (ctx) => {
       infoCheckoutQuick: user.infoCheckoutQuick,
       infoCheckoutLong: user.infoCheckoutLong
     }, { upsert: true }).exec()
-
-    delete ctx.session
 
   }));
 })
