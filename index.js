@@ -705,7 +705,25 @@ bot.command('beli', async (ctx) => {
       infoCheckoutQuick: user.infoCheckoutQuick,
       infoCheckoutLong: user.infoCheckoutLong
     }, { upsert: true }).exec()
-  }).catch((err) => sendReportToDev(ctx, err));
+
+  }).catch((err) => sendReportToDev(ctx, err, function () {
+
+    return Failures.updateOne({
+      teleChatId: ctx.message.chat.id,
+      itemid: user.config.itemid,
+      shopid: user.config.shopid,
+      modelid: user.config.modelid
+    }, {
+      postBuyBody: user.postBuyBody,
+      infoBarang: user.infoBarang,
+      infoPengiriman: user.infoPengiriman,
+      infoKeranjang: user.infoKeranjang,
+      updateKeranjang: user.updateKeranjang,
+      infoCheckoutQuick: user.infoCheckoutQuick,
+      infoCheckoutLong: user.infoCheckoutLong
+    }, { upsert: true }).exec()
+
+  }));
 })
 
 const getCart = async function (ctx, getCache = false) {
@@ -731,7 +749,7 @@ const getCart = async function (ctx, getCache = false) {
 
   user.selectedShop = function (shops) {
     for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
-  }(user.infoKeranjang.data.shop_orders) || user.selectedShop
+  }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
 
   user.selectedItem = function (items) {
     for (const item of items) {
@@ -746,7 +764,7 @@ const getCart = async function (ctx, getCache = false) {
         }
       }
     }
-  }(user.selectedShop.items) || user.selectedItem
+  }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
 
   user.config.price = user.config.predictPrice || function (item) {
     if (item.models) {
