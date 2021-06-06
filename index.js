@@ -686,7 +686,6 @@ bot.command('beli', async (ctx) => {
 
     let info = await getCart(ctx)
     dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
-
     if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
 
     if (!user.config.success) {
@@ -706,7 +705,7 @@ bot.command('beli', async (ctx) => {
       }, { upsert: true }).exec()
     }
 
-  }).catch((err) => sendReportToDev(ctx, err, async function () {
+  }).catch((err) => sendReportToDev(ctx, err, function () {
 
     return Failures.updateOne({
       teleChatId: ctx.message.chat.id,
@@ -939,9 +938,9 @@ const buyRepeat = async function (ctx) {
 
   do {
     await postBuy(user, user.config.repeat).then().catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 1500);
+  } while (Date.now() - user.config.start < 800);
 
-  sleep(300);
+  sleep(200);
 
   if (user.payment.method.payment_channelid) {
 

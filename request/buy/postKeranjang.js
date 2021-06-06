@@ -3,7 +3,7 @@ module.exports = async function (user, getCache) {
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
     .setOtherOpt(function (curl) {
-      if (!getCache && user.config.predictPrice) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
+      if (!getCache && user.infoKeranjang && user.config.predictPrice) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
     }).setHeaders([
       'authority: shopee.co.id',
       'referrer-policy: strict-origin-when-cross-origin',
