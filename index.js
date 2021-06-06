@@ -710,7 +710,7 @@ bot.command('beli', async (ctx) => {
 
     delete ctx.session
 
-  }).catch((err) => sendReportToDev(ctx, err, function () {
+  }).catch((err) => sendReportToDev(ctx, err, async function () {
 
     await Failures.updateOne({
       teleChatId: ctx.message.chat.id,
