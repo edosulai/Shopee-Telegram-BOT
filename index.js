@@ -32,6 +32,7 @@ const dotenv = require('dotenv'),
   getOrders = require('./request/other/getOrders'),
   getCheckouts = require('./request/other/getCheckouts'),
   postCancel = require('./request/other/postCancel');
+const { sleep } = require('./helpers');
 
 dotenv.config();
 
@@ -611,7 +612,7 @@ bot.command('beli', async (ctx) => {
         }(user.infoBarang)}`
       } else if (user.config.outstock || user.config.firstCache) {
         let info = await getCart(ctx, true)
-        if (typeof msg == 'string') {
+        if (typeof info == 'string') {
           msg += ` - ${info}`
           user.config.outstock = false
           if (user.config.firstCache) user.config.firstCache = false

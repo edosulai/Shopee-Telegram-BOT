@@ -42,5 +42,5 @@ module.exports = async function (user, getCache) {
           }
         }
       }(user.infoBarang.item)
-    })).post(`https://shopee.co.id/api/v2/cart/add_to_cart`)
+    })).post(`https://shopee.co.id/api/v4/cart/add_to_cart`)
 }
