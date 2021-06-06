@@ -530,6 +530,7 @@ bot.command('beli', async (ctx) => {
       repeat: commands['-repeat'] ? ensureRole(ctx, false, ['admin', 'vip', 'premium']) : false,
       predictPrice: commands.price ? parseInt(commands.price) * 100000 : false,
       fail: 0,
+      success: false,
       outstock: false,
       info: []
     }
@@ -684,25 +685,26 @@ bot.command('beli', async (ctx) => {
 
     let info = await getCart(ctx)
     dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
-    if (typeof info == 'string') {
+
+    if (user.config.success) {
       if (!ensureRole(ctx, true)) sendReportToDev(ctx, info, 'Success')
       return replaceMessage(ctx, user.config.message, info, false)
-    } else {
-      await Failures.updateOne({
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        shopid: user.config.shopid,
-        modelid: user.config.modelid
-      }, {
-        postBuyBody: user.postBuyBody,
-        infoBarang: user.infoBarang,
-        infoPengiriman: user.infoPengiriman,
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong
-      }, { upsert: true }).exec()
     }
+
+    return Failures.updateOne({
+      teleChatId: ctx.message.chat.id,
+      itemid: user.config.itemid,
+      shopid: user.config.shopid,
+      modelid: user.config.modelid
+    }, {
+      postBuyBody: user.postBuyBody,
+      infoBarang: user.infoBarang,
+      infoPengiriman: user.infoPengiriman,
+      infoKeranjang: user.infoKeranjang,
+      updateKeranjang: user.updateKeranjang,
+      infoCheckoutQuick: user.infoCheckoutQuick,
+      infoCheckoutLong: user.infoCheckoutLong
+    }, { upsert: true }).exec()
   }).catch((err) => sendReportToDev(ctx, err));
 })
 
@@ -872,26 +874,6 @@ const buyItem = function (ctx) {
         return buyItem(ctx)
       }
 
-      if (user.order.error != 'error_opc_channel_not_available') {
-
-        await Failures.updateOne({
-          teleChatId: ctx.message.chat.id,
-          itemid: user.config.itemid,
-          shopid: user.config.shopid,
-          modelid: user.config.modelid
-        }, {
-          postBuyBody: user.postBuyBody,
-          postBuyBodyLong: user.postBuyBodyLong,
-          infoBarang: user.infoBarang,
-          infoPengiriman: user.infoPengiriman,
-          infoKeranjang: user.infoKeranjang,
-          updateKeranjang: user.updateKeranjang,
-          infoCheckoutQuick: user.infoCheckoutQuick,
-          infoCheckoutLong: user.infoCheckoutLong
-        }, { upsert: true }).exec()
-
-      }
-
       await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -900,6 +882,7 @@ const buyItem = function (ctx) {
 
     } else {
       user.config.fail = 0
+      user.config.success = true
       info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
 
       await Logs.updateOne({
@@ -973,6 +956,7 @@ const buyRepeat = async function (ctx) {
           orders.shopid == user.config.shopid
         ) {
           user.order = orders;
+          user.config.success = true
           info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
           if (user.config.autocancel) {
             await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -1040,6 +1024,7 @@ const buyRepeat = async function (ctx) {
             orders.shopid == user.config.shopid
           ) {
             user.order = orders;
+            user.config.success = true
             info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
             if (user.config.autocancel) {
               await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
