@@ -61,7 +61,7 @@ const User = mongoose.model('User', new mongoose.Schema({
 }).plugin(findOrCreate))
 
 const Others = mongoose.model('Others', new mongoose.Schema({
-  prohibitedProducts: Array,
+  disableProducts: Array,
   eventProducts: Array,
   metaPayment: Object,
   updatedAt: {
@@ -142,7 +142,7 @@ bot.use((ctx, next) => {
 
 bot.use((ctx, next) => {
   return Others.findOrCreate({}, {
-    "prohibitedProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
+    "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
   }, async function (err, other, created) {
     if (err) return sendReportToDev(ctx, err)
     if (created) sendReportToDev(ctx, `Meta Data Other Berhasil Terbuat`, 'Info')
@@ -493,33 +493,57 @@ bot.command('event', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session
   let commands = getCommands(ctx.message.text, '/event ')
+
   user.others = (await Others.find())[0]
 
-  if (commands['-insert']) {
+  if (commands.url && commands.price) {
     if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
     if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
 
-    if (commands.url) {
-      let pathname = url.parse(commands.url, true).pathname.split('/')
-      if (pathname.length == 4) {
-        user.itemid = parseInt(pathname[3])
-        user.shopid = parseInt(pathname[2])
-      } else {
-        pathname = pathname[1].split('.')
-        user.itemid = parseInt(pathname[pathname.length - 1])
-        user.shopid = parseInt(pathname[pathname.length - 2])
-      }
+    let pathname = url.parse(commands.url, true).pathname.split('/')
+    if (pathname.length == 4) {
+      user.itemid = parseInt(pathname[3])
+      user.shopid = parseInt(pathname[2])
+    } else {
+      pathname = pathname[1].split('.')
+      user.itemid = parseInt(pathname[pathname.length - 1])
+      user.shopid = parseInt(pathname[pathname.length - 2])
     }
 
     if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return ctx.reply('Bukan Url Produk Shopee')
-    if (!commands.price) return ctx.reply('Price Kosong')
 
-    user.others.eventProducts.push({
-      url: commands.url,
-      itemid: user.itemid,
-      shopid: user.shopid,
-      price: commands.price
-    })
+    if (user.others.eventProducts.length <= 0) {
+      user.others.eventProducts.push({
+        url: commands.url,
+        itemid: user.itemid,
+        shopid: user.shopid,
+        price: commands.price
+      })
+    } else {
+      for (const [index, product] of user.others.eventProducts.entries()) {
+        if (
+          product.itemid == user.itemid &&
+          product.shopid == user.shopid
+        ) {
+          user.others.eventProducts[index] = {
+            url: commands.url,
+            itemid: user.itemid,
+            shopid: user.shopid,
+            price: commands.price
+          }
+          break;
+        }
+
+        if (index == user.others.eventProducts.length - 1) {
+          user.others.eventProducts.push({
+            url: commands.url,
+            itemid: user.itemid,
+            shopid: user.shopid,
+            price: commands.price
+          })
+        }
+      }
+    }
 
     await Others.updateOne(null, {
       eventProducts: user.others.eventProducts
@@ -530,11 +554,86 @@ bot.command('event', async (ctx) => {
     return Others.updateOne(null, {
       eventProducts: []
     }).exec(function () {
-      return ctx.reply(`Event Products Berhasil Di Hapus`)
+      return ctx.reply(`List Event Products Berhasil Di Hapus`)
     })
   }
 
   return ctx.reply(`<code>${JSON.stringify(user.others.eventProducts, null, "\t")}</code>`, { parse_mode: 'HTML' })
+})
+
+bot.command('disable', async (ctx) => {
+  if (!ensureRole(ctx)) return
+  let user = ctx.session
+  let commands = getCommands(ctx.message.text, '/disable ')
+
+  user.others = (await Others.find())[0]
+
+  if (commands.url) {
+    if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
+    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+
+    let pathname = url.parse(commands.url, true).pathname.split('/')
+    if (pathname.length == 4) {
+      user.itemid = parseInt(pathname[3])
+      user.shopid = parseInt(pathname[2])
+    } else {
+      pathname = pathname[1].split('.')
+      user.itemid = parseInt(pathname[pathname.length - 1])
+      user.shopid = parseInt(pathname[pathname.length - 2])
+    }
+
+    if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return ctx.reply('Bukan Url Produk Shopee')
+
+    if (user.others.disableProducts.length <= 0) {
+      user.others.disableProducts.push({
+        url: commands.url,
+        itemid: user.itemid,
+        shopid: user.shopid,
+        allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
+        message: commands.msg || "..."
+      })
+    } else {
+      for (const [index, product] of user.others.disableProducts.entries()) {
+        if (
+          product.itemid == user.itemid &&
+          product.shopid == user.shopid
+        ) {
+          user.others.disableProducts[index] = {
+            url: commands.url,
+            itemid: user.itemid,
+            shopid: user.shopid,
+            allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
+            message: commands.msg || "..."
+          }
+          break;
+        }
+
+        if (index == user.others.disableProducts.length - 1) {
+          user.others.disableProducts.push({
+            url: commands.url,
+            itemid: user.itemid,
+            shopid: user.shopid,
+            allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
+            message: commands.msg || "..."
+          })
+        }
+      }
+    }
+
+    await Others.updateOne(null, {
+      disableProducts: user.others.disableProducts
+    }).exec()
+  }
+
+  if (commands['-clear']) {
+    return Others.updateOne(null, {
+      disableProducts: []
+    }).exec(function () {
+      return ctx.reply(`List Disable Products Berhasil Di Hapus`)
+    })
+  }
+
+  return ctx.reply(`<code>${JSON.stringify(user.others.disableProducts, null, "\t")}</code>`, { parse_mode: 'HTML' })
 })
 
 bot.command('stop', async (ctx) => {
@@ -594,9 +693,17 @@ bot.command('beli', async (ctx) => {
     user.config.shopid = parseInt(pathname[pathname.length - 2])
   }
 
-  if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return ctx.reply('Bukan Url Produk Shopee')
+  if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
 
   user.others = (await Others.find())[0]
+
+  for (const product of user.others.disableProducts) {
+    if (
+      product.itemid == user.config.itemid &&
+      product.shopid == user.config.shopid &&
+      !ensureRole(ctx, true, product.allowed)
+    ) return replaceMessage(ctx, user.config.message, `Shopee Bot Untuk Produk <code>${commands.url}</code> Tidak Tersedia Untuk Anda`, false)
+  }
 
   user.config = {
     ...user.config, ...{
