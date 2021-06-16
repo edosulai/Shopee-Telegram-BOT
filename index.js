@@ -590,7 +590,7 @@ bot.command('disable', async (ctx) => {
         itemid: user.itemid,
         shopid: user.shopid,
         allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
-        message: commands.msg || "..."
+        message: commands.msg
       })
     } else {
       for (const [index, product] of user.others.disableProducts.entries()) {
@@ -603,7 +603,7 @@ bot.command('disable', async (ctx) => {
             itemid: user.itemid,
             shopid: user.shopid,
             allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
-            message: commands.msg || "..."
+            message: commands.msg
           }
           break;
         }
@@ -614,7 +614,7 @@ bot.command('disable', async (ctx) => {
             itemid: user.itemid,
             shopid: user.shopid,
             allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
-            message: commands.msg || "..."
+            message: commands.msg
           })
         }
       }
@@ -702,7 +702,7 @@ bot.command('beli', async (ctx) => {
       product.itemid == user.config.itemid &&
       product.shopid == user.config.shopid &&
       !ensureRole(ctx, true, product.allowed)
-    ) return replaceMessage(ctx, user.config.message, `Shopee Bot Untuk Produk <code>${commands.url}</code> Tidak Tersedia Untuk Anda`, false)
+    ) return replaceMessage(ctx, user.config.message, product.msg || `Shopee Bot Untuk Produk <code>${commands.url}</code> Tidak Tersedia Untuk Anda`, false)
   }
 
   user.config = {
