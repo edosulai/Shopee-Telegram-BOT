@@ -949,6 +949,7 @@ const getCart = async function (ctx, getCache = false) {
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.data.shop_orders.length > 0) {
       user.infoKeranjang = chunk
@@ -993,6 +994,7 @@ const getCart = async function (ctx, getCache = false) {
 
   postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.data && chunk.error == 0) {
       user.updateKeranjang = chunk
@@ -1000,7 +1002,7 @@ const getCart = async function (ctx, getCache = false) {
       user.updateKeranjang.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postUpdateKeranjang')
     curl.close()
-  }).catch((err) => sendReportToDev(ctx, err))
+  }).catch((err) => !getCache ? sleep(0) : sendReportToDev(ctx, err))
 
   return getCheckout(ctx, getCache);
 }
@@ -1010,6 +1012,7 @@ const getCheckout = async function (ctx, getCache) {
 
   postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.shoporders) {
       user.config.infoCheckoutLong = chunk
@@ -1017,10 +1020,11 @@ const getCheckout = async function (ctx, getCache) {
       user.config.infoCheckoutLong.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
     curl.close()
-  }).catch((err) => sendReportToDev(ctx, err));
+  }).catch((err) => !getCache ? sleep(0) : sendReportToDev(ctx, err));
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.shoporders) {
       user.infoCheckoutQuick = chunk
