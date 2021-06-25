@@ -8,7 +8,7 @@ module.exports = async function (user, getCache) {
       'authority: shopee.co.id',
       'pragma: no-cache',
       'cache-control: no-cache',
-      `user-agent: ${user.userLoginInfo.userAgent}`,
+      `user-agent: ${process.env.USER_AGENT}`,
       'content-type: application/json',
       'accept: application/json',
       'x-shopee-language: id',

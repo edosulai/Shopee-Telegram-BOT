@@ -4,7 +4,7 @@ module.exports = async function (user) {
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
     .setHeaders([
       'authority: shopee.co.id',
-      `user-agent: ${user.userLoginInfo.userAgent}`,
+      `user-agent: ${process.env.USER_AGENT}`,
       'x-api-source: pc',
       'accept: application/json',
       'x-shopee-language: id',

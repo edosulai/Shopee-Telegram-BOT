@@ -9,7 +9,7 @@ module.exports = async function (user) {
       'x-shopee-language: id',
       'x-requested-with: XMLHttpRequest',
       'if-none-match-: 55b03-34dbcf10a046e582003fe563bc796fe0',
-      `user-agent: ${user.userLoginInfo.userAgent}`,
+      `user-agent: ${process.env.USER_AGENT}`,
       'x-api-source: pc',
       'accept: */*',
       'sec-fetch-site: same-origin',

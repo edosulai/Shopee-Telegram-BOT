@@ -10,13 +10,12 @@ module.exports = async function (user) {
       'x-api-source: pc',
       'x-shopee-language: id',
       'x-requested-with: XMLHttpRequest',
-      'if-none-match-: 55b03-8399610321d405732373a6200cc3d210',
+      'if-none-match-: 55b03-445da8daf48c3630a60fdb062de8b1d4',
       'accept: */*',
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      `referer: ${user.config.url}`,
+      'referer: https://shopee.co.id/flash_sale',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-      `cookie: ${curl.serializeCookie(user.userCookie)}`
-    ]).get(`https://shopee.co.id/api/v2/voucher_wallet/get_shop_vouchers_by_shopid?itemid=${user.config.itemid}&shopid=${user.config.shopid}&with_claiming_status=true`)
+    ]).get(`https://shopee.co.id/api/v2/flash_sale/get_all_sessions`)
 }

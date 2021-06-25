@@ -24,7 +24,7 @@ module.exports = async function (user, repeat = false) {
         'cache-control: no-cache',
         'x-track-id: b26f0c4411c6ec81fdd4a770b81127bf82056f7c1275832a9a5aa6dc4f1b08e4aa7c97945459d6d56907f0d8e0aadf1eb5e584ef0b961ca54eb62487baf55e7b',
         'x-cv-id: 7',
-        `user-agent: ${user.userLoginInfo.userAgent}`,
+        `user-agent: ${process.env.USER_AGENT}`,
         'content-type: application/json',
         'accept: application/json',
         'x-shopee-language: id',

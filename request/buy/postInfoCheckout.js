@@ -7,7 +7,7 @@ module.exports = async function (user) {
       'pragma: no-cache',
       'cache-control: no-cache',
       'x-cv-id: 9',
-      `user-agent: ${user.userLoginInfo.userAgent}`,
+      `user-agent: ${process.env.USER_AGENT}`,
       'content-type: application/json',
       'accept: application/json',
       'x-shopee-language: id',

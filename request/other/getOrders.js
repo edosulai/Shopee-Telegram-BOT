@@ -6,7 +6,7 @@ module.exports = async function (user) {
       'authority: shopee.co.id',
       'pragma: no-cache',
       'cache-control: no-cache',
-      `user-agent: ${user.userLoginInfo.userAgent}`,
+      `user-agent: ${process.env.USER_AGENT}`,
       'x-api-source: pc',
       'x-shopee-language: id',
       'x-requested-with: XMLHttpRequest',

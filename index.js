@@ -32,9 +32,11 @@ const dotenv = require('dotenv'),
   getAddress = require('./request/other/getAddress'),
   getOrders = require('./request/other/getOrders'),
   getCheckouts = require('./request/other/getCheckouts'),
-  postCancel = require('./request/other/postCancel');
+  postCancel = require('./request/other/postCancel'),
 
-const { sleep } = require('./helpers');
+  getFlashSaleSession = require('./request/other/getFlashSaleSession'),
+  getAllItemids = require('./request/other/getAllItemids'),
+  postFlashSaleBatchItems = require('./request/other/postFlashSaleBatchItems');
 
 dotenv.config();
 
@@ -119,41 +121,12 @@ const Failures = mongoose.model('Failures', {
 
 const bot = new Telegraf(process.env.TOKEN)
 
-bot.telegram.getMe().then((botInfo) => {
-  process.env.BOT_NAME = botInfo.first_name
-  process.env.BOT_USERNAME = botInfo.username
-  return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>Server has Initialized By Nick : ${process.env.BOT_USERNAME}</code>`, { parse_mode: 'HTML' })
-}).catch((err) => console.log(err))
-
 bot.use(session())
-
-bot.use((ctx, next) => {
-  return User.findOrCreate({ teleChatId: process.env.ADMIN_ID }, {
-    teleChatData: ctx.message.chat,
-    userLoginInfo: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74', },
-    userCookie: { csrftoken: null },
-    userRole: "admin"
-  }, async function (err, user, created) {
-    if (err) return sendReportToDev(ctx, err)
-    if (created) sendReportToDev(ctx, `Akun Admin Terbuat`, 'Info')
-    return next(ctx)
-  })
-})
-
-bot.use((ctx, next) => {
-  return Others.findOrCreate({}, {
-    "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
-  }, async function (err, other, created) {
-    if (err) return sendReportToDev(ctx, err)
-    if (created) sendReportToDev(ctx, `Meta Data Other Berhasil Terbuat`, 'Info')
-    return next(ctx)
-  })
-})
 
 bot.use((ctx, next) => {
   return User.findOrCreate({ teleChatId: ctx.message.chat.id }, {
     teleChatData: ctx.message.chat,
-    userLoginInfo: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74', },
+    userLoginInfo: { email: null, },
     userCookie: { csrftoken: null },
     userRole: "member"
   }, async function (err, user, created) {
@@ -168,6 +141,63 @@ bot.use((ctx, next) => {
     return next(ctx)
   })
 })
+
+bot.telegram.getMe().then(async (botInfo) => {
+  process.env.BOT_NAME = botInfo.first_name
+  process.env.BOT_USERNAME = botInfo.username
+  await bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>Server Has Initialized By Nick : ${process.env.BOT_USERNAME}</code>`, { parse_mode: 'HTML' })
+
+  let user = { Curl: Curl }
+
+  await User.updateOne({ teleChatId: process.env.ADMIN_ID }, {
+    userRole: "admin"
+  }, async function (err, user, created) {
+    if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
+  })
+
+  await Others.findOrCreate({}, {
+    "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
+  }, async function (err, other, created) {
+    if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
+  })
+
+  await getFlashSaleSession(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
+    curl.close()
+  }).catch((err) => console.log(err));
+
+  for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
+    if (index == 0) continue;
+
+    await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
+      curl.close()
+    }).catch((err) => console.log(err));
+
+    await postFlashSaleBatchItems(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
+      curl.close()
+    }).catch((err) => console.log(err));
+
+    let banner = `List Item Mencurigakan : \n`
+
+    for (const item of user.getFlashSaleSession.data.items) {
+      if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
+        banner += `\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
+      }
+    }
+
+    await User.find(async function (err, users) {
+      if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
+      for (let user of users) {
+        let u = JSON.parse(JSON.stringify(user))
+        if (['admin'].includes(u.userRole)) {
+          await bot.telegram.sendMessage(u.teleChatData.id, banner, { parse_mode: 'HTML' })
+        }
+      }
+    })
+  }
+}).catch((err) => console.log(err))
 
 bot.start((ctx) => {
   let banner = `${process.env.BOT_NAME} <b>v.${packageJson.version}</b>`
@@ -220,10 +250,10 @@ bot.command('info', (ctx) => {
   })
 })
 
-bot.command('speedtest', async (ctx) => {
+bot.command('speed', async (ctx) => {
   if (!ensureRole(ctx)) return
-  let commands = getCommands(ctx.message.text, '/speedtest ')
-  if (objectSize(commands) < 1) return ctx.reply(`/speedtest <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
+  let commands = getCommands(ctx.message.text, '/speed ')
+  if (objectSize(commands) < 1) return ctx.reply(`/speed <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
 
   if (typeof commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
   if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
