@@ -277,75 +277,75 @@ bot.command('speedtest', async (ctx) => {
   }
 })
 
-bot.command('logs', async (ctx) => {
-  if (!ensureRole(ctx)) return
-  let user = ctx.session;
-  let commands = getCommands(ctx.message.text, '/logs ')
-  if (objectSize(commands) < 1) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
+// bot.command('logs', async (ctx) => {
+//   if (!ensureRole(ctx)) return
+//   let user = ctx.session;
+//   let commands = getCommands(ctx.message.text, '/logs ')
+//   if (objectSize(commands) < 1) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
 
-  if (commands.url) {
-    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
-    let pathname = url.parse(commands.url, true).pathname.split('/')
-    if (pathname.length == 4) {
-      user.itemid = Number.isInteger(pathname[3]) ? pathname[3] : null
-      user.shopid = Number.isInteger(pathname[2]) ? pathname[2] : null
-    } else {
-      pathname = pathname[1].split('.')
-      user.itemid = Number.isInteger(pathname[pathname.length - 1]) ? pathname[pathname.length - 1] : null
-      user.shopid = Number.isInteger(pathname[pathname.length - 2]) ? pathname[pathname.length - 2] : null
-    }
-    if (!user.itemid || !user.shopid) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
-  }
+//   if (commands.url) {
+//     if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+//     let pathname = url.parse(commands.url, true).pathname.split('/')
+//     if (pathname.length == 4) {
+//       user.itemid = Number.isInteger(pathname[3]) ? pathname[3] : null
+//       user.shopid = Number.isInteger(pathname[2]) ? pathname[2] : null
+//     } else {
+//       pathname = pathname[1].split('.')
+//       user.itemid = Number.isInteger(pathname[pathname.length - 1]) ? pathname[pathname.length - 1] : null
+//       user.shopid = Number.isInteger(pathname[pathname.length - 2]) ? pathname[pathname.length - 2] : null
+//     }
+//     if (!user.itemid || !user.shopid) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
+//   }
 
-  if (commands['-clear']) {
-    return Logs.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
-      .then((result) => {
-        return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
-      }).catch((err) => sendReportToDev(ctx, err));
-  }
+//   if (commands['-clear']) {
+//     return Logs.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
+//       .then((result) => {
+//         return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
+//       }).catch((err) => sendReportToDev(ctx, err));
+//   }
 
-  return Logs.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, logs) {
-    if (err || !logs) return ctx.reply('Logs Untuk Produk Ini Tidak Tersedia!!')
-    fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(logs));
-    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.log(err))
-    return fs.unlinkSync(`./log-${user.itemid}.json`);
-  })
-})
+//   return Logs.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, logs) {
+//     if (err || !logs) return ctx.reply('Logs Untuk Produk Ini Tidak Tersedia!!')
+//     fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(logs));
+//     await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.log(err))
+//     return fs.unlinkSync(`./log-${user.itemid}.json`);
+//   })
+// })
 
-bot.command('failures', async (ctx) => {
-  if (!ensureRole(ctx)) return
-  let user = ctx.session;
-  let commands = getCommands(ctx.message.text, '/failures ')
-  if (objectSize(commands) < 1) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
+// bot.command('failures', async (ctx) => {
+//   if (!ensureRole(ctx)) return
+//   let user = ctx.session;
+//   let commands = getCommands(ctx.message.text, '/failures ')
+//   if (objectSize(commands) < 1) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
 
-  if (commands.url) {
-    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
-    let pathname = url.parse(commands.url, true).pathname.split('/')
-    if (pathname.length == 4) {
-      user.itemid = Number.isInteger(pathname[3]) ? pathname[3] : null
-      user.shopid = Number.isInteger(pathname[2]) ? pathname[2] : null
-    } else {
-      pathname = pathname[1].split('.')
-      user.itemid = Number.isInteger(pathname[pathname.length - 1]) ? pathname[pathname.length - 1] : null
-      user.shopid = Number.isInteger(pathname[pathname.length - 2]) ? pathname[pathname.length - 2] : null
-    }
-    if (!user.itemid || !user.shopid) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
-  }
+//   if (commands.url) {
+//     if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+//     let pathname = url.parse(commands.url, true).pathname.split('/')
+//     if (pathname.length == 4) {
+//       user.itemid = Number.isInteger(pathname[3]) ? pathname[3] : null
+//       user.shopid = Number.isInteger(pathname[2]) ? pathname[2] : null
+//     } else {
+//       pathname = pathname[1].split('.')
+//       user.itemid = Number.isInteger(pathname[pathname.length - 1]) ? pathname[pathname.length - 1] : null
+//       user.shopid = Number.isInteger(pathname[pathname.length - 2]) ? pathname[pathname.length - 2] : null
+//     }
+//     if (!user.itemid || !user.shopid) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
+//   }
 
-  if (commands['-clear']) {
-    return Failures.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
-      .then((result) => {
-        return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
-      }).catch((err) => sendReportToDev(ctx, err));
-  }
+//   if (commands['-clear']) {
+//     return Failures.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
+//       .then((result) => {
+//         return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
+//       }).catch((err) => sendReportToDev(ctx, err));
+//   }
 
-  return Failures.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, failures) {
-    if (err || !failures) return ctx.reply('Failures Untuk Produk Ini Tidak Tersedia!!')
-    fs.writeFileSync(`failure-${user.itemid}.json`, JSON.stringify(failures));
-    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./failure-${user.itemid}.json` }).catch((err) => console.log(err))
-    return fs.unlinkSync(`./failure-${user.itemid}.json`);
-  })
-})
+//   return Failures.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, failures) {
+//     if (err || !failures) return ctx.reply('Failures Untuk Produk Ini Tidak Tersedia!!')
+//     fs.writeFileSync(`failure-${user.itemid}.json`, JSON.stringify(failures));
+//     await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./failure-${user.itemid}.json` }).catch((err) => console.log(err))
+//     return fs.unlinkSync(`./failure-${user.itemid}.json`);
+//   })
+// })
 
 bot.command('user', async (ctx) => {
   if (!ensureRole(ctx)) return
@@ -886,7 +886,6 @@ bot.command('beli', async (ctx) => {
       let info = await getCart(ctx, true)
       if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
     }
-
     if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
 
     while (
@@ -949,7 +948,6 @@ const getCart = async function (ctx, getCache = false) {
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.data.shop_orders.length > 0) {
       user.infoKeranjang = chunk
@@ -994,7 +992,6 @@ const getCart = async function (ctx, getCache = false) {
 
   postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.data && chunk.error == 0) {
       user.updateKeranjang = chunk
@@ -1012,7 +1009,6 @@ const getCheckout = async function (ctx, getCache) {
 
   postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.shoporders) {
       user.config.infoCheckoutLong = chunk
@@ -1024,7 +1020,6 @@ const getCheckout = async function (ctx, getCache) {
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    if (!body || objectSize(body) < 1) return
     let chunk = JSON.parse(body);
     if (chunk.shoporders) {
       user.infoCheckoutQuick = chunk
