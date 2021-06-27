@@ -145,9 +145,6 @@ bot.use((ctx, next) => {
 bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
-  await bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>Server Has Initialized By Nick : ${process.env.BOT_USERNAME}</code>`, { parse_mode: 'HTML' })
-
-  let user = { Curl: Curl }
 
   await User.updateOne({ teleChatId: process.env.ADMIN_ID }, {
     userRole: "admin"
@@ -161,13 +158,23 @@ bot.telegram.getMe().then(async (botInfo) => {
     if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
   })
 
+  return setTimeout(alarmFlashSale, 0);
+
+}).catch((err) => console.log(err))
+
+const alarmFlashSale = async function () {
+  let user = { Curl: Curl }
+
   await getFlashSaleSession(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
     curl.close()
   }).catch((err) => console.log(err));
 
   for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
-    if (index == 0) continue;
+    if (index == 0) {
+      user.timeout = session.end_time + 1
+      continue;
+    }
 
     await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
@@ -179,11 +186,12 @@ bot.telegram.getMe().then(async (botInfo) => {
       curl.close()
     }).catch((err) => console.log(err));
 
-    let banner = `List Item Mencurigakan : \n`
+    let banner = session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
+    banner += `\n\nList Item yang Mencurigakan : `
 
     for (const item of user.getFlashSaleSession.data.items) {
       if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
-        banner += `\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
+        banner += `\n\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
       }
     }
 
@@ -191,16 +199,22 @@ bot.telegram.getMe().then(async (botInfo) => {
       if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
       for (let user of users) {
         let u = JSON.parse(JSON.stringify(user))
-        if (['admin'].includes(u.userRole)) {
+        if (['admin', 'vip'].includes(u.userRole)) {
           await bot.telegram.sendMessage(u.teleChatData.id, banner, { parse_mode: 'HTML' })
         }
       }
     })
   }
-}).catch((err) => console.log(err))
+
+  return setTimeout(alarmFlashSale, user.timeout * 1000 - Date.now());
+}
 
 bot.start((ctx) => {
   let banner = `${process.env.BOT_NAME} <b>v.${packageJson.version}</b>`
+  banner += `\n\n<b>==== Fitur Speed Pada ${process.env.BOT_NAME} ====</b>`
+  banner += `\n\nVIP     -> Speed Bot selesai Checkout / Payment ± 10ms`
+  banner += `\nPREMIUM -> Speed Bot selesai Checkout / Payment ± 150ms`
+  banner += `\nMEMBER  -> Speed Bot selesai Checkout / Payment ± 400ms`
   banner += `\n\n<b>==== LIST OPSI SHOP BOT ====</b>`
   banner += `\n\nOpsi <code>/beli</code> ini lah BOT online shopee nya, Agan akan Diperingatkan Login terlebih dahulu apabila email password Agan masih kosong`
   banner += `\n >> Contohnya : /beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
@@ -224,6 +238,7 @@ bot.start((ctx) => {
   banner += `\n # COD : /beli <code>-cod url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
   banner += `\n # ShopeePay : /beli <code>-shopeepay url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
   banner += `\n\n<b>"SEMUA PERINTAH DI ATAS BOLEH DI INPUT TIDAK BERURUTAN ASALKAN DENGAN SYNTAX YANG BENAR"</b>`
+  banner += `\n\n<b>"UNTUK REQUEST FITUR <b>VIP</b> / <b>PREMIUM</b> BISA CHAT GW LANGSUNG NGAB"</b>`
   banner += `\n\n<i>Contact Person : ngufeel@gmail.com | +6282386007722</i>`
   banner += `\n<i>BOT Created by: @edosulai</i>`
   return ctx.reply(banner, { parse_mode: 'HTML' });
@@ -1133,10 +1148,11 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : ''}`
 
-      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
-        user.config.info.push(info)
-        return buyItem(ctx)
-      }
+      // if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
+      // if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].some(err => err === user.order.error) && !user.config.repeat) {
+      //   user.config.info.push(info)
+      //   return buyItem(ctx)
+      // }
 
       await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
