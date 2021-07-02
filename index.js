@@ -711,10 +711,10 @@ bot.command('stop', async (ctx) => {
 
 bot.command('beli', async (ctx) => {
   let user = ctx.session
-  let commands = getCommands(ctx.message.text, '/beli ')
-  if (objectSize(commands) < 1) return ctx.reply(`/beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
+  user.commands = getCommands(ctx.message.text, '/beli ')
+  if (objectSize(user.commands) < 1) return ctx.reply(`/beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
-  await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+  await ctx.reply(`Prepare... <code>${user.commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
     user.config = {
       message: {
         chatId: replyCtx.chat.id,
@@ -725,15 +725,15 @@ bot.command('beli', async (ctx) => {
     }
   })
 
-  if (!checkAccount(ctx) || !isValidURL(commands.url)) return replaceMessage(ctx, user.config.message, 'Format Url Salah / Anda Belum Login')
-  if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return replaceMessage(ctx, user.config.message, 'Bukan Url Dari Shopee')
-  if (commands['-cod'] && commands['-shopeepay']) return replaceMessage(ctx, user.config.message, 'Silahkan Pilih Hanya Salah Satu Metode Pembayaran')
+  if (!checkAccount(ctx) || !isValidURL(user.commands.url)) return replaceMessage(ctx, user.config.message, 'Format Url Salah / Anda Belum Login')
+  if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id') return replaceMessage(ctx, user.config.message, 'Bukan Url Dari Shopee')
+  if (user.commands['-cod'] && user.commands['-shopeepay']) return replaceMessage(ctx, user.config.message, 'Silahkan Pilih Hanya Salah Satu Metode Pembayaran')
 
   for (let queue of queuePromotion) {
     if (queue.split(':')[0] == getSessionKey(ctx) && !ensureRole(ctx, true)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
-  let pathname = url.parse(commands.url, true).pathname.split('/')
+  let pathname = url.parse(user.commands.url, true).pathname.split('/')
 
   if (pathname.length == 4) {
     user.config.itemid = parseInt(pathname[3])
@@ -746,6 +746,11 @@ bot.command('beli', async (ctx) => {
 
   if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
 
+  return getItem(ctx, user);
+})
+
+const getItem = async function (ctx, user) {
+
   user.others = (await Others.find())[0]
 
   for (const product of user.others.disableProducts) {
@@ -753,20 +758,20 @@ bot.command('beli', async (ctx) => {
       product.itemid == user.config.itemid &&
       product.shopid == user.config.shopid &&
       !ensureRole(ctx, true, product.allowed)
-    ) return replaceMessage(ctx, user.config.message, product.msg || `Shopee Bot Untuk Produk <code>${commands.url}</code> Tidak Tersedia Untuk Anda`, false)
+    ) return replaceMessage(ctx, user.config.message, product.msg || `Shopee Bot Untuk Produk <code>${user.commands.url}</code> Tidak Tersedia Untuk Anda`, false)
   }
 
   user.config = {
     ...user.config, ...{
-      quantity: parseInt(commands.qty) || 1,
-      url: commands.url,
+      quantity: parseInt(user.commands.qty) || 1,
+      url: user.commands.url,
       payment: {
-        cod: commands['-cod'] || false,
-        shopeePay: commands['-shopeepay'] || false,
+        cod: user.commands['-cod'] || false,
+        shopeePay: user.commands['-shopeepay'] || false,
         transferBank: function (tansferPrioritys) {
-          if (tansferPrioritys.includes(commands.transfer)) {
+          if (tansferPrioritys.includes(user.commands.transfer)) {
             tansferPrioritys.sort(function (index, transfer) {
-              return index == commands.transfer ? -1 : transfer == commands.transfer ? 1 : 0;
+              return index == user.commands.transfer ? -1 : transfer == user.commands.transfer ? 1 : 0;
             });
             return tansferPrioritys;
           } else {
@@ -774,11 +779,11 @@ bot.command('beli', async (ctx) => {
           }
         }(['bni', 'bri', 'bca', 'mandiri', 'bsi', 'permata'])
       },
-      skiptimer: commands['-skiptimer'] || false,
-      autocancel: commands['-autocancel'] || false,
-      cache: commands['-cache'] ? ensureRole(ctx, false, ['admin']) : false,
-      repeat: commands['-repeat'] ? ensureRole(ctx, false, ['admin']) : false,
-      predictPrice: commands.price ? parseInt(commands.price) * 100000 : false,
+      skiptimer: user.commands['-skiptimer'] || false,
+      autocancel: user.commands['-autocancel'] || false,
+      cache: user.commands['-cache'] ? ensureRole(ctx, false, ['admin']) : false,
+      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin']) : false,
+      predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       fail: 0,
       success: false,
       outstock: false,
@@ -786,12 +791,12 @@ bot.command('beli', async (ctx) => {
     }
   }
 
-  if (commands['-premium'] ? ensureRole(ctx, true, ['admin', 'vip', 'premium']) : false) {
+  if (user.commands['-premium'] ? ensureRole(ctx, true, ['admin', 'vip', 'premium']) : false) {
     user.config.cache = true;
     await replaceMessage(ctx, user.config.message, 'Fitur Premium Terpasang')
   }
 
-  if (commands['-vip'] ? ensureRole(ctx, true, ['admin', 'vip']) : false) {
+  if (user.commands['-vip'] ? ensureRole(ctx, true, ['admin', 'vip']) : false) {
     user.config.cache = true;
     for (const product of user.others.eventProducts) {
       if (
@@ -958,6 +963,7 @@ bot.command('beli', async (ctx) => {
         modelid: user.config.modelid
       }, {
         postBuyBody: user.postBuyBody,
+        postBuyBodyLong: user.postBuyBodyLong,
         infoBarang: user.infoBarang,
         infoPengiriman: user.infoPengiriman,
         infoKeranjang: user.infoKeranjang,
@@ -976,6 +982,7 @@ bot.command('beli', async (ctx) => {
       modelid: user.config.modelid
     }, {
       postBuyBody: user.postBuyBody,
+      postBuyBodyLong: user.postBuyBodyLong,
       infoBarang: user.infoBarang,
       infoPengiriman: user.infoPengiriman,
       infoKeranjang: user.infoKeranjang,
@@ -985,7 +992,7 @@ bot.command('beli', async (ctx) => {
     }, { upsert: true }).exec()
 
   }));
-})
+}
 
 const getCart = async function (ctx, getCache = false) {
   let user = ctx.session;

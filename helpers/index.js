@@ -150,7 +150,7 @@ module.exports = {
 
   sendReportToDev: async function (ctx, msg, type = 'Error', callback = null) {
     if (type == 'Error') msg = new Error(msg.message || msg)
-    await ctx.reply(`<code>(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+    await ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
     if (typeof callback == 'function') return callback()
   },
 
