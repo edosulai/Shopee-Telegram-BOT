@@ -1207,10 +1207,10 @@ const buyRepeat = async function (ctx) {
   let user = ctx.session;
 
   do {
-    await postBuy(user, user.config.repeat).then().catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 800);
+    await postBuy(user, user.config.repeat).then(({ statusCode, body, headers, curlInstance, curl }) => console.log(body)).catch((err) => sleep(1));
+  } while (Date.now() - user.config.start < 400);
 
-  sleep(200);
+  sleep(100);
 
   if (user.payment.method.payment_channelid) {
 
@@ -1447,6 +1447,6 @@ bot.command((ctx) => {
   })
 })
 
-bot.catch((err, ctx) => sendReportToDev(ctx, err))
+bot.catch((err, ctx) => sendReportToDev(ctx, err, () => process.exit(1)))
 
 bot.launch()

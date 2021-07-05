@@ -18,7 +18,11 @@ module.exports = async function (user, repeat = false) {
     let curl = new user.Curl()
 
     return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
-      .setHeaders([
+      .setOtherOpt(function (curl) {
+        user.config.end = Date.now();
+        user.config.checkout = user.config.checkout || user.config.end
+        if (repeat) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
+      }).setHeaders([
         'authority: shopee.co.id',
         'pragma: no-cache',
         'cache-control: no-cache',
@@ -39,11 +43,7 @@ module.exports = async function (user, repeat = false) {
         'referer: https://shopee.co.id/checkout',
         'accept-language: en-US,en;q=0.9',
         `cookie: ${curl.serializeCookie(user.userCookie)}`,
-      ]).setBody(JSON.stringify(infoCheckout)).setOtherOpt(function (curl) {
-        user.config.end = Date.now();
-        user.config.checkout = user.config.checkout || user.config.end
-        if (repeat) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
-      }).post(`https://shopee.co.id/api/v2/checkout/place_order`)
+      ]).setBody(JSON.stringify(infoCheckout)).post(`https://shopee.co.id/api/v2/checkout/place_order`)
   }
 
   user.selectedShipping = user.selectedShipping || function (logistics) {
