@@ -191,6 +191,7 @@ const alarmFlashSale = async function () {
 }
 
 bot.use((ctx, next) => {
+  if (!ctx.message.chat) return;
   return User.findOrCreate({ teleChatId: ctx.message.chat.id }, {
     teleChatData: ctx.message.chat,
     userLoginInfo: { email: null, },
@@ -460,6 +461,13 @@ bot.command('login', async (ctx) => {
   }
 
   if (!user.userCookie.csrftoken) user.userCookie.csrftoken = generateString(32)
+
+  await User.updateOne({
+    teleChatId: ctx.message.chat.id
+  }, {
+    userLoginInfo: user.userLoginInfo,
+    userCookie: user.userCookie
+  }).exec()
 
   if (!checkAccount(ctx)) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
 
@@ -862,7 +870,7 @@ const getItem = async function (ctx, user) {
       user.config.promotionid = parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid)
       user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
 
-      if ((user.config.end) < Date.now() + 10000) break;
+      if (user.config.end < Date.now() + 10000) break;
 
       let msg = ``
       msg += timeConverter(Date.now() - user.config.end, { countdown: true })
@@ -944,11 +952,13 @@ const getItem = async function (ctx, user) {
     if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
 
     while (
-      (user.config.end - Date.now() >= 0) ||
+      (user.config.end > Date.now()) ||
       function (now) {
-        return (now - (Math.floor(now / 1000) * 1000)) > 100 ? true : false
+        return now - (Math.floor(now / 1000) * 1000) > 100
       }(Date.now())
     ) continue;
+
+    sleep((Date.now() % 1000).toFixed(0) < 1 ? 1 : 0);
 
     let info = await getCart(ctx)
     dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
