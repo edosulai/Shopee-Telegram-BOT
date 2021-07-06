@@ -123,25 +123,6 @@ const bot = new Telegraf(process.env.TOKEN)
 
 bot.use(session())
 
-bot.use((ctx, next) => {
-  return User.findOrCreate({ teleChatId: ctx.message.chat.id }, {
-    teleChatData: ctx.message.chat,
-    userLoginInfo: { email: null, },
-    userCookie: { csrftoken: null },
-    userRole: "member"
-  }, async function (err, user, created) {
-    if (err) return sendReportToDev(ctx, err)
-    if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
-    ctx.session = user
-    ctx.session.Curl = Curl
-    if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
-      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `Mencoba Akses BOT`, 'Info'))
-      return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info'));
-    }
-    return next(ctx)
-  })
-})
-
 bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
@@ -208,6 +189,25 @@ const alarmFlashSale = async function () {
 
   return setTimeout(alarmFlashSale, user.timeout * 1000 - Date.now());
 }
+
+bot.use((ctx, next) => {
+  return User.findOrCreate({ teleChatId: ctx.message.chat.id }, {
+    teleChatData: ctx.message.chat,
+    userLoginInfo: { email: null, },
+    userCookie: { csrftoken: null },
+    userRole: "member"
+  }, async function (err, user, created) {
+    if (err) return sendReportToDev(ctx, err)
+    if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
+    ctx.session = user
+    ctx.session.Curl = Curl
+    if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
+      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `Mencoba Akses BOT`, 'Info'))
+      return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info'));
+    }
+    return next(ctx)
+  })
+})
 
 bot.start((ctx) => {
   let banner = `${process.env.BOT_NAME} <b>v.${packageJson.version}</b>`
@@ -782,7 +782,7 @@ const getItem = async function (ctx, user) {
       skiptimer: user.commands['-skiptimer'] || false,
       autocancel: user.commands['-autocancel'] || false,
       cache: user.commands['-cache'] ? ensureRole(ctx, false, ['admin']) : false,
-      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin']) : false,
+      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin', 'vip']) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       fail: 0,
       success: false,
@@ -804,7 +804,6 @@ const getItem = async function (ctx, user) {
         product.shopid == user.config.shopid
       ) {
         user.config.predictPrice = parseInt(product.price) * 100000
-        user.config.repeat = true
         await replaceMessage(ctx, user.config.message, 'Fitur VIP Terpasang')
         break
       }
