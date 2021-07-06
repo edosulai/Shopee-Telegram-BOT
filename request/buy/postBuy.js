@@ -63,6 +63,9 @@ module.exports = async function (user, repeat = false) {
         typeLogist = type
       }
     }
+
+    if (!typeLogist.channel_ids) return false
+
     let chunk = { channel: { priority: Number.MAX_VALUE } }
     for (const shippingInfo of logistics.shipping_infos) {
       if (
@@ -90,6 +93,8 @@ module.exports = async function (user, repeat = false) {
     chunk.promotionChannels = channelIds
     return chunk
   }(user.infoPengiriman)
+
+  if (!user.selectedShipping) return new Promise((resolve, reject) => resolve({ err: `Maaf Sayang Sekali Tidak ada opsi pengiriman yang tersedia untuk barang <b><i>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</i></b>` }))
 
   user.tax = user.tax || function (payment) {
     if (payment.payment_channelid) {
@@ -536,7 +541,7 @@ module.exports = async function (user, repeat = false) {
   }
 
   return waitUntil(user, 'updateKeranjang', 'infoCheckoutQuick', function (resolve, reject) {
-    if (user.updateKeranjang.error != 0) return reject(`Gagal Mendapatkan Update Keranjang Belanja : ${user.updateKeranjang.error}`)
+    if (user.updateKeranjang.error != 0) return reject(`Gagal Mendapatkan Update Keranjang Belanja: ${user.updateKeranjang.error} `)
     return resolve()
   }).then(async () => {
     user.postBuyBody = user.postBuyBody || postBuyBody(user)

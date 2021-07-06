@@ -949,6 +949,7 @@ const getItem = async function (ctx, user) {
       let info = await getCart(ctx, true)
       if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
     }
+
     if (!queuePromotion.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
 
     while (
@@ -1138,7 +1139,9 @@ const getCheckout = async function (ctx, getCache) {
 const buyItem = function (ctx) {
   let user = ctx.session;
 
-  return postBuy(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  return postBuy(user).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {
+    if (err) return err;
+
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     user.order = JSON.parse(body)
     user.order.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
@@ -1165,7 +1168,6 @@ const buyItem = function (ctx) {
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : ''}`
 
       // if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
-      // if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].some(err => err === user.order.error) && !user.config.repeat) {
       //   user.config.info.push(info)
       //   return buyItem(ctx)
       // }
