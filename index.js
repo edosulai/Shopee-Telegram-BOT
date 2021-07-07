@@ -959,7 +959,7 @@ const getItem = async function (ctx, user) {
       }(Date.now())
     ) continue;
 
-    sleep((Date.now() % 1000).toFixed(0) < 1 ? 1 : 0);
+    // sleep((Date.now() % 1000).toFixed(0) < 1 ? 1 : 0);
 
     let info = await getCart(ctx)
     dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)
@@ -1218,7 +1218,9 @@ const buyRepeat = async function (ctx) {
   let user = ctx.session;
 
   do {
-    await postBuy(user, user.config.repeat).then(({ statusCode, body, headers, curlInstance, curl }) => console.log(body)).catch((err) => sleep(1));
+    await postBuy(user, user.config.repeat)
+      .then(({ statusCode, body, headers, curlInstance, curl }) => console.log(body))
+      .catch((err) => sleep(1));
   } while (Date.now() - user.config.start < 400);
 
   sleep(100);
