@@ -2,8 +2,6 @@ const dotenv = require('dotenv'),
   { Telegraf, session } = require('telegraf'),
   mongoose = require('mongoose'),
   fs = require('fs'),
-  { exec } = require('child_process'),
-  fetch = require('node-fetch'),
   crypto = require('crypto'),
   findOrCreate = require('mongoose-findorcreate'),
   psl = require('psl'),
@@ -269,7 +267,7 @@ bot.command('info', (ctx) => {
 bot.command('speed', async (ctx) => {
   if (!ensureRole(ctx)) return
   let commands = getCommands(ctx.message.text, '/speed ')
-  if (objectSize(commands) < 1) return ctx.reply(`/speed <code>type=curl limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
+  if (objectSize(commands) < 1) return ctx.reply(`/speed <code>limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
 
   if (typeof commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
   if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
@@ -278,49 +276,18 @@ bot.command('speed', async (ctx) => {
   let totalWaktu = 0;
   let tunggu = Date.now();
 
-  switch (commands.type) {
-    case 'curl':
-      while (totalWaktu < (commands.limit * 1000)) {
-        let curl = new Curl();
-        await curl._setUrl(commands.url)
-          .setOpt(curl.libcurl.option.CUSTOMREQUEST, (commands.method || 'GET').toUpperCase())
-          .setOpt(curl.libcurl.option.SSL_VERIFYPEER, false)
-          ._submit().then(({ statusCode, body, headers, curlInstance, curl }) => {
-            curl.close()
-            totalWaktu = Date.now() - tunggu;
-            totalRequest++;
-          }).catch((err) => sendReportToDev(ctx, err));
-      }
-      return ctx.reply(`Total CURL Dalam ${commands.limit} Detik = ${totalRequest}`)
-
-    case 'fetch':
-      while (totalWaktu < (commands.limit * 1000)) {
-        await fetch(commands.url, {
-          method: (commands.method || 'GET').toUpperCase()
-        }).then((result) => {
-          totalWaktu = Date.now() - tunggu;
-          totalRequest++;
-        }).catch((err) => sendReportToDev(ctx, err));
-      }
-      return ctx.reply(`Total FETCH Dalam ${commands.limit} Detik = ${totalRequest}`)
-
-    case 'terminal':
-      (async function syncTerm() {
-        try {
-          return exec(`curl -X ${(commands.method || 'GET').toUpperCase()} ${commands.url}`, async (err, stdout, stderr) => {
-            totalWaktu = Date.now() - tunggu;
-            totalRequest++;
-            if (totalWaktu < (commands.limit * 1000)) {
-              return syncTerm();
-            } else {
-              return ctx.reply(`Total TERMINAL CURL Dalam ${commands.limit} Detik = ${totalRequest}`)
-            }
-          });
-        } catch (err) {
-          sendReportToDev(ctx, err)
-        }
-      })()
+  while (totalWaktu < (commands.limit * 1000)) {
+    let curl = new Curl();
+    await curl._setUrl(commands.url)
+      .setOpt(curl.libcurl.option.CUSTOMREQUEST, (commands.method || 'GET').toUpperCase())
+      .setOpt(curl.libcurl.option.SSL_VERIFYPEER, false)
+      ._submit().then(({ statusCode, body, headers, curlInstance, curl }) => {
+        curl.close()
+        totalWaktu = Date.now() - tunggu;
+        totalRequest++;
+      }).catch((err) => sendReportToDev(ctx, err));
   }
+  return ctx.reply(`Total CURL Dalam ${commands.limit} Detik = ${totalRequest}`)
 })
 
 bot.command('logs', async (ctx) => {

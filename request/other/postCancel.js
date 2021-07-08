@@ -5,7 +5,7 @@ module.exports = async function (user) {
 
   if (user.payment.method.payment_channelid) {
 
-    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
+    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
       .setHeaders([
         'authority: shopee.co.id',
         'pragma: no-cache',
@@ -33,7 +33,7 @@ module.exports = async function (user) {
     form.append('buyer_cancel_reason_id', 507);
     delete form._streams[form._streams.length - 1]
 
-    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 3)
+    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
       .setHeaders([
         'authority: shopee.co.id',
         'pragma: no-cache',

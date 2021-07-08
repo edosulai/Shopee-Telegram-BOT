@@ -32,7 +32,8 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
           if (typeof callback == 'function') return callback(resolve, reject)
           return resolve()
         }
-        process.stdout.write(`\rLoading ${["\\", "|", "/", "-"][x++]}`);
+
+        // process.stdout.write(`\rLoading ${["\\", "|", "/", "-"][x++]}`);
         x &= 3;
         if (Date.now() - start > 3000) {
           clearInterval(until)
