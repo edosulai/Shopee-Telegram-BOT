@@ -1219,11 +1219,11 @@ const buyRepeat = async function (ctx) {
 
   do {
     await postBuy(user, user.config.repeat)
-      .then(({ statusCode, body, headers, curlInstance, curl }) => console.log(body))
+      .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.log(body, err))
       .catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 400);
+  } while (Date.now() - user.config.start < 150);
 
-  sleep(100);
+  sleep(50);
 
   if (user.payment.method.payment_channelid) {
 
