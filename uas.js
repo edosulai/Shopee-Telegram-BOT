@@ -26,11 +26,11 @@ let koktanya = 700;
     ]).get(`https://estudy-filkom.upiyptk.ac.id//ujian/masuk/${ndaktau}/${koktanya}/${KODE_KULIAH}`)
     .then(({ statusCode, body, headers, curlInstance, curl }) => {
       if (body.includes("Maaf, Halaman yang anda cari tidak ditemukan dalam situs ini, silahkan koreksi lagi keyword yang anda masukan...")) {
-        process.stdout.write(`\rSearching Tahap Ke : ${ndaktau} , ${koktanya}`);
+        process.stdout.write(`\rSearching Tahap Ke : ${ndaktau} , ${koktanya}\r`);
       } else {
         console.log(`\nhttps://estudy-filkom.upiyptk.ac.id//ujian/masuk/${ndaktau}/${koktanya}/${KODE_KULIAH}`);
       }
-    }).catch((err) => console.log(''));
+    }).catch((err) => process.stdout.write(`\r`));
 
   ndaktau++
 
