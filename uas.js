@@ -31,13 +31,11 @@ let koktanya = 700;
         } else {
           console.log(`\nhttps://estudy-filkom.upiyptk.ac.id//ujian/masuk/${ndaktau}/${koktanya}/${KODE_KULIAH}`);
         }
-      }).catch((err) => console.log(err));
-
-    ndaktau++
-
-    if (ndaktau >= 3000) {
-      ndaktau = 1
-      koktanya++
-    }
+        ndaktau++
+        if (ndaktau >= 3000) {
+          ndaktau = 1
+          koktanya++
+        }
+      }).catch((err) => process.stdout.write(`\r`));
   }
 })()
