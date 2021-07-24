@@ -1188,9 +1188,9 @@ const buyRepeat = async function (ctx) {
     await postBuy(user, user.config.repeat)
       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.log(body, err))
       .catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 25);
+  } while (Date.now() - user.config.start < 20);
 
-  sleep(50);
+  sleep(180);
 
   if (user.payment.method.payment_channelid) {
 
