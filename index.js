@@ -456,7 +456,7 @@ bot.command('login', async (ctx) => {
     return postLogin(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-
+      
       switch (JSON.parse(body).error) {
         case 1:
           return _tryLogin('Ada Yang Error.. Sedang Mencoba Kembali..');
@@ -803,7 +803,7 @@ const getItem = async function (ctx, user) {
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    user.address = JSON.parse(body);
+    user.address = typeof body == 'string' ? JSON.parse(body) : body;
     if (user.address.error) return replaceMessage(ctx, user.config.message, 'Sesi Anda Sudah Habis Silahkan Login Kembali')
     user.address = function (addresses) {
       for (const address of addresses) {
@@ -870,7 +870,7 @@ const getItem = async function (ctx, user) {
     await getInfoPengiriman(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      user.infoPengiriman = JSON.parse(body);
+      user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
     }).catch((err) => sendReportToDev(ctx, err));
 
     user.config = {
@@ -1110,7 +1110,7 @@ const buyItem = function (ctx) {
     if (err) return err;
 
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    user.order = JSON.parse(body)
+    user.order = typeof body == 'string' ? JSON.parse(body) : body;
     user.order.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
 
@@ -1188,7 +1188,7 @@ const buyRepeat = async function (ctx) {
     await postBuy(user, user.config.repeat)
       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.log(body, err))
       .catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 150);
+  } while (Date.now() - user.config.start < 25);
 
   sleep(50);
 
@@ -1215,7 +1215,7 @@ const buyRepeat = async function (ctx) {
       info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
       info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
 
-      for (const orders of JSON.parse(body).orders) {
+      for (const orders of (typeof body == 'string' ? JSON.parse(body) : body).orders) {
         if (
           Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
           orders.extinfo.first_itemid == user.config.itemid &&
@@ -1282,7 +1282,7 @@ const buyRepeat = async function (ctx) {
       info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
       info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
 
-      for (const checkouts of JSON.parse(body).checkouts) {
+      for (const checkouts of (typeof body == 'string' ? JSON.parse(body) : body).checkouts) {
         for (const orders of checkouts.orders) {
           if (
             Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
