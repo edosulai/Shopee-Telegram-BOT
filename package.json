@@ -11,7 +11,6 @@
     "dev03": "NODE_ENV=development TOKEN=1745604191:AAG8dw1O10bnof2YljpyqLy_MbFgRhz6DZ0 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_03 npm run start",
     "dev04": "NODE_ENV=development TOKEN=1812220234:AAEwMki7KS5dxj9obdPWG_9ny6xWwA3idzI MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_04 npm run start",
     "start": "forever --max-old-space-size=384 index.js",
-    "uas": "node --max-old-space-size=256 uas.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
