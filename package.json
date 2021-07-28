@@ -1,6 +1,6 @@
 {
   "name": "shop-bot",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/Edolf/Shopee-Telegram-BOT#readme",
   "dependencies": {
+    "chalk": "^4.1.1",
     "cookie": "^0.4.1",
     "dotenv": "^8.2.0",
     "forever": "^3.0.4",
@@ -34,7 +35,7 @@
     "mongoose": "^5.11.18",
     "mongoose-findorcreate": "^3.0.0",
     "node-html-parser": "^3.3.6",
-    "node-libcurl": "^2.3.0",
+    "node-libcurl": "^2.3.3",
     "psl": "^1.8.0",
     "telegraf": "^4.3.0",
     "tor-request": "^3.1.0"

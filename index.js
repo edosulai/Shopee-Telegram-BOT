@@ -8,15 +8,19 @@ const dotenv = require('dotenv'),
   url = require('url'),
   { parse } = require('node-html-parser'),
   tr = require('tor-request'),
+  chalk = require('chalk'),
 
   packageJson = require('./package.json'),
   Curl = require('./helpers/curl'),
   waitUntil = require('./helpers/waitUntil'),
 
   getLogin = require('./request/auth/getLogin'),
-  postLogin = require('./request/auth/postlogin'),
-  postSendOtp = require('./request/auth/postSendOtp'),
-  postVerifyOtp = require('./request/auth/postVerifyOtp'),
+  postLogin = require('./request/auth/postLogin'),
+  postLoginMethod = require('./request/auth/postLoginMethod'),
+  postLoginLinkVerify = require('./request/auth/postLoginLinkVerify'),
+  postLoginTokenVerify = require('./request/auth/postLoginTokenVerify'),
+  postStatusLogin = require('./request/auth/postStatusLogin'),
+  postLoginDone = require('./request/auth/postLoginDone'),
 
   getInfoBarang = require('./request/buy/getInfoBarang'),
   postKeranjang = require('./request/buy/postKeranjang'),
@@ -46,7 +50,7 @@ let queuePromotion = []
 
 mongoose.connect(process.env.MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((res, err) => console.log('Database Connected...'))
-  .catch((err) => console.error(err))
+  .catch((err) => console.error(chalk.red(err)))
 
 const User = mongoose.model('User', new mongoose.Schema({
   teleChatId: Number,
@@ -139,7 +143,7 @@ bot.telegram.getMe().then(async (botInfo) => {
 
   return setTimeout(alarmFlashSale, 0);
 
-}).catch((err) => console.log(err))
+}).catch((err) => console.error(chalk.red(err)))
 
 const alarmFlashSale = async function () {
   let user = { Curl: Curl }
@@ -147,7 +151,7 @@ const alarmFlashSale = async function () {
   await getFlashSaleSession(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
     curl.close()
-  }).catch((err) => console.log(err));
+  }).catch((err) => console.error(chalk.red(err)));
 
   for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
     if (index == 0) {
@@ -158,12 +162,12 @@ const alarmFlashSale = async function () {
     await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
-    }).catch((err) => console.log(err));
+    }).catch((err) => console.error(chalk.red(err)));
 
     await postFlashSaleBatchItems(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
-    }).catch((err) => console.log(err));
+    }).catch((err) => console.error(chalk.red(err)));
 
     let banner = session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
     banner += `\n\nList Item yang Mencurigakan : `
@@ -221,8 +225,6 @@ bot.start((ctx) => {
   banner += `\n >> Contohnya : /stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
   banner += `\n\nOpsi <code>/login</code> di gunakan untuk melakukan input data untuk Login Sekaligus Login ke akun Shopee Agan`
   banner += `\n >> Contohnya : /login <code>email=emailagan@email.com password=rahasia</code>`
-  banner += `\n\nOpsi <code>/otp</code> di gunakan apabila ketika Login memerlukan verifikasi OTP dalam authentikasi akun`
-  banner += `\n >> Contohnya : /otp <code>123456</code>`
   banner += `\n\n==== CATATAN TAMBAHAN ====`
   banner += `\n\nPada opsi <code>/beli</code> Transaksi Bank Cek Otomasis akan terdefault pada Bank BNI agan bisa merubah nya dengan menuliskan opsi transfer ketika menggunakan opsi beli`
   banner += `\n\List Opsi Pembayaran : `
@@ -323,7 +325,7 @@ bot.command('logs', async (ctx) => {
   return Logs.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, logs) {
     if (err || !logs) return ctx.reply('Logs Untuk Produk Ini Tidak Tersedia!!')
     fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(logs));
-    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.log(err))
+    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.error(chalk.red(err)))
     return fs.unlinkSync(`./log-${user.itemid}.json`);
   })
 })
@@ -361,7 +363,7 @@ bot.command('failures', async (ctx) => {
   return Failures.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, failures) {
     if (err || !failures) return ctx.reply('Failures Untuk Produk Ini Tidak Tersedia!!')
     fs.writeFileSync(`failure-${user.itemid}.json`, JSON.stringify(failures));
-    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./failure-${user.itemid}.json` }).catch((err) => console.log(err))
+    await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./failure-${user.itemid}.json` }).catch((err) => console.error(chalk.red(err)))
     return fs.unlinkSync(`./failure-${user.itemid}.json`);
   })
 })
@@ -415,103 +417,119 @@ bot.command('login', async (ctx) => {
   let user = ctx.session;
   let commands = getCommands(ctx.message.text, '/login ')
 
-  for (let command in commands) {
-    command = command.toLowerCase()
-    if (Object.hasOwnProperty.call(commands, command) && ['email', 'password'].includes(command) && commands[command]) {
-      if (command == 'password') {
-        user.userLoginInfo.metaPassword = commands[command];
-        let md5pass = crypto.createHash('md5').update(commands[command]).digest('hex');
-        commands[command] = crypto.createHash('sha256').update(md5pass).digest('hex');
-      }
-      user.userLoginInfo[command] = commands[command]
-    }
-  }
-
-  if (!user.userCookie.csrftoken) user.userCookie.csrftoken = generateString(32)
-
-  await User.updateOne({
-    teleChatId: ctx.message.chat.id
-  }, {
-    userLoginInfo: user.userLoginInfo,
-    userCookie: user.userCookie
-  }).exec()
-
-  if (!checkAccount(ctx)) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
-
-  user.config = {
-    otp: function (otp) {
-      if (!otp) return 1
-      let otpMethod = { wa: 3, sms: 1 }
-      if (['sms', 'wa'].includes(otp.toLowerCase())) return otpMethod[otp]
-    }(commands.otp) || 1
-  }
-
-  await getLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+  return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-  }).catch((err) => sendReportToDev(ctx, err));
+    user.address = typeof body == 'string' ? JSON.parse(body) : body;
+    if (!user.address.error) return ctx.reply('Anda Sudah Login')
 
-  return async function _tryLogin(msg) {
-    if (msg) await ctx.reply(msg)
-    return postLogin(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    for (let command in commands) {
+      command = command.toLowerCase()
+      if (Object.hasOwnProperty.call(commands, command) && ['email', 'password'].includes(command) && commands[command]) {
+        if (command == 'password') {
+          user.userLoginInfo.metaPassword = commands[command];
+          let md5pass = crypto.createHash('md5').update(commands[command]).digest('hex');
+          commands[command] = crypto.createHash('sha256').update(md5pass).digest('hex');
+        }
+        user.userLoginInfo[command] = commands[command]
+      }
+    }
+
+    if (!user.userCookie.csrftoken) user.userCookie.csrftoken = generateString(32)
+
+    await User.updateOne({
+      teleChatId: ctx.message.chat.id
+    }, {
+      userLoginInfo: user.userLoginInfo,
+      userCookie: user.userCookie
+    }).exec()
+
+    if (!checkAccount(ctx)) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
+
+    await getLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      
-      switch (JSON.parse(body).error) {
-        case 1:
-          return _tryLogin('Ada Yang Error.. Sedang Mencoba Kembali..');
-        case 2:
-          return ctx.reply('Akun dan/atau password Anda salah, silakan coba lagi')
-        case 3:
-          return ctx.reply('Permintaan OTP kamu telah melewati batas. Silakan coba lagi nanti')
-        case 77:
-          await postSendOtp(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-            curl.close()
-            user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-            ctx.reply('Silahkan Cek SMS / WhatsApp Anda')
-          }).catch((err) => sendReportToDev(ctx, err));
-          break;
-
-        default:
-          await ctx.reply(`Login Berhasil`)
-      }
-
-      return User.updateOne({
-        teleChatId: ctx.message.chat.id
-      }, {
-        userLoginInfo: user.userLoginInfo,
-        userCookie: user.userCookie
-      }).exec(async (err, res) => {
-        if (err) return ctx.reply(`User Gagal Di Update`).then(() => sendReportToDev(ctx, 'User Gagal Di Update')).catch((err) => sendReportToDev(ctx, err));
-      })
-
     }).catch((err) => sendReportToDev(ctx, err));
-  }()
-})
 
-bot.command('otp', async (ctx) => {
-  let user = ctx.session;
-  let commands = ctx.message.text.split('/otp ')
-  if (commands.length < 2) return ctx.reply(`/otp <code>...message...</code>`, { parse_mode: 'HTML' })
+    return async function _tryLogin(msg) {
+      if (msg) await ctx.reply(msg)
+      return postLogin(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+        curl.close()
+        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        user.login = typeof body == 'string' ? JSON.parse(body) : body;
 
-  if (!checkAccount(ctx)) return
-  return postVerifyOtp(user, commands[1]).then(({ statusCode, body, headers, curlInstance, curl }) => {
-    curl.close()
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    switch (JSON.parse(body).error) {
-      case 1:
-        return ctx.reply('Gagal Verify OTP Login Shopee')
+        switch (user.login.error) {
+          case 1:
+            return _tryLogin('Ada Yang Error.. Sedang Mencoba Kembali..');
+          case 2:
+            return ctx.reply('Akun dan/atau password Anda salah, silakan coba lagi')
+          case 98:
+            await postLoginMethod(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              curl.close()
+              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              user.loginMethod = typeof body == 'string' ? JSON.parse(body) : body;
+            }).catch((err) => sendReportToDev(ctx, err));
 
-      default:
+            if (user.loginMethod.data.length == 0) {
+              return ctx.reply('Maaf, kami tidak dapat memverifikasi log in kamu. Silakan hubungi Customer Service untuk bantuan.')
+            }
+
+            await postLoginLinkVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              curl.close()
+              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              user.loginLinkVerify = typeof body == 'string' ? JSON.parse(body) : body;
+              ctx.reply('Silahkan Cek Notifikasi SMS dari Shopee di Handphone Anda')
+            }).catch((err) => sendReportToDev(ctx, err));
+
+            do {
+              await postStatusLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+                curl.close()
+                user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+                user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
+              }).catch((err) => sendReportToDev(ctx, err));
+
+              if (user.loginStatus.data.link_status == 4) return ctx.reply('Login Anda Gagal Coba Beberapa Saat Lagi')
+
+              sleep(1000);
+            } while (user.loginStatus.data.link_status != 2);
+
+            await postLoginTokenVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              curl.close()
+              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              user.loginTokenVerify = typeof body == 'string' ? JSON.parse(body) : body;
+            }).catch((err) => sendReportToDev(ctx, err));
+
+            await postLoginDone(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              curl.close()
+              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
+            }).catch((err) => sendReportToDev(ctx, err));
+
+            if (user.loginStatus.data) {
+              await ctx.reply('Login Berhasil')
+            } else {
+              await ctx.reply(`Login Gagal`)
+              return sendReportToDev(ctx, 'Login Gagal', 'Error')
+            }
+
+            break;
+
+          default:
+            await ctx.reply(`Auto Login Berhasil`)
+        }
+
         return User.updateOne({
           teleChatId: ctx.message.chat.id
         }, {
           userLoginInfo: user.userLoginInfo,
           userCookie: user.userCookie
-        }).exec(function () {
-          return ctx.reply(`Verify OTP dan Login Berhasil..`)
+        }).exec(async (err, res) => {
+          if (err) return ctx.reply(`User Gagal Di Update`).then(() => sendReportToDev(ctx, 'User Gagal Di Update')).catch((err) => sendReportToDev(ctx, err));
         })
-    }
+
+      }).catch((err) => sendReportToDev(ctx, err));
+    }()
+
   }).catch((err) => sendReportToDev(ctx, err));
 })
 
@@ -1186,11 +1204,11 @@ const buyRepeat = async function (ctx) {
 
   do {
     await postBuy(user, user.config.repeat)
-      .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.log(body, err))
+      .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
       .catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 20);
+  } while (Date.now() - user.config.start < 15);
 
-  sleep(180);
+  sleep(385);
 
   if (user.payment.method.payment_channelid) {
 
