@@ -61,9 +61,7 @@ module.exports = {
   },
 
   getSessionKey: function (ctx) {
-    if (ctx.from && ctx.chat) {
-      return ctx.from.id
-    } else if (ctx.from && ctx.inlineQuery) {
+    if ((ctx.from && ctx.chat) || (ctx.from && ctx.inlineQuery)) {
       return ctx.from.id
     }
     return null
@@ -79,13 +77,13 @@ module.exports = {
     return url.protocol === "http:" || url.protocol === "https:";
   },
 
-  ensureRole: function (ctx, ignoreReport = false, allowRole = ['admin']) {
+  ensureRole: async function (ctx, ignoreReport = false, allowRole = ['admin']) {
     if (allowRole.includes(ctx.session.userRole)) return true
-    if (!ignoreReport) sendReportToDev(ctx, `Mencoba Mengakses Fitur ${allowRole.join(' ')}`, 'Info')
+    if (!ignoreReport) await sendReportToDev(ctx, `Mencoba Mengakses Fitur ${allowRole.join(' ')}`, 'Info')
     return false
   },
 
-  checkAccount: function (ctx) {
+  checkAccount: async function (ctx) {
     if (
       ctx.session.userLoginInfo.email &&
       ctx.session.userLoginInfo.password
@@ -95,7 +93,7 @@ module.exports = {
     info += `\nEmail : ${ctx.session.userLoginInfo.email || ''} `
     info += `\nPassword : ${(ctx.session.userLoginInfo.metaPassword ? '**********' : '')} `
 
-    ctx.reply(info)
+    await sendMessage(ctx, info);
     return false;
   },
 
@@ -139,10 +137,18 @@ module.exports = {
     if (typeof callback == 'function') return callback()
   },
 
-  replaceMessage: function (ctx, oldMsg, newMsg, filter = true) {
+  sendMessage: async function (ctx, msg, extra = {}) {
+    if (ctx.telegram) {
+      return await ctx.telegram.sendMessage(ctx.message.chat.id, msg, extra)
+    } else {
+      return await ctx.reply(msg, extra)
+    }
+  },
+
+  replaceMessage: async function (ctx, oldMsg, newMsg, filter = true) {
     if (filter) newMsg = newMsg.replace(/<[^>]*>?/gm, "");
     if (oldMsg.text.replace(/[^a-zA-Z0-9\\s]/gi, "") !== newMsg.replace(/[^a-zA-Z0-9\\s]/gi, "")) {
-      return ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
+      return await ctx.telegram.editMessageText(oldMsg.chatId, oldMsg.msgId, oldMsg.inlineMsgId, newMsg, { parse_mode: 'HTML' }).then((replyCtx) => {
         oldMsg.text = replyCtx.text
       }).catch((err) => process.stdout.write(`\r ${err}`))
     }
@@ -150,7 +156,11 @@ module.exports = {
 
   sendReportToDev: async function (ctx, msg, type = 'Error', callback = null) {
     if (type == 'Error') msg = new Error(msg.message || msg)
-    await ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+    if (ctx.telegram) {
+      await ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
+    } else {
+      await ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+    }
     if (typeof callback == 'function') return callback()
   },
 

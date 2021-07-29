@@ -126,32 +126,48 @@ const bot = new Telegraf(process.env.TOKEN)
 bot.use(session())
 
 bot.telegram.getMe().then(async (botInfo) => {
+
+  let user = {
+    Curl: Curl
+  }
+
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
 
   await User.updateOne({ teleChatId: process.env.ADMIN_ID }, {
     userRole: "admin"
   }, async function (err, user, created) {
-    if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
+    if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error')
   })
 
   await Others.findOrCreate({}, {
     "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
   }, async function (err, other, created) {
-    if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
+    if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error')
   })
 
-  return setTimeout(alarmFlashSale, 0);
+  await User.findOne({ teleChatId: process.env.ADMIN_ID }, async function (err, userUpdated) {
+    user = {
+      ...user, ...userUpdated._doc
+    }
+  })
+
+  return setTimeout(alarmFlashSale.bind(null, user), 0);
 
 }).catch((err) => console.error(chalk.red(err)))
 
-const alarmFlashSale = async function () {
-  let user = { Curl: Curl }
+const alarmFlashSale = async function (user) {
+
+  await setEvent({
+    commands: {
+      "-clear": true
+    }
+  })
 
   await getFlashSaleSession(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
     curl.close()
-  }).catch((err) => console.error(chalk.red(err)));
+  }).catch((err) => sendReportToDev(bot, err, 'Error'));
 
   for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
     if (index == 0) {
@@ -162,34 +178,63 @@ const alarmFlashSale = async function () {
     await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
-    }).catch((err) => console.error(chalk.red(err)));
+    }).catch((err) => sendReportToDev(bot, err, 'Error'));
 
     await postFlashSaleBatchItems(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
-    }).catch((err) => console.error(chalk.red(err)));
+    }).catch((err) => sendReportToDev(bot, err, 'Error'));
 
     let banner = session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
     banner += `\n\nList Item yang Mencurigakan : `
 
-    for (const item of user.getFlashSaleSession.data.items) {
+    let max = {
+      price_before_discount: 0,
+      url: null
+    }
+
+    for (const [item, index] of user.getFlashSaleSession.data.items.entries()) {
       if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
+        if (item.price_before_discount > max.price_before_discount) {
+          max = {
+            price_before_discount: item.price_before_discount,
+            url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`
+          }
+        }
+
         banner += `\n\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
+        await setEvent({
+          commands: {
+            url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`,
+            price: 1000
+          }
+        })
       }
     }
 
     await User.find(async function (err, users) {
-      if (err) return bot.telegram.sendMessage(process.env.ADMIN_ID, `<code>${err}</code>`, { parse_mode: 'HTML' })
+      if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error')
       for (let user of users) {
         let u = JSON.parse(JSON.stringify(user))
         if (['admin', 'vip'].includes(u.userRole)) {
-          await bot.telegram.sendMessage(u.teleChatData.id, banner, { parse_mode: 'HTML' })
+
+          bot.from = u.teleChatData
+          bot.chat = u.teleChatData
+          bot.message = {
+            chat: u.teleChatData
+          }
+          bot.session = u
+
+          await sendMessage(bot, banner, { parse_mode: 'HTML' })
+          if (max.url) setTimeout(getItem.bind(null, bot, user), 0)
         }
       }
     })
   }
 
-  return setTimeout(alarmFlashSale, user.timeout * 1000 - Date.now());
+  return setTimeout(alarmFlashSale.bind(null, {
+    Curl: Curl
+  }), user.timeout * 1000 - Date.now());
 }
 
 bot.use((ctx, next) => {
@@ -250,8 +295,6 @@ bot.help(async (ctx) => {
   if (commands.length < 2) return ctx.reply(`/help <code>...message...</code>`, { parse_mode: 'HTML' })
   return sendReportToDev(ctx, commands[1].replace(/(<([^>]+)>)/gi, ""), 'Help');
 })
-
-bot.command('quit', (ctx) => ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info')))
 
 bot.command('info', (ctx) => {
   if (!ensureRole(ctx)) return
@@ -536,15 +579,19 @@ bot.command('login', async (ctx) => {
 bot.command('event', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session
-  let commands = getCommands(ctx.message.text, '/event ')
+  user.commands = getCommands(ctx.message.text, '/event ')
+  if (objectSize(user.commands) < 1) return ctx.reply(`/event <code>url=https://shopee.co.id/Sebuah-Produk-Shop..... price=...</code>`, { parse_mode: 'HTML' })
+  return setEvent(user, ctx)
+})
 
+const setEvent = async function (user, ctx = null) {
   user.others = (await Others.find())[0]
 
-  if (commands.url && commands.price) {
-    if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
-    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+  if (user.commands.url && user.commands.price) {
+    if (!isValidURL(user.commands.url) && ctx) return ctx.reply('Format Url Salah')
+    if (psl.get(extractRootDomain(user.commands.url) && ctx) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
 
-    let pathname = url.parse(commands.url, true).pathname.split('/')
+    let pathname = url.parse(user.commands.url, true).pathname.split('/')
     if (pathname.length == 4) {
       user.itemid = parseInt(pathname[3])
       user.shopid = parseInt(pathname[2])
@@ -554,14 +601,14 @@ bot.command('event', async (ctx) => {
       user.shopid = parseInt(pathname[pathname.length - 2])
     }
 
-    if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return ctx.reply('Bukan Url Produk Shopee')
+    if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid) && ctx) return ctx.reply('Bukan Url Produk Shopee')
 
     if (user.others.eventProducts.length <= 0) {
       user.others.eventProducts.push({
-        url: commands.url,
+        url: user.commands.url,
         itemid: user.itemid,
         shopid: user.shopid,
-        price: commands.price
+        price: user.commands.price
       })
     } else {
       for (const [index, product] of user.others.eventProducts.entries()) {
@@ -570,20 +617,20 @@ bot.command('event', async (ctx) => {
           product.shopid == user.shopid
         ) {
           user.others.eventProducts[index] = {
-            url: commands.url,
+            url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
-            price: commands.price
+            price: user.commands.price
           }
           break;
         }
 
         if (index == user.others.eventProducts.length - 1) {
           user.others.eventProducts.push({
-            url: commands.url,
+            url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
-            price: commands.price
+            price: user.commands.price
           })
         }
       }
@@ -594,16 +641,16 @@ bot.command('event', async (ctx) => {
     }).exec()
   }
 
-  if (commands['-clear']) {
+  if (user.commands['-clear']) {
     return Others.updateOne(null, {
       eventProducts: []
     }).exec(function () {
-      return ctx.reply(`List Event Products Berhasil Di Hapus`)
+      if (ctx) return ctx.reply(`List Event Products Berhasil Di Hapus`)
     })
   }
 
-  return ctx.reply(`<code>${JSON.stringify(user.others.eventProducts, null, "\t")}</code>`, { parse_mode: 'HTML' })
-})
+  if (ctx) return ctx.reply(`<code>${JSON.stringify(user.others.eventProducts, null, "\t")}</code>`, { parse_mode: 'HTML' })
+}
 
 bot.command('disable', async (ctx) => {
   if (!ensureRole(ctx)) return
@@ -742,6 +789,8 @@ bot.command('beli', async (ctx) => {
   return getItem(ctx, user);
 })
 
+bot.command('quit', (ctx) => ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info')))
+
 const getItem = async function (ctx, user) {
 
   user.others = (await Others.find())[0]
@@ -775,7 +824,7 @@ const getItem = async function (ctx, user) {
       skiptimer: user.commands['-skiptimer'] || false,
       autocancel: user.commands['-autocancel'] || false,
       cache: user.commands['-cache'] ? ensureRole(ctx, false, ['admin']) : false,
-      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin', 'vip']) : false,
+      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin']) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       fail: 0,
       success: false,
@@ -796,6 +845,7 @@ const getItem = async function (ctx, user) {
         product.itemid == user.config.itemid &&
         product.shopid == user.config.shopid
       ) {
+        user.config.repeat = true;
         user.config.predictPrice = parseInt(product.price) * 100000
         await replaceMessage(ctx, user.config.message, 'Fitur VIP Terpasang')
         break
@@ -1208,7 +1258,7 @@ const buyRepeat = async function (ctx) {
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.start < 15);
 
-  sleep(385);
+  sleep(585);
 
   if (user.payment.method.payment_channelid) {
 
