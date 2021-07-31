@@ -6,9 +6,8 @@ const dotenv = require('dotenv'),
   findOrCreate = require('mongoose-findorcreate'),
   psl = require('psl'),
   url = require('url'),
-  { parse } = require('node-html-parser'),
-  tr = require('tor-request'),
   chalk = require('chalk'),
+  { curly } = require('node-libcurl'),
 
   packageJson = require('./package.json'),
   Curl = require('./helpers/curl'),
@@ -110,16 +109,6 @@ const Failures = mongoose.model('Failures', {
     default: Date.now
   }
 })
-
-// const express = require("express");
-
-// const app = express();
-// const port = process.env.PORT || 8000
-
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: false }));
-// app.use(express.static(path.join(__dirname, 'public')));
-// app.listen(port, () => console.log(`Listening on port ${port}`))
 
 const bot = new Telegraf(process.env.TOKEN)
 
@@ -322,17 +311,30 @@ bot.command('speed', async (ctx) => {
   let tunggu = Date.now();
 
   while (totalWaktu < (commands.limit * 1000)) {
+    await curly.get(commands.url)
+      .then(({ statusCode, body, headers }) => {
+        totalWaktu = Date.now() - tunggu;
+        totalRequest++;
+      }).catch((err) => sendReportToDev(ctx, err));
+  }
+
+  await ctx.reply(`Total curly Dalam ${commands.limit} Detik = ${totalRequest}`)
+
+  totalRequest = 0;
+  totalWaktu = 0;
+  tunggu = Date.now();
+
+  while (totalWaktu < (commands.limit * 1000)) {
     let curl = new Curl();
-    await curl._setUrl(commands.url)
-      .setOpt(curl.libcurl.option.CUSTOMREQUEST, (commands.method || 'GET').toUpperCase())
-      .setOpt(curl.libcurl.option.SSL_VERIFYPEER, false)
-      ._submit().then(({ statusCode, body, headers, curlInstance, curl }) => {
+    await curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).get(commands.url)
+      .then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         totalWaktu = Date.now() - tunggu;
         totalRequest++;
       }).catch((err) => sendReportToDev(ctx, err));
   }
-  return ctx.reply(`Total CURL Dalam ${commands.limit} Detik = ${totalRequest}`)
+
+  return ctx.reply(`Total curl Dalam ${commands.limit} Detik = ${totalRequest}`)
 })
 
 bot.command('logs', async (ctx) => {
@@ -1408,74 +1410,6 @@ const dropQueue = function (queue, user = {}) {
   }
   return `Queue Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Tidak Ditemukan`;
 }
-
-bot.command('xplay', async (ctx) => {
-  if (!ensureRole(ctx)) return
-  if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
-  let user = ctx.session;
-  let commands = getCommands(ctx.message.text, '/xplay ')
-  if (objectSize(commands) < 1) return ctx.reply(`/xplay <code>url=http://...69fck.onion</code>`, { parse_mode: 'HTML' })
-
-  await ctx.reply(`Prepare... <code>${commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-    user.message = {
-      chatId: replyCtx.chat.id,
-      msgId: replyCtx.message_id,
-      inlineMsgId: replyCtx.inline_message_id,
-      text: replyCtx.text
-    }
-  })
-
-  return tr.request({
-    url: commands.url,
-    headers: {
-      'connection': 'keep-alive',
-      'pragma': 'no-cache',
-      'cache-control': 'no-cache',
-      'DNT': '1',
-      'upgrade-insecure-requests': '1',
-      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
-      'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-      'accept-language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-      'cookie': process.env.XPLAY_COOKIE
-    }
-  }, async function (err, response, body) {
-    let document = parse(body)
-    let videoTitle = document.querySelector('title').childNodes[0].rawText
-    let videoName = document.querySelector('source').rawAttrs.split('src="')[1].split('" ')[0].split('/')
-
-    if (fs.existsSync(`./temp/${videoName[videoName.length - 1]}`)) {
-      return replaceMessage(ctx, user.message, `File Sudah Video ${videoTitle} ${videoName[videoName.length - 1]} <code>${commands.url}</code> Sudah Ada`, false)
-    } else {
-      await replaceMessage(ctx, user.message, `Sedang Mendownload Video ${videoTitle} ${videoName[videoName.length - 1]} <code>${commands.url}</code>`, false)
-      return tr.request({
-        url: `${process.env.XPLAY_DOMAIN}/hwdvideos/uploads/${videoName[videoName.length - 2]}/${videoName[videoName.length - 1]}`,
-        headers: {
-          'connection': 'keep-alive',
-          'DNT': '1',
-          'range': 'bytes=0-',
-          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
-          'accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
-          'accept-language': 'en-US,en;q=0.5'
-        },
-        strictSSL: true,
-        agentOptions: {
-          socksHost: '127.0.0.1',
-          socksPort: 9050,
-        }
-      }, function (err, response, body) {
-        return replaceMessage(ctx, user.message, `Video ${videoTitle} ${videoName[videoName.length - 1]} <code>${commands.url}</code> Terdownload`, false)
-      }).pipe(fs.createWriteStream(`./temp/${videoName[videoName.length - 1]}`))
-    }
-  })
-})
-
-bot.command('env', async (ctx) => {
-  if (!ensureRole(ctx)) return
-  let commands = getCommands(ctx.message.text, '/env ')
-  if (objectSize(commands) < 1) {
-    return ctx.reply(`<code>${JSON.stringify(dotenv.parse(Buffer.from(fs.readFileSync('./.env'))), null, "\t")}</code>`, { parse_mode: 'HTML' })
-  }
-})
 
 bot.command('restart', async (ctx) => {
   if (!ensureRole(ctx)) return
