@@ -64,6 +64,7 @@ const User = mongoose.model('User', new mongoose.Schema({
 }).plugin(findOrCreate))
 
 const Others = mongoose.model('Others', new mongoose.Schema({
+  promotionId: Array,
   disableProducts: Array,
   eventProducts: Array,
   metaPayment: Object,
@@ -130,7 +131,7 @@ bot.telegram.getMe().then(async (botInfo) => {
   })
 
   await Others.findOrCreate({}, {
-    "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
+    "promotionId": [], "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
   }, async function (err, other, created) {
     if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error')
   })
@@ -158,6 +159,21 @@ const alarmFlashSale = async function (user) {
     curl.close()
   }).catch((err) => sendReportToDev(bot, err, 'Error'));
 
+  await Promise.all(user.getFlashSaleSession.data.sessions.map(session => {
+    return new Promise(async (resolve, reject) => {
+      await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
+        curl.close()
+      }).catch((err) => sendReportToDev(bot, err, 'Error'));
+
+      return resolve(user.getAllItemids.data.promotionid)
+    })
+  })).then(async id => {
+    await Others.updateOne(null, {
+      promotionId: id
+    }).exec()
+  })
+
   for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
     if (index == 0) {
       user.timeout = session.end_time + 1
@@ -182,8 +198,9 @@ const alarmFlashSale = async function (user) {
       url: null
     }
 
-    for (const [item, index] of user.getFlashSaleSession.data.items.entries()) {
+    for (const item of user.getFlashSaleSession.data.items) {
       if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
+        // if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 1)) {
         if (item.price_before_discount > max.price_before_discount) {
           max = {
             price_before_discount: item.price_before_discount,
@@ -215,7 +232,27 @@ const alarmFlashSale = async function (user) {
           bot.session = u
 
           await sendMessage(bot, banner, { parse_mode: 'HTML' })
-          if (max.url) setTimeout(getItem.bind(null, bot, user), 0)
+          if (max.url && index == 1) {
+            bot.session.commands = {
+              url: max.url,
+              price: max.price,
+              '-vip': true
+            }
+            bot.session.Curl = Curl
+
+            await bot.telegram.sendMessage(u.teleChatId, `Prepare... <code>${max.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+              bot.session.config = {
+                message: {
+                  chatId: replyCtx.chat.id,
+                  msgId: replyCtx.message_id,
+                  inlineMsgId: replyCtx.inline_message_id,
+                  text: replyCtx.text
+                }
+              }
+            })
+
+            setTimeout(getItem.bind(null, bot), 0)
+          }
         }
       }
     })
@@ -340,13 +377,13 @@ bot.command('speed', async (ctx) => {
 bot.command('logs', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session;
-  let commands = getCommands(ctx.message.text, '/logs ')
-  if (objectSize(commands) < 1) return ctx.reply(`/logs <code>opsi=...</code>`, { parse_mode: 'HTML' })
+  user.commands = getCommands(ctx.message.text, '/logs ')
+  if (objectSize(user.commands) < 1) return ctx.reply(`/logs <code>url=...</code>`, { parse_mode: 'HTML' })
 
-  if (commands.url) {
-    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+  if (user.commands.url) {
+    if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
 
-    let pathname = url.parse(commands.url, true).pathname.split('/')
+    let pathname = url.parse(user.commands.url, true).pathname.split('/')
 
     if (pathname.length == 4) {
       user.itemid = parseInt(pathname[3])
@@ -360,7 +397,7 @@ bot.command('logs', async (ctx) => {
     if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return ctx.reply('Bukan Url Produk Shopee')
   }
 
-  if (commands['-clear']) {
+  if (user.commands['-clear']) {
     return Logs.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Logs Telah Terhapus`)
@@ -378,13 +415,13 @@ bot.command('logs', async (ctx) => {
 bot.command('failures', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session;
-  let commands = getCommands(ctx.message.text, '/failures ')
-  if (objectSize(commands) < 1) return ctx.reply(`/failures <code>opsi=...</code>`, { parse_mode: 'HTML' })
+  user.commands = getCommands(ctx.message.text, '/failures ')
+  if (objectSize(user.commands) < 1) return ctx.reply(`/failures <code>url=...</code>`, { parse_mode: 'HTML' })
 
-  if (commands.url) {
-    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+  if (user.commands.url) {
+    if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
 
-    let pathname = url.parse(commands.url, true).pathname.split('/')
+    let pathname = url.parse(user.commands.url, true).pathname.split('/')
 
     if (pathname.length == 4) {
       user.itemid = parseInt(pathname[3])
@@ -398,7 +435,7 @@ bot.command('failures', async (ctx) => {
     if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return ctx.reply('Bukan Url Produk Shopee')
   }
 
-  if (commands['-clear']) {
+  if (user.commands['-clear']) {
     return Failures.deleteMany(user.itemid ? { itemid: user.itemid, shopid: user.shopid } : null)
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Failures Telah Terhapus`)
@@ -591,7 +628,7 @@ const setEvent = async function (user, ctx = null) {
 
   if (user.commands.url && user.commands.price) {
     if (!isValidURL(user.commands.url) && ctx) return ctx.reply('Format Url Salah')
-    if (psl.get(extractRootDomain(user.commands.url) && ctx) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+    if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id' && ctx) return ctx.reply('Bukan Url Dari Shopee')
 
     let pathname = url.parse(user.commands.url, true).pathname.split('/')
     if (pathname.length == 4) {
@@ -657,15 +694,15 @@ const setEvent = async function (user, ctx = null) {
 bot.command('disable', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session
-  let commands = getCommands(ctx.message.text, '/disable ')
+  user.commands = getCommands(ctx.message.text, '/disable ')
 
   user.others = (await Others.find())[0]
 
-  if (commands.url) {
-    if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
-    if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+  if (user.commands.url) {
+    if (!isValidURL(user.commands.url)) return ctx.reply('Format Url Salah')
+    if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
 
-    let pathname = url.parse(commands.url, true).pathname.split('/')
+    let pathname = url.parse(user.commands.url, true).pathname.split('/')
     if (pathname.length == 4) {
       user.itemid = parseInt(pathname[3])
       user.shopid = parseInt(pathname[2])
@@ -679,11 +716,11 @@ bot.command('disable', async (ctx) => {
 
     if (user.others.disableProducts.length <= 0) {
       user.others.disableProducts.push({
-        url: commands.url,
+        url: user.commands.url,
         itemid: user.itemid,
         shopid: user.shopid,
-        allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
-        message: commands.msg
+        allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : ['admin'],
+        message: user.commands.msg
       })
     } else {
       for (const [index, product] of user.others.disableProducts.entries()) {
@@ -692,22 +729,22 @@ bot.command('disable', async (ctx) => {
           product.shopid == user.shopid
         ) {
           user.others.disableProducts[index] = {
-            url: commands.url,
+            url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
-            allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
-            message: commands.msg
+            allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : ['admin'],
+            message: user.commands.msg
           }
           break;
         }
 
         if (index == user.others.disableProducts.length - 1) {
           user.others.disableProducts.push({
-            url: commands.url,
+            url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
-            allowed: commands.allowed ? commands.allowed.toLowerCase().split(',') : ['admin'],
-            message: commands.msg
+            allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : ['admin'],
+            message: user.commands.msg
           })
         }
       }
@@ -718,7 +755,7 @@ bot.command('disable', async (ctx) => {
     }).exec()
   }
 
-  if (commands['-clear']) {
+  if (user.commands['-clear']) {
     return Others.updateOne(null, {
       disableProducts: []
     }).exec(function () {
@@ -731,13 +768,13 @@ bot.command('disable', async (ctx) => {
 
 bot.command('stop', async (ctx) => {
   let user = ctx.session
-  let commands = getCommands(ctx.message.text, '/stop ')
-  if (objectSize(commands) < 1) return ctx.reply(`/stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
+  user.commands = getCommands(ctx.message.text, '/stop ')
+  if (objectSize(user.commands) < 1) return ctx.reply(`/stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
-  if (!checkAccount(ctx) || !isValidURL(commands.url)) return ctx.reply('Format Url Salah')
-  if (psl.get(extractRootDomain(commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
+  if (!checkAccount(ctx) || !isValidURL(user.commands.url)) return ctx.reply('Format Url Salah')
+  if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id') return ctx.reply('Bukan Url Dari Shopee')
 
-  let pathname = url.parse(commands.url, true).pathname.split('/')
+  let pathname = url.parse(user.commands.url, true).pathname.split('/')
 
   if (pathname.length == 4) {
     user.itemid = parseInt(pathname[3])
@@ -775,6 +812,14 @@ bot.command('beli', async (ctx) => {
     if (queue.split(':')[0] == getSessionKey(ctx) && !ensureRole(ctx, true)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
+  return getItem(ctx);
+})
+
+bot.command('quit', (ctx) => ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info')))
+
+const getItem = async function (ctx) {
+  let user = ctx.session
+
   let pathname = url.parse(user.commands.url, true).pathname.split('/')
 
   if (pathname.length == 4) {
@@ -787,13 +832,6 @@ bot.command('beli', async (ctx) => {
   }
 
   if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
-
-  return getItem(ctx, user);
-})
-
-bot.command('quit', (ctx) => ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info')))
-
-const getItem = async function (ctx, user) {
 
   user.others = (await Others.find())[0]
 
@@ -828,6 +866,7 @@ const getItem = async function (ctx, user) {
       cache: user.commands['-cache'] ? ensureRole(ctx, false, ['admin']) : false,
       repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin']) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
+      flashSale: false,
       fail: 0,
       success: false,
       outstock: false,
@@ -842,12 +881,12 @@ const getItem = async function (ctx, user) {
 
   if (user.commands['-vip'] ? ensureRole(ctx, true, ['admin', 'vip']) : false) {
     user.config.cache = true;
+    user.config.repeat = true;
     for (const product of user.others.eventProducts) {
       if (
         product.itemid == user.config.itemid &&
         product.shopid == user.config.shopid
       ) {
-        user.config.repeat = true;
         user.config.predictPrice = parseInt(product.price) * 100000
         await replaceMessage(ctx, user.config.message, 'Fitur VIP Terpasang')
         break
@@ -901,6 +940,7 @@ const getItem = async function (ctx, user) {
       }).catch((err) => userLogs(ctx, err, 'Error', () => user.config.start = false));
 
       if (!user.infoBarang || !user.config.start) continue;
+      if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
       if (!user.infoBarang.item.upcoming_flash_sale) break;
 
       user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
@@ -934,6 +974,8 @@ const getItem = async function (ctx, user) {
       await replaceMessage(ctx, user.config.message, msg)
 
       sleep(ensureRole(ctx, true) ? 200 : (200 * queuePromotion.length) - (Date.now() - user.config.start))
+
+      delete user.infoBarang
 
     } while (!user.config.skiptimer)
 
@@ -1258,7 +1300,7 @@ const buyRepeat = async function (ctx) {
     await postBuy(user, user.config.repeat)
       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
       .catch((err) => sleep(1));
-  } while (Date.now() - user.config.start < 15);
+  } while (Date.now() - user.config.checkout < 10);
 
   sleep(585);
 

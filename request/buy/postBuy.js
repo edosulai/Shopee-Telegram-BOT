@@ -248,7 +248,18 @@ module.exports = async function (user, repeat = false) {
           "order_total": shoporders.shipping_fee + (user.config.price * user.config.quantity),
           "shipping_id": shoporders.shipping_id,
           "buyer_ic_number": shoporders.buyer_ic_number || "",
-          "items": shoporders.items,
+          "items": function (items) {
+            items[0].stock = 0
+            items[0].price = user.config.price
+            items[0].promotion_id = function (isFlashSale) {
+              if (isFlashSale) {
+                return user.infoBarang.item.flash_sale ? user.others.promotionId[0] : user.others.promotionId[1]
+              }
+              return items[0].promotion_id
+            }(user.config.flashSale)
+            items[0].is_flash_sale = user.config.flashSale
+            return items
+          }(shoporders.items),
           "selected_preferred_delivery_time_option_id": shoporders.selected_preferred_delivery_time_option_id,
           "selected_logistic_channelid": shoporders.selected_logistic_channelid,
           "cod_fee": shoporders.cod_fee,
@@ -381,11 +392,18 @@ module.exports = async function (user, repeat = false) {
             "address_type": 0
           },
           "buyer_ic_number": null,
-          "items": function () {
-            user.infoCheckoutQuick.shoporders[0].items[0].stock = 0
-            user.infoCheckoutQuick.shoporders[0].items[0].price = user.config.price
-            return user.infoCheckoutQuick.shoporders[0].items
-          }(),
+          "items": function (items) {
+            items[0].stock = 0
+            items[0].price = user.config.price
+            items[0].promotion_id = function (isFlashSale) {
+              if (isFlashSale) {
+                return user.infoBarang.item.flash_sale ? user.others.promotionId[0] : user.others.promotionId[1]
+              }
+              return items[0].promotion_id
+            }(user.config.flashSale)
+            items[0].is_flash_sale = user.config.flashSale
+            return items
+          }(user.infoCheckoutQuick.shoporders[0].items),
           "shipping_fee_discount": user.infoCheckoutQuick.shoporders[0].shipping_fee_discount,
           "tax_info": {
             "use_new_custom_tax_msg": false,
