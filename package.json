@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "pkg": "pkg --options 'max-old-space-size=1024' -o bin/index index.js && ./bin/index",
+    "pkg": "pkg --options 'max-old-space-size=1024' -o bin index.js && NODE_ENV=production TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot ./bin",
     "prod": "NODE_ENV=production TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot npm run start",
     "dev": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot npm run start",
     "dev01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_01 npm run start",

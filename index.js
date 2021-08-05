@@ -942,8 +942,8 @@ const getItem = async function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
-        postBuyBody: user.postBuyBody,
-        postBuyBodyLong: user.postBuyBodyLong,
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoBarang: user.infoBarang,
         infoPengiriman: user.infoPengiriman,
         infoKeranjang: user.infoKeranjang,
@@ -961,8 +961,8 @@ const getItem = async function (ctx) {
       shopid: user.config.shopid,
       modelid: user.config.modelid
     }, {
-      postBuyBody: user.postBuyBody,
-      postBuyBodyLong: user.postBuyBodyLong,
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
       infoBarang: user.infoBarang,
       infoPengiriman: user.infoPengiriman,
       infoKeranjang: user.infoKeranjang,
@@ -1086,6 +1086,8 @@ const getCheckout = async function (ctx, getCache) {
       shopid: user.config.shopid,
       modelid: user.config.modelid
     }, {
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
       infoKeranjang: user.infoKeranjang,
       updateKeranjang: user.updateKeranjang,
       infoCheckoutQuick: user.infoCheckoutQuick,
@@ -1159,6 +1161,8 @@ const buyItem = function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
@@ -1246,6 +1250,8 @@ const buyRepeat = async function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
@@ -1315,6 +1321,8 @@ const buyRepeat = async function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
