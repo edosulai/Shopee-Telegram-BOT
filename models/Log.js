@@ -5,6 +5,8 @@ module.exports = mongoose.model('Logs', {
   itemid: Number,
   shopid: Number,
   modelid: Number,
+  buyBody: Object,
+  buyBodyLong: Object,
   infoKeranjang: Object,
   updateKeranjang: Object,
   infoCheckoutQuick: Object,

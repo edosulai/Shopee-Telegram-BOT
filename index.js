@@ -854,10 +854,10 @@ const getItem = async function (ctx) {
 
       if (!user.infoBarang || !user.config.start) continue;
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
+      user.config.promotionid = (user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1])
       if (!user.infoBarang.item.upcoming_flash_sale) break;
 
       user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
-      user.config.promotionid = parseInt(user.infoBarang.item.upcoming_flash_sale.promotionid)
       user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
 
       if (user.config.end < Date.now() + 10000) break;
@@ -896,44 +896,31 @@ const getItem = async function (ctx) {
       user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
     }).catch((err) => sendReportToDev(ctx, err));
 
-    user.config = {
-      ...user.config,
-      ...function (barang) {
-        if (user.config.modelid && user.config.promotionid) return
+    if (!user.config.modelid) {
+      user.config.modelid = function (barang) {
         for (const model of barang.item.models) {
+          if (!barang.item.flash_sale) break;
           if (model.stock < 1 || model.price_stocks.length < 1) continue
           for (const stock of model.price_stocks) {
-            if (barang.item.flash_sale ? barang.item.flash_sale.promotionid == stock.promotion_id : false) {
-              return {
-                modelid: stock.model_id,
-                promotionid: stock.promotion_id
-              }
-            }
+            if (user.other.promotionId[0] == stock.promotion_id) return stock.model_id
           }
         }
 
         for (const model of barang.item.models) {
           if (model.stock < 1 || model.price_stocks.length < 1) continue
-          for (const stock of model.price_stocks) {
-            return {
-              modelid: stock.model_id,
-              promotionid: stock.promotion_id
-            }
-          }
+          return model.price_stocks[0].model_id
         }
 
         for (const model of barang.item.models) {
           if (model.stock < 1) continue
-          return {
-            modelid: model.modelid,
-            promotionid: model.promotionid
-          }
+          return model.modelid
         }
+
+        return null
       }(user.infoBarang)
     }
 
     if (!user.config.modelid) return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
-    if (!user.config.promotionid) return replaceMessage(ctx, user.config.message, `Info Promosi Barang Tidak Terbaca\n\n${dropQueue(`${getSessionKey(ctx)}:${user.config.itemid}`, user)}`)
 
     if (user.config.cache && user.infoBarang.item.stock > 0) {
       let info = await getCart(ctx, true)
@@ -955,8 +942,8 @@ const getItem = async function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
-        postBuyBody: user.postBuyBody,
-        postBuyBodyLong: user.postBuyBodyLong,
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoBarang: user.infoBarang,
         infoPengiriman: user.infoPengiriman,
         infoKeranjang: user.infoKeranjang,
@@ -974,8 +961,8 @@ const getItem = async function (ctx) {
       shopid: user.config.shopid,
       modelid: user.config.modelid
     }, {
-      postBuyBody: user.postBuyBody,
-      postBuyBodyLong: user.postBuyBodyLong,
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
       infoBarang: user.infoBarang,
       infoPengiriman: user.infoPengiriman,
       infoKeranjang: user.infoKeranjang,
@@ -1099,6 +1086,8 @@ const getCheckout = async function (ctx, getCache) {
       shopid: user.config.shopid,
       modelid: user.config.modelid
     }, {
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
       infoKeranjang: user.infoKeranjang,
       updateKeranjang: user.updateKeranjang,
       infoCheckoutQuick: user.infoCheckoutQuick,
@@ -1172,6 +1161,8 @@ const buyItem = function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
@@ -1259,6 +1250,8 @@ const buyRepeat = async function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
@@ -1328,6 +1321,8 @@ const buyRepeat = async function (ctx) {
         shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
         infoKeranjang: user.infoKeranjang,
         updateKeranjang: user.updateKeranjang,
         infoCheckoutQuick: user.infoCheckoutQuick,
