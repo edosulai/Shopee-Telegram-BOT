@@ -251,12 +251,7 @@ module.exports = async function (user, repeat = false) {
           "items": function (items) {
             items[0].stock = 0
             items[0].price = user.config.price
-            items[0].promotion_id = function (isFlashSale) {
-              if (isFlashSale) {
-                return user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1]
-              }
-              return items[0].promotion_id
-            }(user.config.flashSale)
+            items[0].promotion_id = user.config.promotionid
             items[0].is_flash_sale = user.config.flashSale
             return items
           }(shoporders.items),
@@ -395,12 +390,7 @@ module.exports = async function (user, repeat = false) {
           "items": function (items) {
             items[0].stock = 0
             items[0].price = user.config.price
-            items[0].promotion_id = function (isFlashSale) {
-              if (isFlashSale) {
-                return user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1]
-              }
-              return items[0].promotion_id
-            }(user.config.flashSale)
+            items[0].promotion_id = user.config.promotionid
             items[0].is_flash_sale = user.config.flashSale
             return items
           }(user.infoCheckoutQuick.shoporders[0].items),
