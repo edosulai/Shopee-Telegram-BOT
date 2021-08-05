@@ -253,7 +253,7 @@ module.exports = async function (user, repeat = false) {
             items[0].price = user.config.price
             items[0].promotion_id = function (isFlashSale) {
               if (isFlashSale) {
-                return user.infoBarang.item.flash_sale ? user.others.promotionId[0] : user.others.promotionId[1]
+                return user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1]
               }
               return items[0].promotion_id
             }(user.config.flashSale)
@@ -397,7 +397,7 @@ module.exports = async function (user, repeat = false) {
             items[0].price = user.config.price
             items[0].promotion_id = function (isFlashSale) {
               if (isFlashSale) {
-                return user.infoBarang.item.flash_sale ? user.others.promotionId[0] : user.others.promotionId[1]
+                return user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1]
               }
               return items[0].promotion_id
             }(user.config.flashSale)

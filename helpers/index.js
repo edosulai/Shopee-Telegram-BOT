@@ -1,4 +1,5 @@
 const cookie = require('cookie');
+const { parseArgsStringToArgv } = require('string-argv');
 
 module.exports = {
   generateString: function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
@@ -9,24 +10,29 @@ module.exports = {
     return result;
   },
 
-  getCommands: function (str, prefix, sparator = '=') {
-    let commands = {};
-    let firstSplit = str.split(prefix)
-    Object.prototype.toString.call(firstSplit)
-    if (firstSplit.length > 1) {
-      let everyCommand = firstSplit[1].split(" ")
-      Object.prototype.toString.call(everyCommand)
-      everyCommand.forEach(command => {
-        command = command.split(sparator)
-        command.forEach((cmd, i) => {
-          command[i] = cmd.replace(/(<([^>]+)>)/gi, "")
-        });
-        commands[command[0]] = command[1] ? function () {
-          delete command[0]
-          return command.join(sparator).substring(1)
-        }() : true
-      })
-    }
+  splitAtFirstSpace: function (str) {
+    if (!str) return [];
+    let i = str.indexOf(' ');
+    if (i > 0) return [str.substring(0, i), str.substring(i + 1)];
+
+    return [str];
+  },
+
+  getCommands: function (str, sparator = ['=']) {
+    let commands = [];
+    let everyCommand = parseArgsStringToArgv(splitAtFirstSpace(str)[1])
+
+    everyCommand.forEach(command => {
+      command = command.split('=')
+      command = command.map((cmd) => cmd = cmd.replace(/(<([^>]+)>)/gi, ""));
+
+      commands[command[0]] = command[1] ? function () {
+        delete command[0]
+        return command.join('=').substring(1)
+      }() : true
+    })
+
+    commands.prefix = splitAtFirstSpace(str)[0]
     return commands
   },
 
