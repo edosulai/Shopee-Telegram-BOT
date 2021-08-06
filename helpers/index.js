@@ -2,6 +2,16 @@ const cookie = require('cookie');
 const { parseArgsStringToArgv } = require('string-argv');
 
 module.exports = {
+  dropQueue: function (queue, user = {}) {
+    for (let i = 0; i < global.QUEUEBUY.length; i++) {
+      if (global.QUEUEBUY[i].match(queue)) {
+        global.QUEUEBUY.splice(i)
+        return `Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Telah Di Hapus Dari Queue`;
+      }
+    }
+    return `Queue Barang ${user.infoBarang ? user.infoBarang.item.name.replace(/<[^>]*>?/gm, "") : ''} Tidak Ditemukan`;
+  },
+
   generateString: function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
     let result = '';
     for (let i = 0; i < length; i++) {
@@ -19,7 +29,8 @@ module.exports = {
   },
 
   getCommands: function (str, sparator = ['=']) {
-    let commands = [];
+    let commands = {};
+    if (!splitAtFirstSpace(str)[1]) return commands
     let everyCommand = parseArgsStringToArgv(splitAtFirstSpace(str)[1])
 
     everyCommand.forEach(command => {

@@ -3,6 +3,7 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
   let x = 0;
   let check = true
   let callback = null
+  let timeOut = 3000
 
   return new Promise((resolve, reject) => {
     try {
@@ -10,6 +11,8 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
         if (typeof each == 'function') {
           callback = each;
           continue;
+        } else if (typeof each == 'number') {
+          timeOut = each;
         }
         check = check && typeof fromObject[each] != 'undefined'
       }
@@ -35,13 +38,13 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
 
         // process.stdout.write(`\rLoading ${["\\", "|", "/", "-"][x++]}`);
         x &= 3;
-        if (Date.now() - start > 3000) {
+        if (Date.now() - start > timeOut) {
           clearInterval(until)
-          return reject(`Wait Until TimeOut ${wantToCheckValueIsExist.join(' ')}`)
+          return reject(`Wait Until TimeOut : Max Time Out = ${timeOut}`)
         }
       }, 0)
     } catch (error) {
-      return reject(`Wait Until Error ${wantToCheckValueIsExist.join(' ')} ${error}`)
+      return reject(`Wait Until Error : ${error}`)
     }
   });
 }

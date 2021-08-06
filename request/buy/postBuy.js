@@ -131,7 +131,7 @@ module.exports = async function (user, repeat = false) {
   }(user.payment.method)
 
   let postBuyBodyLong = function (user) {
-    user.infoCheckout = user.infoCheckoutLong
+    user.infoCheckout = user.config.infoCheckoutLong || user.infoCheckoutLong
 
     let shipping_orders = user.infoCheckout.shipping_orders[0]
     let checkout_price_data = user.infoCheckout.checkout_price_data
