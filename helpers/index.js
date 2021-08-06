@@ -19,7 +19,8 @@ module.exports = {
   },
 
   getCommands: function (str, sparator = ['=']) {
-    let commands = [];
+    let commands = {};
+    if (!splitAtFirstSpace(str)[1]) return commands
     let everyCommand = parseArgsStringToArgv(splitAtFirstSpace(str)[1])
 
     everyCommand.forEach(command => {

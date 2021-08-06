@@ -373,9 +373,10 @@ bot.command('failure', async (ctx) => {
 
 bot.command('user', async (ctx) => {
   if (!ensureRole(ctx)) return
-  let commands = getCommands(ctx.message.text)
+  let user = ctx.session;
+  user.commands = getCommands(ctx.message.text)
 
-  if (objectSize(commands) < 1) {
+  if (objectSize(user.commands) < 1) {
     return User.find(function (err, users) {
       if (err) return sendReportToDev(ctx, err)
       let alluser = ``
@@ -388,20 +389,20 @@ bot.command('user', async (ctx) => {
     })
   }
 
-  if (commands.id) {
+  if (user.commands.id) {
     let someUser = {}
-    for (let command in commands) { if (Object.hasOwnProperty.call(commands, command) && !['id'].includes(command) && commands[command]) { someUser[command] = commands[command] } }
+    for (let command in user.commands) { if (Object.hasOwnProperty.call(user.commands, command) && !['id'].includes(command) && user.commands[command]) { someUser[command] = user.commands[command] } }
 
     if (objectSize(someUser) > 0) {
       return User.updateOne({
-        teleChatId: commands.id
+        teleChatId: user.commands.id
       }, someUser).exec(async (err) => {
         if (err) return sendReportToDev(ctx, err)
-        return ctx.reply(`User ${commands.id} Telah Di Update`)
+        return ctx.reply(`User ${user.commands.id} Telah Di Update`)
       })
     }
 
-    return User.findOne({ teleChatId: commands.id }, function (err, user) {
+    return User.findOne({ teleChatId: user.commands.id }, function (err, user) {
       if (err) return sendReportToDev(ctx, err)
       return ctx.reply(`<code>${user}</code>`, { parse_mode: 'HTML' })
     })
