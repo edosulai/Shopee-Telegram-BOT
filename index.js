@@ -390,17 +390,21 @@ bot.command('user', async (ctx) => {
   }
 
   if (user.commands.id) {
-    let someUser = {}
-    for (let command in user.commands) { if (Object.hasOwnProperty.call(user.commands, command) && !['id'].includes(command) && user.commands[command]) { someUser[command] = user.commands[command] } }
+    // let someUser = {}
+    // for (let command in user.commands) {
+    //   if (Object.hasOwnProperty.call(user.commands, command) && !['id', 'prefix'].includes(command) && user.commands[command]) {
+    //     someUser[command] = user.commands[command]
+    //   }
+    // }
 
-    if (objectSize(someUser) > 0) {
-      return User.updateOne({
-        teleChatId: user.commands.id
-      }, someUser).exec(async (err) => {
-        if (err) return sendReportToDev(ctx, err)
-        return ctx.reply(`User ${user.commands.id} Telah Di Update`)
-      })
-    }
+    // if (objectSize(someUser) > 0) {
+    //   return User.updateOne({
+    //     teleChatId: user.commands.id
+    //   }, someUser).exec(async (err) => {
+    //     if (err) return sendReportToDev(ctx, err)
+    //     return ctx.reply(`User ${user.commands.id} Telah Di Update`)
+    //   })
+    // }
 
     return User.findOne({ teleChatId: user.commands.id }, function (err, user) {
       if (err) return sendReportToDev(ctx, err)
