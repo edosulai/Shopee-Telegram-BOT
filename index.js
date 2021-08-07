@@ -104,6 +104,8 @@ const alarmFlashSale = async function (user) {
       continue;
     }
 
+    if (index == 2) continue;
+
     await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
@@ -734,6 +736,7 @@ const getItem = async function (ctx) {
   }
 
   if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
+  if (global.QUEUEBUY.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return
 
   user.other = (await Other.find())[0]
 
