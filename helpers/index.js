@@ -1,5 +1,4 @@
 const cookie = require('cookie');
-const { parseArgsStringToArgv } = require('string-argv');
 
 module.exports = {
   dropQueue: function (queue, user = {}) {
@@ -31,7 +30,7 @@ module.exports = {
   getCommands: function (str, sparator = ['=']) {
     let commands = {};
     if (!splitAtFirstSpace(str)[1]) return commands
-    let everyCommand = parseArgsStringToArgv(splitAtFirstSpace(str)[1])
+    let everyCommand = splitAtFirstSpace(str)[1].split(' ')
 
     everyCommand.forEach(command => {
       command = command.split('=')
