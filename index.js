@@ -1273,11 +1273,6 @@ const buyRepeat = async function (ctx) {
   return user.config.info.join('\n\n')
 }
 
-bot.command('restart', async (ctx) => {
-  if (!ensureRole(ctx)) return
-  process.exit(1);
-})
-
 bot.command((ctx) => {
   let user = ctx.session;
   user.commands = splitAtFirstSpace(ctx.message.text)

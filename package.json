@@ -4,13 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "pkg": "pkg --options 'max-old-space-size=512' --options 'stack-trace-limit=5' -o bin index.js && NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot ./bin",
-    "prod": "NODE_ENV=production TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot npm run start",
+    "pkg": "pkg --options max-old-space-size=512,stack-trace-limit=0 -o bin index.js && NODE_ENV=production TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot ./bin",
     "dev": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot npm run start",
     "dev01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_01 npm run start",
     "dev02": "NODE_ENV=development TOKEN=1720996361:AAFsn3Z9_C8QkvC1AydAKIDQJSssxBsV0xA MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_02 npm run start",
     "dev03": "NODE_ENV=development TOKEN=1745604191:AAG8dw1O10bnof2YljpyqLy_MbFgRhz6DZ0 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_03 npm run start",
-    "start": "forever --max-old-space-size=512 --stack-trace-limit=5 index.js"
+    "start": "node --max-old-space-size=512 --stack-trace-limit=0 index.js"
   },
   "repository": {
     "type": "git",
@@ -30,9 +29,8 @@
     "chalk": "^4.1.1",
     "cookie": "^0.4.1",
     "dotenv": "^8.2.0",
-    "forever": "^3.0.4",
     "form-data": "^2.3.3",
-    "mongoose": "^5.11.18",
+    "mongoose": "^5.13.5",
     "mongoose-findorcreate": "^3.0.0",
     "node-libcurl": "^2.3.3",
     "psl": "^1.8.0",
