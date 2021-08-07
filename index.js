@@ -736,7 +736,7 @@ const getItem = async function (ctx) {
   }
 
   if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
-  if (global.QUEUEBUY.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return
+  if (global.QUEUEBUY.includes(`${getSessionKey(ctx)}:${user.config.itemid}`)) return bot.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
 
   user.other = (await Other.find())[0]
 
