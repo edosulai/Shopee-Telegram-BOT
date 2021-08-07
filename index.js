@@ -1188,7 +1188,7 @@ const buyRepeat = async function (ctx) {
 
   sleep(590);
 
-  const order = function () {
+  const order = async function () {
     if (!user.order) {
       await waitUntil(user.config, 'infoCheckoutLong', Math.max(900 - (Date.now() - user.config.start), 0))
         .then(() => delete user.postBuyBodyLong).catch((err) => sendReportToDev(ctx, err));
@@ -1252,7 +1252,7 @@ const buyRepeat = async function (ctx) {
         }
       }
 
-      return order()
+      return await order()
     }).catch((err) => sendReportToDev(ctx, err));
   }
 
@@ -1291,7 +1291,7 @@ const buyRepeat = async function (ctx) {
       }
     }
 
-    return order()
+    return await order()
   }).catch((err) => sendReportToDev(ctx, err));
 }
 
