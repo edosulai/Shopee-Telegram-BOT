@@ -14,6 +14,40 @@ module.exports = async function (user, repeat = false) {
     return x1 + x2;
   }
 
+  const taxCalc = function (payment, shipping_fee, price) {
+    if (payment.payment_channelid) {
+      let value = parseInt(shipping_fee + price) / 100 * 3 * 3
+      return {
+        value: value,
+        msg: {
+          "learn_more_url": "https://shopee.co.id/m/biaya-penanganan-cod/",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
+          "title": "Biaya Penanganan"
+        }
+      }
+    } else if (payment.channel_id) {
+      let value = parseInt(100000000)
+      return {
+        value: value,
+        msg: {
+          "learn_more_url": "https://shopee.co.id/events3/code/634289435/",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
+          "title": "Biaya Penanganan"
+        }
+      }
+    } else {
+      let value = parseInt(0)
+      return {
+        value: value,
+        msg: {
+          "learn_more_url": "",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
+          "title": "Biaya Penanganan"
+        }
+      }
+    }
+  }
+
   const buyIt = function (infoCheckout) {
     let curl = new user.Curl()
 
@@ -46,90 +80,6 @@ module.exports = async function (user, repeat = false) {
       ]).setBody(JSON.stringify(infoCheckout)).post(`https://shopee.co.id/api/v2/checkout/place_order`)
   }
 
-  user.selectedShipping = user.selectedShipping || function (logistics) {
-    let channelIds = user.selectedShop.shop.enabled_channelids
-    channelIds.forEach((id, i) => {
-      channelIds[i] = typeof id == 'string' ? parseInt(id.split('channel_id_')[1]) : channelIds[i]
-    });
-    let typeLogist = { priority: Number.MAX_VALUE }
-    for (const logisticType in logistics.logistic_service_types) {
-      if (!Object.hasOwnProperty.call(logistics.logistic_service_types, logisticType)) continue;
-      const type = logistics.logistic_service_types[logisticType];
-      if (
-        type.enabled &&
-        type.priority < typeLogist.priority &&
-        !['instant', 'next_day', 'self_collection'].includes(type.identifier)
-      ) {
-        typeLogist = type
-      }
-    }
-
-    if (!typeLogist.channel_ids) return false
-
-    let chunk = { channel: { priority: Number.MAX_VALUE } }
-    for (const shippingInfo of logistics.shipping_infos) {
-      if (
-        channelIds.includes(shippingInfo.channel.channelid) &&
-        typeLogist.channel_ids.includes(shippingInfo.channel.channelid) &&
-        shippingInfo.channel.priority < chunk.channel.priority
-      ) {
-        chunk = {
-          channel: shippingInfo.channel,
-          cost_info: shippingInfo.cost_info
-        }
-      }
-    }
-    // for (const promotionRule of logistics.promotion_rules) {
-    //   if (promotionRule.id == chunk.cost_info.discount_promotion_rule_id) {
-    //     let channelChunk = []
-    //     for (const channel in promotionRule.channels) {
-    //       if (Object.hasOwnProperty.call(promotionRule.channels, channel)) {
-    //         channelChunk.push(parseInt(channel))
-    //       }
-    //     }
-    //     chunk.promotionChannels = channelChunk
-    //   }
-    // }
-    chunk.promotionChannels = channelIds
-    return chunk
-  }(user.infoPengiriman)
-
-  if (!user.selectedShipping) return new Promise((resolve, reject) => resolve({ err: `Maaf Sayang Sekali Tidak ada opsi pengiriman yang tersedia untuk barang <b><i>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</i></b>` }))
-
-  user.tax = user.tax || function (payment) {
-    if (payment.payment_channelid) {
-      let value = parseInt(user.selectedShipping.cost_info.estimated_shipping_fee + user.config.price) / 100 * 3 * 3
-      return {
-        value: value,
-        msg: {
-          "learn_more_url": "https://shopee.co.id/m/biaya-penanganan-cod/",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
-          "title": "Biaya Penanganan"
-        }
-      }
-    } else if (payment.channel_id) {
-      let value = parseInt(100000000)
-      return {
-        value: value,
-        msg: {
-          "learn_more_url": "https://shopee.co.id/events3/code/634289435/",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
-          "title": "Biaya Penanganan"
-        }
-      }
-    } else {
-      let value = parseInt(0)
-      return {
-        value: value,
-        msg: {
-          "learn_more_url": "",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(value / 100000)} dari total transaksi.`,
-          "title": "Biaya Penanganan"
-        }
-      }
-    }
-  }(user.payment.method)
-
   let postBuyBodyLong = function (user) {
     user.infoCheckout = user.config.infoCheckoutLong || user.infoCheckoutLong
 
@@ -137,6 +87,10 @@ module.exports = async function (user, repeat = false) {
     let checkout_price_data = user.infoCheckout.checkout_price_data
     let shoporders = user.infoCheckout.shoporders[0]
     let promotion_data = user.infoCheckout.promotion_data
+    let logistic = shoporders.logistics.logistic_channels[shipping_orders.selected_logistic_channelid]
+    let tax = taxCalc(user.payment.method, shipping_orders.shipping_fee, user.config.price)
+
+    if (!user.infoCheckout.can_checkout) console.log(user.infoCheckout.disabled_checkout_info.description)
 
     return {
       "status": 200,
@@ -152,7 +106,7 @@ module.exports = async function (user, repeat = false) {
           "selected_logistic_channelid_with_warning": shipping_orders.selected_logistic_channelid_with_warning,
           "shipping_fee_discount": shipping_orders.shipping_fee_discount,
           "shipping_group_description": shipping_orders.shipping_group_description,
-          "selected_preferred_delivery_time_option_id": shipping_orders.selected_preferred_delivery_time_option_id,
+          "selected_preferred_delivery_time_option_id": 0,
           "buyer_remark": shipping_orders.buyer_remark || "",
           "buyer_address_data": shipping_orders.buyer_address_data,
           "order_total_without_shipping": user.config.price * user.config.quantity,
@@ -196,7 +150,7 @@ module.exports = async function (user, repeat = false) {
         "credit_card_promotion": checkout_price_data.credit_card_promotion,
         "promocode_applied": checkout_price_data.promocode_applied,
         "shopee_coins_redeemed": checkout_price_data.shopee_coins_redeemed,
-        "total_payable": shipping_orders.shipping_fee + (user.config.price * user.config.quantity) + user.tax.value,
+        "total_payable": shipping_orders.shipping_fee + (user.config.price * user.config.quantity) + tax.value,
         "tax_exemption": checkout_price_data.tax_exemption
       },
       "client_id": user.infoCheckout.client_id,
@@ -255,7 +209,7 @@ module.exports = async function (user, repeat = false) {
             items[0].is_flash_sale = user.config.flashSale
             return items
           }(shoporders.items),
-          "selected_preferred_delivery_time_option_id": shoporders.selected_preferred_delivery_time_option_id,
+          "selected_preferred_delivery_time_option_id": 0,
           "selected_logistic_channelid": shoporders.selected_logistic_channelid,
           "cod_fee": shoporders.cod_fee,
           "tax_payable": shoporders.tax_payable,
@@ -283,9 +237,9 @@ module.exports = async function (user, repeat = false) {
           "ext_ad_info_mappings": []
         }
       ],
-      "can_checkout": user.infoCheckout.can_checkout,
+      "can_checkout": true,
       "order_update_info": {},
-      "buyer_txn_fee_info": user.tax.msg,
+      "buyer_txn_fee_info": tax.msg,
       "captcha_version": 1
     }
   }
@@ -296,6 +250,58 @@ module.exports = async function (user, repeat = false) {
   }
 
   let postBuyBody = function (user) {
+
+    let selectedShipping = function (logistics) {
+      let channelIds = user.selectedShop.shop.enabled_channelids
+      channelIds.forEach((id, i) => {
+        channelIds[i] = typeof id == 'string' ? parseInt(id.split('channel_id_')[1]) : channelIds[i]
+      });
+      let typeLogist = { priority: Number.MAX_VALUE }
+      for (const logisticType in logistics.logistic_service_types) {
+        if (!Object.hasOwnProperty.call(logistics.logistic_service_types, logisticType)) continue;
+        const type = logistics.logistic_service_types[logisticType];
+        if (
+          type.enabled &&
+          type.priority < typeLogist.priority &&
+          !['instant', 'next_day', 'self_collection'].includes(type.identifier)
+        ) {
+          typeLogist = type
+        }
+      }
+
+      if (!typeLogist.channel_ids) return false
+
+      let chunk = { channel: { priority: Number.MAX_VALUE } }
+      for (const shippingInfo of logistics.shipping_infos) {
+        if (
+          channelIds.includes(shippingInfo.channel.channelid) &&
+          typeLogist.channel_ids.includes(shippingInfo.channel.channelid) &&
+          shippingInfo.channel.priority < chunk.channel.priority
+        ) {
+          chunk = {
+            channel: shippingInfo.channel,
+            cost_info: shippingInfo.cost_info
+          }
+        }
+      }
+      // for (const promotionRule of logistics.promotion_rules) {
+      //   if (promotionRule.id == chunk.cost_info.discount_promotion_rule_id) {
+      //     let channelChunk = []
+      //     for (const channel in promotionRule.channels) {
+      //       if (Object.hasOwnProperty.call(promotionRule.channels, channel)) {
+      //         channelChunk.push(parseInt(channel))
+      //       }
+      //     }
+      //     chunk.promotionChannels = channelChunk
+      //   }
+      // }
+      chunk.promotionChannels = channelIds
+      return chunk
+    }(user.infoPengiriman)
+
+    if (!selectedShipping) return new Promise((resolve, reject) => resolve({ err: `Maaf Sayang Sekali Tidak ada opsi pengiriman yang tersedia untuk barang <b><i>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</i></b>` }))
+
+    let tax = taxCalc(user.payment.method, selectedShipping.cost_info.estimated_shipping_fee, user.config.price)
 
     user.infoCheckout = {
       "cart_type": 0,
@@ -411,18 +417,18 @@ module.exports = async function (user, repeat = false) {
       "captcha_version": 1
     }
 
-    let estimated_shipping_fee = user.selectedShipping.cost_info.estimated_shipping_fee
+    let estimated_shipping_fee = selectedShipping.cost_info.estimated_shipping_fee
     let shipping_orders = user.infoCheckout.shipping_orders[0]
     let checkout_price_data = user.infoCheckout.checkout_price_data
     let shoporders = user.infoCheckout.shoporders[0]
 
     user.shipinfo = {
-      "selected_logistic_channelid": user.selectedShipping.channel.channelid,
+      "selected_logistic_channelid": selectedShipping.channel.channelid,
       "cod_fee": shipping_orders.cod_fee,
-      "order_total": estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity),
+      "order_total": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity),
       "shipping_id": shipping_orders.shipping_id,
-      "shipping_fee_discount": shipping_orders.shipping_fee_discount + user.selectedShipping.cost_info.discounts.seller,
-      "selected_preferred_delivery_time_option_id": shipping_orders.selected_preferred_delivery_time_option_id,
+      "shipping_fee_discount": shipping_orders.shipping_fee_discount + selectedShipping.cost_info.discounts.seller,
+      "selected_preferred_delivery_time_option_id": 0,
       "buyer_remark": shipping_orders.buyer_remark || "",
       "buyer_address_data": {
         "tax_address": shipping_orders.buyer_address_data.tax_address,
@@ -433,23 +439,23 @@ module.exports = async function (user, repeat = false) {
       "order_total_without_shipping": user.config.price * user.config.quantity,
       "tax_payable": shipping_orders.tax_payable,
       "buyer_ic_number": shipping_orders.buyer_ic_number || "",
-      "shipping_fee": estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller,
+      "shipping_fee": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller,
       "tax_exemption": shipping_orders.tax_exemption,
       "amount_detail": {
         "BASIC_SHIPPING_FEE": estimated_shipping_fee,
         "SELLER_ESTIMATED_INSURANCE_FEE": shipping_orders.amount_detail.SELLER_ESTIMATED_INSURANCE_FEE,
-        "SHOPEE_OR_SELLER_SHIPPING_DISCOUNT": 0 - user.selectedShipping.cost_info.discounts.shopee,
+        "SHOPEE_OR_SELLER_SHIPPING_DISCOUNT": 0 - selectedShipping.cost_info.discounts.shopee,
         "VOUCHER_DISCOUNT": shipping_orders.amount_detail.VOUCHER_DISCOUNT,
-        "SHIPPING_DISCOUNT_BY_SELLER": user.selectedShipping.cost_info.discounts.seller,
+        "SHIPPING_DISCOUNT_BY_SELLER": selectedShipping.cost_info.discounts.seller,
         "SELLER_ESTIMATED_BASIC_SHIPPING_FEE": shipping_orders.amount_detail.SELLER_ESTIMATED_BASIC_SHIPPING_FEE,
-        "SHIPPING_DISCOUNT_BY_SHOPEE": user.selectedShipping.cost_info.discounts.shopee,
+        "SHIPPING_DISCOUNT_BY_SHOPEE": selectedShipping.cost_info.discounts.shopee,
         "INSURANCE_FEE": shipping_orders.amount_detail.INSURANCE_FEE,
         "ITEM_TOTAL": user.config.price * user.config.quantity,
         "TAX_EXEMPTION": shipping_orders.amount_detail.TAX_EXEMPTION,
         "shop_promo_only": true,
         "COD_FEE": shipping_orders.amount_detail.COD_FEE,
         "TAX_FEE": shipping_orders.amount_detail.TAX_FEE,
-        "SELLER_ONLY_SHIPPING_DISCOUNT": 0 - user.selectedShipping.cost_info.discounts.seller//
+        "SELLER_ONLY_SHIPPING_DISCOUNT": 0 - selectedShipping.cost_info.discounts.seller//
       }
     }
 
@@ -459,31 +465,31 @@ module.exports = async function (user, repeat = false) {
       "cart_type": user.infoCheckout.cart_type,
       "shipping_orders": [
         {
-          "shopee_shipping_discount_id": user.selectedShipping.cost_info.discount_promotion_rule_id,
+          "shopee_shipping_discount_id": selectedShipping.cost_info.discount_promotion_rule_id,
           "selected_logistic_channelid_with_warning": shipping_orders.selected_logistic_channelid_with_warning,
           "shipping_group_description": shipping_orders.shipping_group_description,
           "fulfillment_info": shipping_orders.fulfillment_info,
           "shoporder_indexes": shipping_orders.shoporder_indexes,
           "shipping_group_icon": shipping_orders.shipping_group_icon,
-          "voucher_wallet_checking_channel_ids": user.selectedShipping.promotionChannels,
+          "voucher_wallet_checking_channel_ids": selectedShipping.promotionChannels,
           ...user.shipinfo
         }
       ],
       "disabled_checkout_info": user.infoCheckout.disabled_checkout_info,
       "timestamp": Math.floor(user.config.timestamp / 1000),
       "checkout_price_data": {
-        "shipping_subtotal": estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller,//
-        "shipping_discount_subtotal": checkout_price_data.shipping_discount_subtotal + user.selectedShipping.cost_info.discounts.seller,//
-        "shipping_subtotal_before_discount": user.selectedShipping.cost_info.original_cost,
+        "shipping_subtotal": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller,//
+        "shipping_discount_subtotal": checkout_price_data.shipping_discount_subtotal + selectedShipping.cost_info.discounts.seller,//
+        "shipping_subtotal_before_discount": selectedShipping.cost_info.original_cost,
         "bundle_deals_discount": checkout_price_data.bundle_deals_discount,
         "group_buy_discount": checkout_price_data.group_buy_discount,
         "merchandise_subtotal": user.config.price * user.config.quantity,
         "tax_payable": checkout_price_data.tax_payable,
-        "buyer_txn_fee": user.tax.value,
+        "buyer_txn_fee": tax.value,
         "credit_card_promotion": checkout_price_data.credit_card_promotion,
         "promocode_applied": checkout_price_data.promocode_applied,
         "shopee_coins_redeemed": checkout_price_data.shopee_coins_redeemed,
-        "total_payable": estimated_shipping_fee - user.selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity) + user.tax.value,
+        "total_payable": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity) + tax.value,
         "tax_exemption": checkout_price_data.tax_exemption
       },
       "client_id": user.infoCheckout.client_id,
@@ -543,7 +549,7 @@ module.exports = async function (user, repeat = false) {
       ],
       "can_checkout": user.infoCheckout.can_checkout,
       "order_update_info": user.infoCheckout.order_update_info,
-      "buyer_txn_fee_info": user.tax.msg,
+      "buyer_txn_fee_info": tax.msg,
       "captcha_version": user.infoCheckout.captcha_version
     }
   }

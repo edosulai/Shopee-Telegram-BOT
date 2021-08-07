@@ -100,7 +100,7 @@ const alarmFlashSale = async function (user) {
 
   for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
     if (index == 0) {
-      user.timeout = session.end_time + 1
+      user.timeout = session.end_time + 5
       continue;
     }
 
@@ -875,7 +875,6 @@ const getItem = async function (ctx) {
 
       await replaceMessage(ctx, user.config.message, msg)
       sleep(ensureRole(ctx, true) ? 200 : (200 * global.QUEUEBUY.length) - (Date.now() - user.config.start))
-      delete user.infoBarang
 
     } while (!user.config.skiptimer)
 
@@ -1141,7 +1140,7 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       user.info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
-      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh', 'error_params'].includes(user.order.error) && !user.config.repeat) {
+      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
         user.config.timestamp += 1000;
         return buyItem(ctx)
       }
