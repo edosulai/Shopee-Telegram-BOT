@@ -875,7 +875,6 @@ const getItem = async function (ctx) {
 
       await replaceMessage(ctx, user.config.message, msg)
       sleep(ensureRole(ctx, true) ? 200 : (200 * global.QUEUEBUY.length) - (Date.now() - user.config.start))
-      delete user.infoBarang
 
     } while (!user.config.skiptimer)
 
