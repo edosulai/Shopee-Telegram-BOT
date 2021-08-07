@@ -100,7 +100,7 @@ const alarmFlashSale = async function (user) {
 
   for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
     if (index == 0) {
-      user.timeout = session.end_time + 5
+      user.timeout = session.end_time + 10
       continue;
     }
 
@@ -1143,7 +1143,7 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       user.info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
-      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
+      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh', 'error_fulfillment_info_changed'].includes(user.order.error) && !user.config.repeat) {
         user.config.timestamp += 1000;
         return buyItem(ctx)
       }
@@ -1190,7 +1190,7 @@ const buyRepeat = async function (ctx) {
       user.config.infoCheckoutLong = chunk
       user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
       user.config.infoCheckoutLong.now = Date.now()
-    } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
+    }
     curl.close()
   }).catch((err) => err)
 
