@@ -390,22 +390,6 @@ bot.command('user', async (ctx) => {
   }
 
   if (user.commands.id) {
-    // let someUser = {}
-    // for (let command in user.commands) {
-    //   if (Object.hasOwnProperty.call(user.commands, command) && !['id', 'prefix'].includes(command) && user.commands[command]) {
-    //     someUser[command] = user.commands[command]
-    //   }
-    // }
-
-    // if (objectSize(someUser) > 0) {
-    //   return User.updateOne({
-    //     teleChatId: user.commands.id
-    //   }, someUser).exec(async (err) => {
-    //     if (err) return sendReportToDev(ctx, err)
-    //     return ctx.reply(`User ${user.commands.id} Telah Di Update`)
-    //   })
-    // }
-
     return User.findOne({ teleChatId: user.commands.id }, function (err, user) {
       if (err) return sendReportToDev(ctx, err)
       return ctx.reply(`<code>${user}</code>`, { parse_mode: 'HTML' })
@@ -987,7 +971,7 @@ const getCart = async function (ctx, getCache = false) {
   await postKeranjang(user, getCache).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
     curl.close()
-  }).catch((err) => sleep(0))
+  }).catch((err) => err)
 
   await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -998,7 +982,7 @@ const getCart = async function (ctx, getCache = false) {
       user.infoKeranjang.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoKeranjang')
     curl.close()
-  }).catch((err) => sleep(0))
+  }).catch((err) => err)
 
   user.selectedShop = function (shops) {
     for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
@@ -1042,7 +1026,7 @@ const getCart = async function (ctx, getCache = false) {
       user.updateKeranjang.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postUpdateKeranjang')
     curl.close()
-  }).catch((err) => sleep(0))
+  }).catch((err) => err)
 
   return getCheckout(ctx, getCache);
 }
@@ -1059,7 +1043,7 @@ const getCheckout = async function (ctx, getCache) {
       user.config.infoCheckoutLong.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
     curl.close()
-  }).catch((err) => sleep(0))
+  }).catch((err) => err)
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -1070,7 +1054,7 @@ const getCheckout = async function (ctx, getCache) {
       user.infoCheckoutQuick.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckoutQuick')
     curl.close()
-  }).catch((err) => sleep(0))
+  }).catch((err) => err)
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
     return waitUntil(user, 'updateKeranjang').then(() => resolve()).catch((err) => reject(err));
@@ -1081,7 +1065,7 @@ const getCheckout = async function (ctx, getCache) {
     await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    }).catch((err) => sleep(0));
+    }).catch((err) => err);
 
     user.payment = require('./helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
 
@@ -1108,7 +1092,7 @@ const getCheckout = async function (ctx, getCache) {
       return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      }).catch((err) => sleep(0));
+      }).catch((err) => err);
     })
   }) : !user.config.repeat ? buyItem(ctx) : buyRepeat(ctx);
 }
@@ -1126,14 +1110,14 @@ const buyItem = function (ctx) {
 
     let info = `Detail Informasi : `
 
-    if (ensureRole(ctx, true)) {
-      info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
-      info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
-      info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
-      info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
-      info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
-      info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-    }
+    // if (ensureRole(ctx, true)) {
+    //   info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
+    //   info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
+    //   info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
+    //   info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
+    //   info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
+    //   info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
+    // }
 
     info += `\n\nMetode Pembayaran : ${user.payment.msg}`
     info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
@@ -1204,23 +1188,44 @@ const buyRepeat = async function (ctx) {
 
   sleep(590);
 
-  if (user.payment.method.payment_channelid) {
+  const order = function () {
+    if (!user.order) {
+      await waitUntil(user.config, 'infoCheckoutLong', Math.max(900 - (Date.now() - user.config.start), 0))
+        .then(() => delete user.postBuyBodyLong).catch((err) => sendReportToDev(ctx, err));
+      return buyItem(ctx)
+    }
 
+    await Log.updateOne({
+      teleChatId: ctx.message.chat.id,
+      itemid: user.config.itemid,
+      shopid: user.config.shopid,
+      modelid: user.config.modelid
+    }, {
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
+      infoKeranjang: user.infoKeranjang,
+      updateKeranjang: user.updateKeranjang,
+      infoCheckoutQuick: user.infoCheckoutQuick,
+      infoCheckoutLong: user.infoCheckoutLong,
+      payment: user.payment,
+      selectedShop: user.selectedShop,
+      selectedItem: user.selectedItem
+    }, { upsert: true }).exec()
+
+    await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
+
+    info += `\n\n============================================= `
+    user.config.info.push(info)
+    return user.config.info.join('\n\n')
+  }
+
+  if (user.payment.method.payment_channelid) {
     return getOrders(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
       if (!body) return sendReportToDev(ctx, 'Body buyRepeat Kosong', 'Error')
 
       let info = `Detail Informasi : `
-
-      if (ensureRole(ctx, true)) {
-        info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
-        info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
-        info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
-        info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
-        info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
-        info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-      }
 
       info += `\n\nMetode Pembayaran : ${user.payment.msg}`
       info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
@@ -1247,112 +1252,47 @@ const buyRepeat = async function (ctx) {
         }
       }
 
-      if (!user.order) {
-        await waitUntil(user.config, 'infoCheckoutLong', Math.max(1000 - (Date.now() - user.config.start), 0))
-          .then(() => delete user.postBuyBodyLong).catch((err) => err);
-        return buyItem(ctx)
-      }
-
-      await Log.updateOne({
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        shopid: user.config.shopid,
-        modelid: user.config.modelid
-      }, {
-        buyBody: user.postBuyBody,
-        buyBodyLong: user.postBuyBodyLong,
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment,
-        selectedShop: user.selectedShop,
-        selectedItem: user.selectedItem
-      }, { upsert: true }).exec()
-
-      await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
-
-      info += `\n\n============================================= `
-      user.config.info.push(info)
-      return user.config.info.join('\n\n')
+      return order()
     }).catch((err) => sendReportToDev(ctx, err));
+  }
 
-  } else {
+  return getCheckouts(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    curl.close()
+    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    if (!body) return sendReportToDev(ctx, 'Body buyRepeat Kosong', 'Error')
 
-    return getCheckouts(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      curl.close()
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-      if (!body) return sendReportToDev(ctx, 'Body buyRepeat Kosong', 'Error')
+    let info = `Detail Informasi : `
 
-      let info = `Detail Informasi : `
+    info += `\n\nMetode Pembayaran : ${user.payment.msg}`
 
-      if (ensureRole(ctx, true)) {
-        info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
-        info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
-        info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
-        info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
-        info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
-        info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-        info += `\n\nMetode Pembayaran : ${user.payment.msg}`
-      }
+    info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
+    info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
+    info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
 
-      info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-      info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
-      info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
-
-      for (const checkouts of (typeof body == 'string' ? JSON.parse(body) : body).checkouts) {
-        for (const orders of checkouts.orders) {
-          if (
-            Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
-            orders.extinfo.first_itemid == user.config.itemid &&
-            orders.extinfo.modelid == user.config.modelid &&
-            orders.shopid == user.config.shopid
-          ) {
-            user.order = orders;
-            user.config.success = true
-            info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-            if (user.config.autocancel) {
-              await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-                curl.close()
-                user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-                info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
-              }).catch((err) => sendReportToDev(ctx, err));
-            }
+    for (const checkouts of (typeof body == 'string' ? JSON.parse(body) : body).checkouts) {
+      for (const orders of checkouts.orders) {
+        if (
+          Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
+          orders.extinfo.first_itemid == user.config.itemid &&
+          orders.extinfo.modelid == user.config.modelid &&
+          orders.shopid == user.config.shopid
+        ) {
+          user.order = orders;
+          user.config.success = true
+          info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+          if (user.config.autocancel) {
+            await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              curl.close()
+              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
+            }).catch((err) => sendReportToDev(ctx, err));
           }
         }
       }
+    }
 
-      if (!user.order) {
-        await waitUntil(user.config, 'infoCheckoutLong', Math.max(1000 - (Date.now() - user.config.start), 0))
-          .then(() => delete user.postBuyBodyLong).catch((err) => err);
-        return buyItem(ctx)
-      }
-
-      await Log.updateOne({
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        shopid: user.config.shopid,
-        modelid: user.config.modelid
-      }, {
-        buyBody: user.postBuyBody,
-        buyBodyLong: user.postBuyBodyLong,
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment,
-        selectedShop: user.selectedShop,
-        selectedItem: user.selectedItem
-      }, { upsert: true }).exec()
-
-      await User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
-
-      info += `\n\n============================================= `
-      user.config.info.push(info)
-      return user.config.info.join('\n\n')
-    }).catch((err) => sendReportToDev(ctx, err));
-
-  }
+    return order()
+  }).catch((err) => sendReportToDev(ctx, err));
 }
 
 bot.command('restart', async (ctx) => {
