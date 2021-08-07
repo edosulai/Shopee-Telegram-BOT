@@ -1,4 +1,5 @@
 const cookie = require('cookie');
+const chalk = require('chalk');
 
 module.exports = {
   dropQueue: function (queue, user = {}) {
@@ -149,7 +150,7 @@ module.exports = {
   },
 
   userLogs: async function (ctx, msg, type = 'Info', callback = null) {
-    console.log(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`);
+    console.trace(chalk.blue(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`));
     if (typeof callback == 'function') return callback()
   },
 
@@ -171,7 +172,6 @@ module.exports = {
   },
 
   sendReportToDev: async function (ctx, msg, type = 'Error', callback = null) {
-    if (type == 'Error') msg = new Error(msg.message || msg)
     if (ctx.telegram) {
       await ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
     } else {
