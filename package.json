@@ -36,7 +36,6 @@
     "mongoose-findorcreate": "^3.0.0",
     "node-libcurl": "^2.3.3",
     "psl": "^1.8.0",
-    "string-argv": "^0.3.1",
     "telegraf": "^4.3.0"
   },
   "devDependencies": {}

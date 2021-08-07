@@ -1128,10 +1128,10 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : ''}`
 
-      // if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
-      //   user.config.info.push(info)
-      //   return buyItem(ctx)
-      // }
+      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
+        user.config.timestamp += 1000;
+        return buyItem(ctx)
+      }
 
       await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
@@ -1188,9 +1188,9 @@ const buyRepeat = async function (ctx) {
 
   sleep(590);
 
-  const order = async function () {
+  const order = async function (info) {
     if (!user.order) {
-      await waitUntil(user.config, 'infoCheckoutLong', Math.max(900 - (Date.now() - user.config.start), 0))
+      await waitUntil(user.config, 'infoCheckoutLong', Math.max(1000 - (Date.now() - user.config.start), 0))
         .then(() => delete user.postBuyBodyLong).catch((err) => sendReportToDev(ctx, err));
       return buyItem(ctx)
     }
@@ -1252,7 +1252,7 @@ const buyRepeat = async function (ctx) {
         }
       }
 
-      return await order()
+      return await order(info)
     }).catch((err) => sendReportToDev(ctx, err));
   }
 
@@ -1291,7 +1291,7 @@ const buyRepeat = async function (ctx) {
       }
     }
 
-    return await order()
+    return await order(info)
   }).catch((err) => sendReportToDev(ctx, err));
 }
 
