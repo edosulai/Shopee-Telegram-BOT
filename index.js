@@ -1183,15 +1183,16 @@ const buyRepeat = async function (ctx) {
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.checkout < 10);
 
-  // do {
-  //   let aaDuh = Date.now();
-  //   do {
-  //     await postBuy(user, user.config.repeat)
-  //       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
-  //       .catch((err) => sleep(1));
-  //   } while (Date.now() - aaDuh < 5);
-  //   sleep(95);
-  // } while (Date.now() - user.config.start < 300);
+  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+    if (chunk.shoporders) {
+      user.config.infoCheckoutLong = chunk
+      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.config.infoCheckoutLong.now = Date.now()
+    } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
+    curl.close()
+  }).catch((err) => err)
 
   do {
     user.info = `Detail Informasi : `
@@ -1276,7 +1277,10 @@ const buyRepeat = async function (ctx) {
 
   if (!user.order) {
     await waitUntil(user.config, 'infoCheckoutLong', Math.max(1000 - (Date.now() - user.config.start), 0))
-      .then(() => delete user.postBuyBodyLong).catch((err) => sendReportToDev(ctx, new Error(err)));
+      .then(() => {
+        sendReportToDev(ctx, 'delete user.postBuyBodyLong')
+        delete user.postBuyBodyLong
+      }).catch((err) => sendReportToDev(ctx, new Error(err)));
     return buyItem(ctx)
   }
 
