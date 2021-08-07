@@ -1141,7 +1141,7 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       user.info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
-      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh'].includes(user.order.error) && !user.config.repeat) {
+      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh', 'error_params'].includes(user.order.error) && !user.config.repeat) {
         user.config.timestamp += 1000;
         return buyItem(ctx)
       }
@@ -1180,6 +1180,16 @@ const buyRepeat = async function (ctx) {
       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.checkout < 10);
+
+  // do {
+  //   let aaDuh = Date.now();
+  //   do {
+  //     await postBuy(user, user.config.repeat)
+  //       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
+  //       .catch((err) => sleep(1));
+  //   } while (Date.now() - aaDuh < 5);
+  //   sleep(95);
+  // } while (Date.now() - user.config.start < 300);
 
   do {
     user.info = `Detail Informasi : `
