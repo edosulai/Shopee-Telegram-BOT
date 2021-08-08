@@ -1169,7 +1169,7 @@ const buyItem = function (ctx) {
       user.config.fail = user.config.fail + 1
       user.info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
-      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh', 'error_fulfillment_info_changed'].includes(user.order.error) && !user.config.repeat) {
+      if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh', 'error_fulfillment_info_changed'].includes(user.order.error)) {
         user.config.timestamp += 1000;
         return buyItem(ctx)
       }
