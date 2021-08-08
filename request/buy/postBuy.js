@@ -90,7 +90,7 @@ module.exports = async function (user, ctx) {
     let logistic = shoporders.logistics.logistic_channels[shipping_orders.selected_logistic_channelid]
     let tax = taxCalc(user.payment.method, shipping_orders.shipping_fee, user.config.price)
 
-    if (!user.infoCheckout.can_checkout) sendReportToDev(ctx, user.infoCheckout.disabled_checkout_info.description)
+    if (!user.infoCheckout.can_checkout) sendReportToDev(ctx, `${user.infoCheckout.disabled_checkout_info.description} - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`)
 
     return {
       "status": 200,

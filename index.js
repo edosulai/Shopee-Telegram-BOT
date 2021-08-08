@@ -1175,7 +1175,7 @@ const getCart = async function (ctx, getCache = false) {
 const buyItem = function (ctx) {
   let user = ctx.session;
 
-  return postBuy(user).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {
+  return postBuy(user, ctx).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {
     if (err) return err;
 
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -1316,7 +1316,6 @@ const buyRepeat = async function (ctx) {
     }
 
     if (user.config.infoCheckoutLong && !user.order) {
-      sendReportToDev(ctx, 'delete user.postBuyBodyLong')
       delete user.postBuyBodyLong
       return buyItem(ctx)
     }
@@ -1325,10 +1324,7 @@ const buyRepeat = async function (ctx) {
 
   if (!user.order) {
     await waitUntil(user.config, 'infoCheckoutLong', Math.max(1000 - (Date.now() - user.config.start), 0))
-      .then(() => {
-        sendReportToDev(ctx, 'delete user.postBuyBodyLong')
-        delete user.postBuyBodyLong
-      }).catch((err) => sendReportToDev(ctx, err));
+      .then(() => delete user.postBuyBodyLong).catch((err) => sendReportToDev(ctx, err));
     return buyItem(ctx)
   }
 
