@@ -1058,7 +1058,7 @@ const getCart = async function (ctx, getCache = false) {
       user.config.infoCheckoutLong.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
     curl.close()
-  }).catch((err) => err)
+  }).catch((err) => sendReportToDev(ctx, new Error(err), 'postInfoCheckout'))
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -1183,17 +1183,6 @@ const buyRepeat = async function (ctx) {
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.checkout < 10);
 
-  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.shoporders) {
-      user.config.infoCheckoutLong = chunk
-      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.config.infoCheckoutLong.now = Date.now()
-    }
-    curl.close()
-  }).catch((err) => err)
-
   do {
     user.info = `Detail Informasi : `
 
@@ -1266,12 +1255,11 @@ const buyRepeat = async function (ctx) {
       }).catch((err) => sendReportToDev(ctx, new Error(err)));
     }
 
-    // let dariSiko = Date.now();
-    // do {
-    //   await postBuy(user, user.config.repeat)
-    //     .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
-    //     .catch((err) => sleep(1));
-    // } while (Date.now() - dariSiko < 5);
+    if (user.config.infoCheckoutLong && !user.order) {
+      sendReportToDev(ctx, 'delete user.postBuyBodyLong')
+      delete user.postBuyBodyLong
+      return buyItem(ctx)
+    }
 
   } while ((Date.now() - user.config.start) < 590 && !user.order);
 
