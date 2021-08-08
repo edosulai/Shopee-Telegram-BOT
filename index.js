@@ -1238,7 +1238,7 @@ const buyRepeat = async function (ctx) {
   let user = ctx.session;
 
   do {
-    await postBuy(user, ctx)
+    await postBuy(user, ctx, true)
       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.checkout < 10);
