@@ -552,7 +552,6 @@ bot.command('event', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session
   user.commands = getCommands(ctx.message.text)
-  if (objectSize(user.commands) < 1) return ctx.reply(`/event <code>url=https://shopee.co.id/Sebuah-Produk-Shop..... price=...</code>`, { parse_mode: 'HTML' })
   return setEvent(user, ctx)
 })
 
