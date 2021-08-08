@@ -58,25 +58,32 @@ mongoose.connect(process.env.MONGODB, { useNewUrlParser: true, useUnifiedTopolog
 bot.use(session())
 
 bot.telegram.getMe().then(async (botInfo) => {
-  let user = { Curl: Curl }
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
 
   await User.updateOne({ teleChatId: process.env.ADMIN_ID }, {
     userRole: "admin"
-  }, async function (err, user, created) { if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error') })
+  }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
   await Other.findOrCreate({}, {
     "promotionId": [], "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
-  }, async function (err, other, created) { if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error') })
+  }, async function (err, other, created) { if (err) return sendReportToDev(bot, err) })
 
-  await User.findOne({ teleChatId: process.env.ADMIN_ID }, async function (err, userUpdated) { user = { ...user, ...userUpdated._doc } })
+  await User.findOne({ teleChatId: process.env.ADMIN_ID }, async function (err, userUpdated) {
+    if (err) return sendReportToDev(ctx, new Error(err))
+    bot.session = userUpdated._doc
+    bot.session.Curl = Curl
+  })
 
-  return setTimeout(alarmFlashSale.bind(null, user), 0);
+  return setTimeout(alarmFlashSale.bind(null, bot), 0);
 }).catch((err) => console.error(chalk.red(err)))
 
-const alarmFlashSale = async function (user) {
-  await setEvent({ commands: { "-clear": true } })
+const alarmFlashSale = async function (bot) {
+  let user = bot.session
+  bot.message = { chat: user.teleChatData, }
+  user.commands = { "-clear": true }
+
+  await setEvent(bot)
 
   await getFlashSaleSession(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
@@ -93,12 +100,10 @@ const alarmFlashSale = async function (user) {
       return resolve(user.getAllItemids.data.promotionid)
     })
   })).then(async id => {
-    await Other.updateOne(null, {
-      promotionId: id
-    }).exec()
+    await Other.updateOne(null, { promotionId: id }).exec()
   })
 
-  for (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
+  for await (const [index, session] of user.getFlashSaleSession.data.sessions.entries()) {
     if (index == 0) {
       user.timeout = session.end_time + 10
       continue;
@@ -116,10 +121,9 @@ const alarmFlashSale = async function (user) {
 
     let banner = session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
     banner += `\n\nList Item yang Mencurigakan : `
-
     user.max = { price_before_discount: 0, url: null }
 
-    for (const item of user.getFlashSaleSession.data.items) {
+    for await (const item of user.getFlashSaleSession.data.items) {
       if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
         if (item.price_before_discount > user.max.price_before_discount) {
           user.max = {
@@ -129,12 +133,13 @@ const alarmFlashSale = async function (user) {
         }
 
         banner += `\n\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
-        await setEvent({
-          commands: {
-            url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`,
-            price: 1000
-          }
-        })
+        user.commands = {
+          url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`,
+          price: 1000
+        }
+        await setEvent(bot).then((replyCtx) => {
+          bot.telegram.deleteMessage(replyCtx.chat.id, replyCtx.message_id)
+        }).catch((err) => sendReportToDev(bot, err));
       }
     }
 
@@ -144,7 +149,7 @@ const alarmFlashSale = async function (user) {
         { userRole: 'vip' }
       ]
     }, async function (err, users) {
-      if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error')
+      if (err) return sendReportToDev(bot, err)
       for (let u of users) {
         u = JSON.parse(JSON.stringify(u))
         bot.message = {
@@ -210,9 +215,7 @@ const alarmFlashSale = async function (user) {
     })
   }
 
-  return setTimeout(alarmFlashSale.bind(null, {
-    Curl: Curl
-  }), user.timeout * 1000 - Date.now());
+  return setTimeout(alarmFlashSale.bind(null, bot), user.timeout * 1000 - Date.now());
 }
 
 bot.use((ctx, next) => {
@@ -552,15 +555,16 @@ bot.command('event', async (ctx) => {
   if (!ensureRole(ctx)) return
   let user = ctx.session
   user.commands = getCommands(ctx.message.text)
-  return setEvent(user, ctx)
+  return setEvent(ctx)
 })
 
-const setEvent = async function (user, ctx = null) {
+const setEvent = async function (ctx) {
+  let user = ctx.session
   user.other = (await Other.find())[0]
 
   if (user.commands.url && user.commands.price) {
-    if (!isValidURL(user.commands.url) && ctx) return ctx.reply('Format Url Salah')
-    if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id' && ctx) return ctx.reply('Bukan Url Dari Shopee')
+    if (!isValidURL(user.commands.url)) return sendMessage(ctx, 'Format Url Salah')
+    if (psl.get(extractRootDomain(user.commands.url)) != 'shopee.co.id') return sendMessage(ctx, 'Bukan Url Dari Shopee')
 
     let pathname = url.parse(user.commands.url, true).pathname.split('/')
     if (pathname.length == 4) {
@@ -572,10 +576,23 @@ const setEvent = async function (user, ctx = null) {
       user.shopid = parseInt(pathname[pathname.length - 2])
     }
 
-    if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid) && ctx) return ctx.reply('Bukan Url Produk Shopee')
+    if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return sendMessage(ctx, 'Bukan Url Produk Shopee')
+
+    await getInfoBarang({
+      Curl: user.Curl,
+      config: {
+        url: user.commands.url,
+        itemid: user.itemid,
+        shopid: user.shopid,
+      }
+    }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      curl.close();
+      user.infoBarang = typeof body == 'string' ? JSON.parse(body) : body;
+    }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
     if (user.other.eventProducts.length <= 0) {
       user.other.eventProducts.push({
+        barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
         url: user.commands.url,
         itemid: user.itemid,
         shopid: user.shopid,
@@ -588,6 +605,7 @@ const setEvent = async function (user, ctx = null) {
           product.shopid == user.shopid
         ) {
           user.other.eventProducts[index] = {
+            barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
             url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
@@ -598,6 +616,7 @@ const setEvent = async function (user, ctx = null) {
 
         if (index == user.other.eventProducts.length - 1) {
           user.other.eventProducts.push({
+            barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
             url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
@@ -616,11 +635,11 @@ const setEvent = async function (user, ctx = null) {
     return Other.updateOne(null, {
       eventProducts: []
     }).exec(function () {
-      if (ctx) return ctx.reply(`List Event Products Berhasil Di Hapus`)
+      return sendMessage(ctx, `List Event Products Berhasil Di Hapus`)
     })
   }
 
-  if (ctx) return ctx.reply(`<code>${JSON.stringify(user.other.eventProducts, null, "\t")}</code>`, { parse_mode: 'HTML' })
+  return sendMessage(ctx, `<code>${JSON.stringify(user.other.eventProducts, null, "\t")}</code>`, { parse_mode: 'HTML' })
 }
 
 bot.command('disable', async (ctx) => {
@@ -646,8 +665,21 @@ bot.command('disable', async (ctx) => {
 
     if (!Number.isInteger(user.itemid) || !Number.isInteger(user.shopid)) return ctx.reply('Bukan Url Produk Shopee')
 
+    await getInfoBarang({
+      Curl: user.Curl,
+      config: {
+        url: user.commands.url,
+        itemid: user.itemid,
+        shopid: user.shopid,
+      }
+    }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      curl.close();
+      user.infoBarang = typeof body == 'string' ? JSON.parse(body) : body;
+    }).catch((err) => sendReportToDev(ctx, new Error(err)));
+
     if (user.other.disableProducts.length <= 0) {
       user.other.disableProducts.push({
+        barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
         url: user.commands.url,
         itemid: user.itemid,
         shopid: user.shopid,
@@ -661,6 +693,7 @@ bot.command('disable', async (ctx) => {
           product.shopid == user.shopid
         ) {
           user.other.disableProducts[index] = {
+            barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
             url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
@@ -672,6 +705,7 @@ bot.command('disable', async (ctx) => {
 
         if (index == user.other.disableProducts.length - 1) {
           user.other.disableProducts.push({
+            barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
             url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
@@ -1204,7 +1238,7 @@ const buyRepeat = async function (ctx) {
   let user = ctx.session;
 
   do {
-    await postBuy(user, user.config.repeat)
+    await postBuy(user, ctx)
       .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.checkout < 10);

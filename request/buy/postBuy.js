@@ -1,6 +1,6 @@
 const waitUntil = require('../../helpers/waitUntil');
 
-module.exports = async function (user, repeat = false) {
+module.exports = async function (user, ctx) {
 
   const addDots = function (nStr) {
     nStr += '';
@@ -55,7 +55,7 @@ module.exports = async function (user, repeat = false) {
       .setOtherOpt(function (curl) {
         user.config.end = Date.now();
         user.config.checkout = user.config.checkout || user.config.end
-        if (repeat) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
+        if (user.config.repeat) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
       }).setHeaders([
         'authority: shopee.co.id',
         'pragma: no-cache',
@@ -90,7 +90,7 @@ module.exports = async function (user, repeat = false) {
     let logistic = shoporders.logistics.logistic_channels[shipping_orders.selected_logistic_channelid]
     let tax = taxCalc(user.payment.method, shipping_orders.shipping_fee, user.config.price)
 
-    if (!user.infoCheckout.can_checkout) console.log(user.infoCheckout.disabled_checkout_info.description)
+    if (!user.infoCheckout.can_checkout) sendReportToDev(ctx, user.infoCheckout.disabled_checkout_info.description)
 
     return {
       "status": 200,
