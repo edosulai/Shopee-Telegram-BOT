@@ -149,16 +149,16 @@ module.exports = {
     return domain;
   },
 
-  userLogs: async function (ctx, msg, type = 'Info', callback = null) {
-    console.trace(chalk.blue(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`));
+  userLogs: function (ctx, msg, type = 'Error', callback = null) {
+    console.log(chalk.blue(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`));
     if (typeof callback == 'function') return callback()
   },
 
-  sendMessage: async function (ctx, msg, extra = {}) {
+  sendMessage: function (ctx, msg, extra = {}) {
     if (ctx.telegram) {
-      return await ctx.telegram.sendMessage(ctx.message.chat.id, msg, extra)
+      return ctx.telegram.sendMessage(ctx.message.chat.id, msg, extra)
     } else {
-      return await ctx.reply(msg, extra)
+      return ctx.reply(msg, extra)
     }
   },
 
@@ -171,13 +171,12 @@ module.exports = {
     }
   },
 
-  sendReportToDev: async function (ctx, msg, type = 'Error', callback = null) {
+  sendReportToDev: function (ctx, msg, type = 'Error') {
     if (ctx.telegram) {
-      await ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
+      return ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
     } else {
-      await ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+      return ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
     }
-    if (typeof callback == 'function') return callback()
   },
 
   setNewCookie: function (oldcookies, ...newcookies) {

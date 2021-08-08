@@ -104,8 +104,6 @@ const alarmFlashSale = async function (user) {
       continue;
     }
 
-    if (index == 2) continue;
-
     await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
       user.getAllItemids = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
@@ -123,7 +121,6 @@ const alarmFlashSale = async function (user) {
 
     for (const item of user.getFlashSaleSession.data.items) {
       if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
-        // if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 1)) {
         if (item.price_before_discount > user.max.price_before_discount) {
           user.max = {
             price_before_discount: item.price_before_discount,
@@ -141,29 +138,48 @@ const alarmFlashSale = async function (user) {
       }
     }
 
-    await User.find(async function (err, users) {
+    await User.find({
+      $or: [
+        { userRole: 'admin' },
+        { userRole: 'vip' }
+      ]
+    }, async function (err, users) {
       if (err) return sendReportToDev(bot, `<code>${err}</code>`, 'Error')
       for (let u of users) {
         u = JSON.parse(JSON.stringify(u))
-        if (['admin', 'vip'].includes(u.userRole)) {
+        bot.message = {
+          chat: u.teleChatData
+        }
+        if (index == 1) {
+          // bot.session = u
 
-          bot.from = u.teleChatData
-          bot.chat = u.teleChatData
-          bot.message = {
-            chat: u.teleChatData
-          }
+          await sendMessage(bot, banner, { parse_mode: 'HTML' })
+          //   .then((replyCtx) => {
+          //     bot.session.config = {
+          //       message: {
+          //         chatId: replyCtx.chat.id,
+          //         msgId: replyCtx.message_id,
+          //         inlineMsgId: replyCtx.inline_message_id,
+          //         text: replyCtx.text
+          //       }
+          //     }
+          //   })
+
+          // if (user.max.url) {
+          //   bot.from = u.teleChatData
+          //   bot.chat = u.teleChatData
+          //   bot.session.Curl = Curl
+          //   bot.session.commands = {
+          //     url: user.max.url,
+          //     '-vip': true
+          //   }
+          //   setTimeout(getItem.bind(null, bot), 10000)
+          // }
+        } else {
           bot.session = u
 
           await sendMessage(bot, banner, { parse_mode: 'HTML' })
-          if (user.max.url && index == 1) {
-            bot.session.commands = {
-              url: user.max.url,
-              price: user.max.price,
-              '-vip': true
-            }
-            bot.session.Curl = Curl
-
-            await bot.telegram.sendMessage(u.teleChatId, `Prepare... <code>${user.max.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+            .then((replyCtx) => {
               bot.session.config = {
                 message: {
                   chatId: replyCtx.chat.id,
@@ -174,7 +190,20 @@ const alarmFlashSale = async function (user) {
               }
             })
 
-            setTimeout(getItem.bind(null, bot), 0)
+          if (user.max.url) {
+            bot.from = u.teleChatData
+            bot.chat = u.teleChatData
+            bot.session.Curl = Curl
+            bot.session.commands = {
+              url: user.max.url,
+              '-vip': true,
+              '-skiptimer': true
+            }
+
+            setTimeout(async function () {
+              await getItem(bot)
+              return bot.telegram.deleteMessage(bot.session.config.message.chatId, bot.session.config.message.msgId)
+            }, 0)
           }
         }
       }
@@ -842,12 +871,12 @@ const getItem = async function (ctx) {
         } else {
           user.infoBarang = chunk;
         }
-      }).catch((err) => userLogs(ctx, err, 'Error', () => user.config.start = false));
+      }).catch((err) => userLogs(ctx, new Error(err), 'Error', () => user.config.start = false));
 
       if (!user.infoBarang || !user.config.start) continue;
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
       user.config.promotionid = (user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1])
-      if (!user.infoBarang.item.upcoming_flash_sale) break;
+      if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
 
       user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
       user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
@@ -963,8 +992,7 @@ const getItem = async function (ctx) {
 
     return User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
 
-  }).catch((err) => sendReportToDev(ctx, new Error(err), function () {
-
+  }).catch((err) => sendReportToDev(ctx, new Error(err)).then((result) => {
     return Failure.updateOne({
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
@@ -980,8 +1008,7 @@ const getItem = async function (ctx) {
       infoCheckoutQuick: user.infoCheckoutQuick,
       infoCheckoutLong: user.infoCheckoutLong
     }, { upsert: true }).exec()
-
-  }));
+  }).catch((err) => sendReportToDev(ctx, new Error(err))));
 }
 
 const getCart = async function (ctx, getCache = false) {
@@ -1058,7 +1085,7 @@ const getCart = async function (ctx, getCache = false) {
       user.config.infoCheckoutLong.now = Date.now()
     } else sendReportToDev(ctx, JSON.stringify(chunk, null, "\t"), 'postInfoCheckout')
     curl.close()
-  }).catch((err) => err)
+  }).catch((err) => sendReportToDev(ctx, new Error(err), 'postInfoCheckout'))
 
   await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
     user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -1103,12 +1130,12 @@ const getCart = async function (ctx, getCache = false) {
 
     return `${ensureRole(ctx, true) ? `Cache Produk Telah Di Dapatkan` : null}`
   }).catch(async (err) => {
-    return sendReportToDev(ctx, new Error(err), 'Error', () => {
+    return sendReportToDev(ctx, new Error(err), 'Error').then((result) => {
       return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
       }).catch((err) => err);
-    })
+    }).catch((err) => sendReportToDev(ctx, new Error(err)));
   }) : !user.config.repeat ? buyItem(ctx) : buyRepeat(ctx);
 }
 
@@ -1183,17 +1210,6 @@ const buyRepeat = async function (ctx) {
       .catch((err) => sleep(1));
   } while (Date.now() - user.config.checkout < 10);
 
-  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.shoporders) {
-      user.config.infoCheckoutLong = chunk
-      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.config.infoCheckoutLong.now = Date.now()
-    }
-    curl.close()
-  }).catch((err) => err)
-
   do {
     user.info = `Detail Informasi : `
 
@@ -1266,12 +1282,11 @@ const buyRepeat = async function (ctx) {
       }).catch((err) => sendReportToDev(ctx, new Error(err)));
     }
 
-    // let dariSiko = Date.now();
-    // do {
-    //   await postBuy(user, user.config.repeat)
-    //     .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
-    //     .catch((err) => sleep(1));
-    // } while (Date.now() - dariSiko < 5);
+    if (user.config.infoCheckoutLong && !user.order) {
+      sendReportToDev(ctx, 'delete user.postBuyBodyLong')
+      delete user.postBuyBodyLong
+      return buyItem(ctx)
+    }
 
   } while ((Date.now() - user.config.start) < 590 && !user.order);
 
@@ -1280,7 +1295,7 @@ const buyRepeat = async function (ctx) {
       .then(() => {
         sendReportToDev(ctx, 'delete user.postBuyBodyLong')
         delete user.postBuyBodyLong
-      }).catch((err) => sendReportToDev(ctx, new Error(err)));
+      }).catch((err) => sendReportToDev(ctx, err));
     return buyItem(ctx)
   }
 
@@ -1302,6 +1317,6 @@ bot.command((ctx) => {
   })
 })
 
-bot.catch((err, ctx) => sendReportToDev(ctx, new Error(err), () => process.exit(1)))
+bot.catch((err, ctx) => sendReportToDev(ctx, new Error(err)))
 
 bot.launch()
