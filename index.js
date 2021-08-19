@@ -6,7 +6,6 @@ const { Telegraf, session } = require('telegraf'),
   psl = require('psl'),
   url = require('url'),
   chalk = require('chalk'),
-  { curly } = require('node-libcurl'),
 
   packageJson = require('./package.json'),
   Curl = require('./helpers/curl'),
@@ -303,21 +302,6 @@ bot.command('speed', async (ctx) => {
   let tunggu = Date.now();
 
   while (totalWaktu < (commands.limit * 1000)) {
-    await curly.get(commands.url).then(({ statusCode, body, headers }) => {
-      totalWaktu = Date.now() - tunggu;
-      totalRequest++;
-    }).catch((err) => sendReportToDev(ctx, new Error(err)));
-  }
-
-  await ctx.reply(`Total curly Dalam ${commands.limit} Detik = ${totalRequest}`)
-
-  sleep(1000);
-
-  totalRequest = 0;
-  totalWaktu = 0;
-  tunggu = Date.now();
-
-  while (totalWaktu < (commands.limit * 1000)) {
     let curl = new Curl();
     await curl.get(commands.url).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
@@ -326,7 +310,7 @@ bot.command('speed', async (ctx) => {
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
   }
 
-  return ctx.reply(`Total curl Dalam ${commands.limit} Detik = ${totalRequest}`)
+  return ctx.reply(`Total cURL Dalam ${commands.limit} Detik = ${totalRequest}`)
 })
 
 bot.command('log', async (ctx) => {
