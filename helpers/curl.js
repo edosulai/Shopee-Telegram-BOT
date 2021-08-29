@@ -22,14 +22,10 @@ module.exports = function () {
     return this
   }
 
-  this.serializeCookie = (cookies, needle = []) => {
+  this.serializeCookie = (cookies) => {
     let temp = [];
     for (const cook in cookies) {
-      if (needle.length > 0) {
-        if (needle.includes(cook)) temp.push(`${cook}=${cookies[cook]}`)
-      } else {
-        temp.push(`${cook}=${cookies[cook]}`)
-      }
+      temp.push(`${cook}=${cookies[cook]}`)
     }
     return temp.join("; ")
   }
