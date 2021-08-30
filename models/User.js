@@ -2,11 +2,12 @@ const mongoose = require('mongoose');
 const findOrCreate = require('mongoose-findorcreate');
 
 module.exports = mongoose.model('Users', new mongoose.Schema({
+  teleBotId: Number,
   teleChatId: Number,
   teleChatData: Object,
   userLoginInfo: Object,
   userCookie: Object,
-  userRole: String,
+  userRole: Number,
   updatedAt: {
     type: Date,
     default: Date.now

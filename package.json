@@ -1,13 +1,13 @@
 {
   "name": "shop-bot",
-  "version": "2.4.7",
+  "version": "2.4.8",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot npm run start",
-    "dev01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_01 npm run start",
-    "dev02": "NODE_ENV=development TOKEN=1720996361:AAFsn3Z9_C8QkvC1AydAKIDQJSssxBsV0xA MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_02 npm run start",
-    "dev03": "NODE_ENV=development TOKEN=1745604191:AAG8dw1O10bnof2YljpyqLy_MbFgRhz6DZ0 MONGODB=mongodb+srv://pinturakik:GwBbXnEWoYOvn797@pinturakik.jzf7i.gcp.mongodb.net/shopbot_03 npm run start",
+    "dev": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 npm run start",
+    "01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U npm run start",
+    "02": "NODE_ENV=development TOKEN=1720996361:AAFsn3Z9_C8QkvC1AydAKIDQJSssxBsV0xA npm run start",
+    "03": "NODE_ENV=development TOKEN=1745604191:AAG8dw1O10bnof2YljpyqLy_MbFgRhz6DZ0 npm run start",
     "start": "node --max-old-space-size=512 --stack-trace-limit=0 index.js"
   },
   "repository": {

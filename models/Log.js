@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 module.exports = mongoose.model('Logs', {
+  teleBotId: Number,
   teleChatId: Number,
   itemid: Number,
   shopid: Number,

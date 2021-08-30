@@ -59,16 +59,17 @@ bot.use(session())
 bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
+  process.env.BOT_ID = botInfo.id
 
-  await User.updateOne({ teleChatId: process.env.ADMIN_ID }, {
-    userRole: "admin"
+  await User.updateMany({ teleChatId: process.env.ADMIN_ID }, {
+    userRole: 1
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
   await Other.findOrCreate({}, {
-    "promotionId": [], "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": ["admin"], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
+    "promotionId": [], "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": [1], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
   }, async function (err, other, created) { if (err) return sendReportToDev(bot, err) })
 
-  await User.findOne({ teleChatId: process.env.ADMIN_ID }, async function (err, userUpdated) {
+  await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: process.env.ADMIN_ID }, async function (err, userUpdated) {
     if (err) return sendReportToDev(ctx, new Error(err))
     bot.session = userUpdated._doc
     bot.session.Curl = Curl
@@ -144,8 +145,8 @@ const alarmFlashSale = async function (bot) {
 
     await User.find({
       $or: [
-        { userRole: 'admin' },
-        { userRole: 'vip' }
+        { userRole: 1 },
+        { userRole: 2 }
       ]
     }, async function (err, users) {
       if (err) return sendReportToDev(bot, err)
@@ -219,11 +220,11 @@ const alarmFlashSale = async function (bot) {
 
 bot.use((ctx, next) => {
   if (!ctx.message.chat) return;
-  return User.findOrCreate({ teleChatId: ctx.message.chat.id }, {
+  return User.findOrCreate({teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
     teleChatData: ctx.message.chat,
     userLoginInfo: { email: null, },
     userCookie: { csrftoken: null },
-    userRole: "member"
+    userRole: 4
   }, async function (err, user, created) {
     if (err) return sendReportToDev(ctx, new Error(err))
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
@@ -408,7 +409,7 @@ bot.command('user', async (ctx) => {
   }
 
   if (user.commands.id) {
-    return User.findOne({ teleChatId: user.commands.id }, function (err, user) {
+    return User.findOne({teleBotId: process.env.BOT_ID, teleChatId: user.commands.id }, function (err, user) {
       if (err) return sendReportToDev(ctx, new Error(err))
       return ctx.reply(`<code>${user}</code>`, { parse_mode: 'HTML' })
     })
@@ -440,6 +441,7 @@ bot.command('login', async (ctx) => {
     if (!user.userCookie.csrftoken) user.userCookie.csrftoken = generateString(32)
 
     await User.updateOne({
+      teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id
     }, {
       userLoginInfo: user.userLoginInfo,
@@ -521,6 +523,7 @@ bot.command('login', async (ctx) => {
         }
 
         return User.updateOne({
+          teleBotId: process.env.BOT_ID,
           teleChatId: ctx.message.chat.id
         }, {
           userLoginInfo: user.userLoginInfo,
@@ -667,7 +670,7 @@ bot.command('disable', async (ctx) => {
         url: user.commands.url,
         itemid: user.itemid,
         shopid: user.shopid,
-        allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : ['admin'],
+        allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : [1],
         message: user.commands.msg
       })
     } else {
@@ -681,7 +684,7 @@ bot.command('disable', async (ctx) => {
             url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
-            allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : ['admin'],
+            allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : [1],
             message: user.commands.msg
           }
           break;
@@ -693,7 +696,7 @@ bot.command('disable', async (ctx) => {
             url: user.commands.url,
             itemid: user.itemid,
             shopid: user.shopid,
-            allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : ['admin'],
+            allowed: user.commands.allowed ? user.commands.allowed.toLowerCase().split(',') : [1],
             message: user.commands.msg
           })
         }
@@ -814,8 +817,8 @@ const getItem = async function (ctx) {
       },
       skiptimer: user.commands['-skiptimer'] || false,
       autocancel: user.commands['-autocancel'] || false,
-      cache: user.commands['-cache'] ? ensureRole(ctx, false, ['admin']) : false,
-      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, ['admin']) : false,
+      cache: user.commands['-cache'] ? ensureRole(ctx, false, [1]) : false,
+      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, [1]) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       flashSale: false,
       fail: 0,
@@ -825,12 +828,12 @@ const getItem = async function (ctx) {
     }
   }
 
-  if (user.commands['-premium'] ? ensureRole(ctx, true, ['admin', 'vip', 'premium']) : false) {
+  if (user.commands['-premium'] ? ensureRole(ctx, true, [1, 2, 3]) : false) {
     user.config.cache = true;
     await replaceMessage(ctx, user.config.message, 'Fitur Premium Terpasang')
   }
 
-  if (user.commands['-vip'] ? ensureRole(ctx, true, ['admin', 'vip']) : false) {
+  if (user.commands['-vip'] ? ensureRole(ctx, true, [1, 2]) : false) {
     user.config.cache = true;
     user.config.repeat = true;
     for (const product of user.other.eventProducts) {
@@ -847,6 +850,7 @@ const getItem = async function (ctx) {
 
   if (user.config.cache) {
     await Log.findOne({
+      teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
     }, async function (err, log) {
@@ -974,9 +978,9 @@ const getItem = async function (ctx) {
 
     if (!user.config.success) {
       await Failure.updateOne({
+        teleBotId: process.env.BOT_ID,
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
-        shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
         buyBody: user.postBuyBody,
@@ -990,9 +994,9 @@ const getItem = async function (ctx) {
       }, { upsert: true }).exec()
     } else {
       await Log.updateOne({
+        teleBotId: process.env.BOT_ID,
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
-        shopid: user.config.shopid,
         modelid: user.config.modelid
       }, {
         buyBody: user.postBuyBody,
@@ -1007,13 +1011,13 @@ const getItem = async function (ctx) {
       }, { upsert: true }).exec()
     }
 
-    return User.updateOne({ teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
+    return User.updateOne({teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie }).exec()
 
   }).catch((err) => sendReportToDev(ctx, new Error(err)).then((result) => {
     return Failure.updateOne({
+      teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
-      shopid: user.config.shopid,
       modelid: user.config.modelid
     }, {
       buyBody: user.postBuyBody,
@@ -1129,9 +1133,9 @@ const getCart = async function (ctx, getCache = false) {
     user.payment = require('./helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
 
     await Log.updateOne({
+      teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
-      shopid: user.config.shopid,
       modelid: user.config.modelid
     }, {
       buyBody: user.postBuyBody,
@@ -1322,8 +1326,14 @@ bot.command((ctx) => {
   user.commands = splitAtFirstSpace(ctx.message.text)
   if (user.commands.length < 2) return ctx.reply(`/(user) <code>...message...</code>`, { parse_mode: 'HTML' })
   User.findOne(function (userData) {
-    if (Number.isInteger(parseInt(userData))) return { teleChatId: userData }
-    return { 'teleChatData.username': userData }
+    if (Number.isInteger(parseInt(userData))) return {
+      teleBotId: process.env.BOT_ID,
+      teleChatId: userData
+    }
+    return {
+      teleBotId: process.env.BOT_ID,
+      'teleChatData.username': userData
+    }
   }(user.commands[0].substring(1)), function (err, u) {
     if (err || !u) return
     return ctx.reply(`<code>${`@${ctx.message.chat.username}` || ctx.message.chat.first_name} : ${user.commands[1].replace(/(<([^>]+)>)/gi, "")}</code>`, { chat_id: u.teleChatId, parse_mode: 'HTML' })

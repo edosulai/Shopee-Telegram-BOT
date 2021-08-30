@@ -94,7 +94,7 @@ module.exports = {
     return url.protocol === "http:" || url.protocol === "https:";
   },
 
-  ensureRole: async function (ctx, ignoreReport = false, allowRole = ['admin']) {
+  ensureRole: async function (ctx, ignoreReport = false, allowRole = [1]) {
     if (allowRole.includes(ctx.session.userRole)) return true
     if (!ignoreReport) await sendReportToDev(ctx, `Mencoba Mengakses Fitur ${allowRole.join(' ')}`, 'Info')
     return false
