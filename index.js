@@ -69,13 +69,15 @@ bot.telegram.getMe().then(async (botInfo) => {
     "promotionId": [], "disableProducts": [{ "url": null, "itemid": null, "shopid": null, "allowed": [1], "message": "..." }], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
   }, async function (err, other, created) { if (err) return sendReportToDev(bot, err) })
 
-  await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: process.env.ADMIN_ID }, async function (err, userUpdated) {
+  await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: process.env.ADMIN_ID, userRole: 1 }, async function (err, userUpdated) {
     if (err) return sendReportToDev(ctx, new Error(err))
-    bot.session = userUpdated._doc
-    bot.session.Curl = Curl
+    if (userUpdated) {
+      bot.session = userUpdated._doc
+      bot.session.Curl = Curl
+    }
   })
 
-  return setTimeout(alarmFlashSale.bind(null, bot), 0);
+  if (bot.session) return setTimeout(alarmFlashSale.bind(null, bot), 0);
 }).catch((err) => console.error(chalk.red(err)))
 
 const alarmFlashSale = async function (bot) {
@@ -221,9 +223,14 @@ const alarmFlashSale = async function (bot) {
 bot.use((ctx, next) => {
   if (!ctx.message.chat) return;
   return User.findOrCreate({teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
-    teleChatData: ctx.message.chat,
+    teleChatData: {
+      id: ctx.message.chat.id,
+      firstName: ctx.message.chat.first_name,
+      lastName: ctx.message.chat.last_name,
+      username: ctx.message.chat.username
+    },
     userLoginInfo: { email: null, },
-    userCookie: { csrftoken: null },
+    userCookie: { csrftoken: generateString(32) },
     userRole: 4
   }, async function (err, user, created) {
     if (err) return sendReportToDev(ctx, new Error(err))
@@ -231,8 +238,8 @@ bot.use((ctx, next) => {
     ctx.session = user
     ctx.session.Curl = Curl
     if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
-      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `Mencoba Akses BOT`, 'Info'))
-      return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `Meninggalkan BOT`, 'Info'));
+      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
+      return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `${ctx.session.teleChatId} Meninggalkan BOT`, 'Info'));
     }
     return next(ctx)
   })
@@ -438,18 +445,15 @@ bot.command('login', async (ctx) => {
       }
     }
 
-    if (!user.userCookie.csrftoken) user.userCookie.csrftoken = generateString(32)
-
     await User.updateOne({
       teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id
     }, {
-      userLoginInfo: user.userLoginInfo,
-      userCookie: user.userCookie
+      userLoginInfo: user.userLoginInfo
     }).exec()
 
-    if (!checkAccount(ctx)) return ctx.reply(`/login <code>email=emailagan@email.com password=rahasia</code>`, { parse_mode: 'HTML' })
-
+    if (!checkAccount(ctx)) return;
+    
     await getLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -482,8 +486,13 @@ bot.command('login', async (ctx) => {
               curl.close()
               user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginLinkVerify = typeof body == 'string' ? JSON.parse(body) : body;
-              ctx.reply('Silahkan Cek Notifikasi SMS dari Shopee di Handphone Anda')
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
+
+            if (user.loginLinkVerify.error && user.loginLinkVerify.error == 81900202) {
+              return ctx.reply('Verifikasi gagal.. Kamu telah mencapai limit verifikasi melalui link otentikasi hari ini.')
+            }
+
+            ctx.reply('Silahkan Cek Notifikasi SMS dari Shopee di Handphone Anda')
 
             do {
               await postStatusLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -506,10 +515,10 @@ bot.command('login', async (ctx) => {
             await postLoginDone(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-              user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
+              user.loginDoneStatus = typeof body == 'string' ? JSON.parse(body) : body;
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
-            if (user.loginStatus.data) {
+            if (user.loginDoneStatus.data) {
               await ctx.reply('Login Berhasil')
             } else {
               await ctx.reply(`Login Gagal`)
