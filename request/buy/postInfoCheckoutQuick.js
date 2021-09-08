@@ -37,28 +37,6 @@ module.exports = async function (user, getCache) {
         "logistics": { "recommended_channelids": null },
         "buyer_address_data": {},
         "selected_preferred_delivery_time_slot_id": null
-      }],
-      // "selected_payment_channel_data": {},
-      // "promotion_data": {
-      //   "use_coins": user.updateKeranjang.data.use_coins,
-      //   "free_shipping_voucher_info": {
-      //     "free_shipping_voucher_id": user.updateKeranjang.data.free_shipping_voucher_info.free_shipping_voucher_id,
-      //     // "free_shipping_voucher_code": null,
-      //     "disabled_reason": user.updateKeranjang.data.free_shipping_voucher_info.disabled_reason,
-      //     "description": user.updateKeranjang.data.free_shipping_voucher_info.description
-      //   },
-      //   "platform_vouchers": user.updateKeranjang.data.platform_vouchers,
-      //   // "shop_vouchers": user.updateKeranjang.data.shop_vouchers,
-      //   "shop_vouchers": [],
-      //   "check_shop_voucher_entrances": true,
-      //   "auto_apply_shop_voucher": false
-      // },
-      // "device_info": {
-      //   "device_id": "",
-      //   "device_fingerprint": "",
-      //   "tongdun_blackbox": "",
-      //   "buyer_payment_info": {}
-      // },
-      // "tax_info": { "tax_id": "" }
+      }]
     })).post(`https://shopee.co.id/api/v2/checkout/get_quick`)
 }

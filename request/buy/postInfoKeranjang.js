@@ -1,6 +1,5 @@
 module.exports = async function (user, getCache) {
-  if (!getCache && user.infoKeranjang && user.config.predictPrice) return new Promise((resolve, reject) => reject())
-
+  
   let curl = new user.Curl()
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
