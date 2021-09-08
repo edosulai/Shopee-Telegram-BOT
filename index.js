@@ -77,7 +77,7 @@ bot.telegram.getMe().then(async (botInfo) => {
     }
   })
 
-  if (bot.session) return setTimeout(alarmFlashSale.bind(null, bot), 0);
+  // if (bot.session) return setTimeout(alarmFlashSale.bind(null, bot), 0);
 }).catch((err) => console.error(chalk.red(err)))
 
 const alarmFlashSale = async function (bot) {
@@ -305,20 +305,29 @@ bot.command('speed', async (ctx) => {
   if (typeof commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
   if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
 
-  let totalRequest = 0;
-  let totalWaktu = 0;
-  let tunggu = Date.now();
+  let howmuch = commands.time || 1;
 
-  while (totalWaktu < (commands.limit * 1000)) {
-    let curl = new Curl();
-    await curl.get(commands.url).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      curl.close()
+  for (let i = 0; i < howmuch; i++) {
+    let totalRequest = 0;
+    let totalWaktu = 0;
+    let tunggu = Date.now();
+  
+    while (totalWaktu < (commands.limit * 1000)) {
+      let curl = new Curl();
+      await curl.setOtherOpt(function (curl) {
+        if (commands['-noresponse']) {
+          curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1)
+            .setOpt(curl.libcurl.option.NOSIGNAL, true)
+            // .setOpt(curl.libcurl.option.TCP_KEEPALIVE, true)
+            // .setOpt(curl.libcurl.option.TCP_FASTOPEN, true)
+        }
+      }).get(commands.url).then().catch((err) => err);
       totalWaktu = Date.now() - tunggu;
       totalRequest++;
-    }).catch((err) => sendReportToDev(ctx, new Error(err)));
+    }
+  
+    await ctx.reply(`Total cURL Dalam ${commands.limit} Detik = ${totalRequest}`)
   }
-
-  return ctx.reply(`Total cURL Dalam ${commands.limit} Detik = ${totalRequest}`)
 })
 
 bot.command('log', async (ctx) => {
