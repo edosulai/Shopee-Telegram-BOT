@@ -1,4 +1,4 @@
-module.exports = async function (user, getCache) {
+module.exports = async function (user) {
   
   let curl = new user.Curl()
 

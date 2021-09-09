@@ -9,7 +9,6 @@ const { Telegraf, session } = require('telegraf'),
 
   packageJson = require('./package.json'),
   Curl = require('./helpers/curl'),
-  waitUntil = require('./helpers/waitUntil'),
 
   getLogin = require('./request/auth/getLogin'),
   postLogin = require('./request/auth/postLogin'),
@@ -437,7 +436,7 @@ bot.command('login', async (ctx) => {
 
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    setNewCookie(user.userCookie, headers['set-cookie'])
     user.address = typeof body == 'string' ? JSON.parse(body) : body;
     if (!user.address.error) return ctx.reply('Anda Sudah Login')
 
@@ -464,14 +463,14 @@ bot.command('login', async (ctx) => {
 
     await getLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
     return async function _tryLogin(msg) {
       if (msg) await ctx.reply(msg)
       return postLogin(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        setNewCookie(user.userCookie, headers['set-cookie'])
         user.login = typeof body == 'string' ? JSON.parse(body) : body;
 
         switch (user.login.error) {
@@ -482,7 +481,7 @@ bot.command('login', async (ctx) => {
           case 98:
             await postLoginMethod(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
-              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginMethod = typeof body == 'string' ? JSON.parse(body) : body;
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
@@ -492,7 +491,7 @@ bot.command('login', async (ctx) => {
 
             await postLoginLinkVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
-              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginLinkVerify = typeof body == 'string' ? JSON.parse(body) : body;
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
@@ -505,7 +504,7 @@ bot.command('login', async (ctx) => {
             do {
               await postStatusLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
                 curl.close()
-                user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+                setNewCookie(user.userCookie, headers['set-cookie'])
                 user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
               }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
@@ -516,13 +515,13 @@ bot.command('login', async (ctx) => {
 
             await postLoginTokenVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
-              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginTokenVerify = typeof body == 'string' ? JSON.parse(body) : body;
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
             await postLoginDone(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
-              user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+              setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginDoneStatus = typeof body == 'string' ? JSON.parse(body) : body;
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
@@ -835,7 +834,6 @@ const getItem = async function (ctx) {
       skiptimer: user.commands['-skiptimer'] || false,
       autocancel: user.commands['-autocancel'] || false,
       cache: user.commands['-cache'] ? ensureRole(ctx, false, [1]) : false,
-      repeat: user.commands['-repeat'] ? ensureRole(ctx, false, [1]) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       flashSale: false,
       fail: 0,
@@ -852,7 +850,6 @@ const getItem = async function (ctx) {
 
   if (user.commands['-vip'] ? ensureRole(ctx, true, [1, 2]) : false) {
     user.config.cache = true;
-    user.config.repeat = true;
     for (const product of user.other.eventProducts) {
       if (
         product.itemid == user.config.itemid &&
@@ -883,7 +880,7 @@ const getItem = async function (ctx) {
 
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    setNewCookie(user.userCookie, headers['set-cookie'])
     user.address = typeof body == 'string' ? JSON.parse(body) : body;
     if (user.address.error) return replaceMessage(ctx, user.config.message, 'Sesi Anda Sudah Habis Silahkan Login Kembali')
     user.address = function (addresses) {
@@ -902,7 +899,7 @@ const getItem = async function (ctx) {
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close();
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.error != null) {
           user.config.start = false
@@ -950,7 +947,7 @@ const getItem = async function (ctx) {
 
     await getInfoPengiriman(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      setNewCookie(user.userCookie, headers['set-cookie'])
       user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
@@ -1055,20 +1052,20 @@ const getCart = async function (ctx, getCache = false) {
   user.config.timestamp = Date.now();
 
   if (getCache || !user.infoKeranjang || !user.config.predictPrice) {
-    await postKeranjang(user, getCache).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
       curl.close()
     }).catch((err) => err)
   } else {
-    postKeranjang(user, getCache).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
       curl.close()
     }).catch((err) => err)
   }
 
   if (getCache || !user.infoKeranjang || !user.config.predictPrice) {
-    await postInfoKeranjang(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.data.shop_orders.length > 0) {
         user.infoKeranjang = chunk
@@ -1112,7 +1109,7 @@ const getCart = async function (ctx, getCache = false) {
     }(user.selectedItem) || user.config.price
 
     postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.data && chunk.error == 0) {
         user.updateKeranjang = chunk
@@ -1125,7 +1122,7 @@ const getCart = async function (ctx, getCache = false) {
 
   if (getCache || !user.infoCheckoutLong) {
     postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.shoporders) {
         user.config.infoCheckoutLong = chunk
@@ -1136,34 +1133,21 @@ const getCart = async function (ctx, getCache = false) {
     }).catch((err) => err)
   }
 
-  if (getCache || !user.infoCheckoutQuick || !user.config.predictPrice) {
-    await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+  let checkoutInterval = setInterval(async function () {
+    if (Date.now() - user.config.start > (getCache ? 1000 : 7)) clearInterval(checkoutInterval);
+
+    await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.shoporders) {
         user.infoCheckoutQuick = chunk
         user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
         user.infoCheckoutQuick.now = Date.now()
+        clearInterval(checkoutInterval);
       }
       curl.close()
     }).catch((err) => err)
-  } else {
-    let checkoutInterval = setInterval(async function () {
-      if (Date.now() - user.config.start > 5) clearInterval(checkoutInterval);
-
-      await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-        if (chunk.shoporders) {
-          user.infoCheckoutQuick = chunk
-          user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.infoCheckoutQuick.now = Date.now()
-          clearInterval(checkoutInterval);
-        }
-        curl.close()
-      }).catch((err) => err)
-    }, 0);
-  }
+  }, 0)
 
   return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
     return waitUntil(user, 'updateKeranjang').then(() => resolve()).catch((err) => reject(err));
@@ -1173,7 +1157,7 @@ const getCart = async function (ctx, getCache = false) {
 
     await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
-      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => err);
 
     user.payment = require('./helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
@@ -1200,10 +1184,10 @@ const getCart = async function (ctx, getCache = false) {
     return sendReportToDev(ctx, new Error(err), 'Error').then((result) => {
       return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        setNewCookie(user.userCookie, headers['set-cookie'])
       }).catch((err) => err);
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
-  }) : !user.config.repeat ? buyItem(ctx) : buyRepeat(ctx);
+  }) : buyItem(ctx)
 }
 
 const buyItem = function (ctx) {
@@ -1212,22 +1196,12 @@ const buyItem = function (ctx) {
   return postBuy(user, ctx).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {
     if (err) return err;
 
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+    setNewCookie(user.userCookie, headers['set-cookie'])
     user.order = typeof body == 'string' ? JSON.parse(body) : body;
     user.order.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
     curl.close()
 
     user.info = `Detail Informasi : `
-
-    // if (ensureRole(ctx, true)) {
-    //   user.info += `${user.keranjang ? `\nPostKeranjang : ${user.keranjang.time} ms..` : ''}`
-    //   user.info += `${user.infoKeranjang ? `\nPostInfoKeranjang : ${user.infoKeranjang.time} ms..` : ''}`
-    //   user.info += `${user.updateKeranjang ? `\nPostUpdateKeranjang : ${user.updateKeranjang.time} ms..` : ''}`
-    //   user.info += `${user.infoCheckoutQuick ? `\nPostInfoCheckoutQuick : ${user.infoCheckoutQuick.time} ms..` : ''}`
-    //   user.info += `${user.infoCheckoutLong ? `\nPostInfoCheckoutLong : ${user.infoCheckoutLong.time} ms..` : ''}`
-    //   user.info += `${user.order ? `\nPostBuy : ${user.order.time} ms..` : ''}`
-    // }
-
     user.info += `\n\nMetode Pembayaran : ${user.payment.msg}`
     user.info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
     user.info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
@@ -1244,7 +1218,7 @@ const buyItem = function (ctx) {
 
       await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+        setNewCookie(user.userCookie, headers['set-cookie'])
         user.info += `\n\nBarang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
       }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
@@ -1256,7 +1230,7 @@ const buyItem = function (ctx) {
       if (user.config.autocancel) {
         await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
           curl.close()
-          user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+          setNewCookie(user.userCookie, headers['set-cookie'])
           user.info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
         }).catch((err) => sendReportToDev(ctx, new Error(err)));
       }
@@ -1266,105 +1240,6 @@ const buyItem = function (ctx) {
     user.config.info.push(user.info)
     return user.config.info.join('\n\n')
   }).catch((err) => sendReportToDev(ctx, new Error(err)));
-}
-
-const buyRepeat = async function (ctx) {
-  let user = ctx.session;
-
-  do {
-    await postBuy(user, ctx, true)
-      .then(({ statusCode, body, headers, curlInstance, curl, err }) => console.error(chalk.red(err)))
-      .catch((err) => sleep(0));
-  } while (Date.now() - user.config.checkout < 10);
-
-  do {
-    user.info = `Detail Informasi : `
-
-    if (user.payment.method.payment_channelid) {
-      await getOrders(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        if (!body) return sendReportToDev(ctx, new Error('Buy Repeat Body Kosong'), 'Error')
-
-        user.info += `\n\nMetode Pembayaran : ${user.payment.msg}`
-        user.info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-        user.info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
-        user.info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
-
-        for (const orders of (typeof body == 'string' ? JSON.parse(body) : body).orders) {
-          if (
-            Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
-            orders.extinfo.first_itemid == user.config.itemid &&
-            orders.extinfo.modelid == user.config.modelid &&
-            orders.shopid == user.config.shopid
-          ) {
-            user.order = orders;
-            user.config.success = true
-            user.info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-            if (user.config.autocancel) {
-              await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-                curl.close()
-                user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-                user.info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
-              }).catch((err) => sendReportToDev(ctx, new Error(err)));
-            }
-          }
-        }
-      }).catch((err) => sendReportToDev(ctx, new Error(err)));
-    } else {
-      await getCheckouts(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
-        user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-        if (!body) return sendReportToDev(ctx, new Error('Buy Repeat Body Kosong'), 'Error')
-
-        let info = `Detail Informasi : `
-
-        user.info += `\n\nMetode Pembayaran : ${user.payment.msg}`
-        user.info += `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-        user.info += `\nCheckout : <b>${timeConverter(user.config.checkout, { usemilis: true })}</b>`
-        user.info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
-
-        for (const checkouts of (typeof body == 'string' ? JSON.parse(body) : body).checkouts) {
-          for (const orders of checkouts.orders) {
-            if (
-              Math.floor(user.config.end / 1000) - orders.mtime < 5 &&
-              orders.extinfo.first_itemid == user.config.itemid &&
-              orders.extinfo.modelid == user.config.modelid &&
-              orders.shopid == user.config.shopid
-            ) {
-              user.order = orders;
-              user.config.success = true
-              user.info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-              if (user.config.autocancel) {
-                await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-                  curl.close()
-                  user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-                  user.info += `\n\nAuto Cancel Barang (${user.selectedItem.name}) Berhasil`
-                }).catch((err) => sendReportToDev(ctx, new Error(err)));
-              }
-            }
-          }
-        }
-
-      }).catch((err) => sendReportToDev(ctx, new Error(err)));
-    }
-
-    if (user.config.infoCheckoutLong && !user.order) {
-      delete user.postBuyBodyLong
-      return buyItem(ctx)
-    }
-
-  } while ((Date.now() - user.config.start) < 590 && !user.order);
-
-  if (!user.order) {
-    await waitUntil(user.config, 'infoCheckoutLong', Math.max(1000 - (Date.now() - user.config.start), 0))
-      .then(() => delete user.postBuyBodyLong).catch((err) => sendReportToDev(ctx, err));
-    return buyItem(ctx)
-  }
-
-  user.info += `\n\n============================================= `
-  user.config.info.push(user.info)
-  return user.config.info.join('\n\n')
 }
 
 bot.command((ctx) => {

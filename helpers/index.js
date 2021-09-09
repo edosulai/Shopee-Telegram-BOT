@@ -2,6 +2,8 @@ const cookie = require('cookie');
 const chalk = require('chalk');
 
 module.exports = {
+  waitUntil: require('./waitUntil'),
+
   dropQueue: function (queue, user = {}) {
     for (let i = 0; i < global.QUEUEBUY.length; i++) {
       if (global.QUEUEBUY[i].match(queue)) {
@@ -180,15 +182,13 @@ module.exports = {
   },
 
   setNewCookie: function (oldcookies, ...newcookies) {
-    let temp = oldcookies;
     for (const cookies of newcookies) {
       for (const cook of cookies) {
         let parseCookie = cookie.parse(cook);
         let cookieName = Object.keys(parseCookie)[0]
-        temp[cookieName] = parseCookie[cookieName]
+        oldcookies[cookieName] = parseCookie[cookieName]
       }
     }
-    return temp;
   },
 
   objectSize: function (obj) {

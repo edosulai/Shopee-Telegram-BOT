@@ -1,6 +1,6 @@
 const waitUntil = require('../../helpers/waitUntil');
 
-module.exports = async function (user, ctx, repeat = false) {
+module.exports = async function (user, ctx) {
 
   const addDots = function (nStr) {
     nStr += '';
@@ -55,7 +55,6 @@ module.exports = async function (user, ctx, repeat = false) {
       .setOtherOpt(function (curl) {
         user.config.end = Date.now();
         user.config.checkout = user.config.checkout || user.config.end
-        if (repeat) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
       }).setHeaders([
         'authority: shopee.co.id',
         'pragma: no-cache',

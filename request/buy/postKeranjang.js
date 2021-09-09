@@ -1,10 +1,8 @@
-module.exports = async function (user, getCache) {
+module.exports = async function (user) {
   let curl = new user.Curl()
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setOtherOpt(function (curl) {
-      // if (!getCache && user.infoKeranjang && user.config.predictPrice) curl.setOpt(curl.libcurl.option.TIMEOUT_MS, 1).setOpt(curl.libcurl.option.NOSIGNAL, true)
-    }).setHeaders([
+    .setHeaders([
       'authority: shopee.co.id',
       'referrer-policy: strict-origin-when-cross-origin',
       'mode: cors',
