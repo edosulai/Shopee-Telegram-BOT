@@ -50,7 +50,7 @@ module.exports = async function (user, ctx, repeat = false) {
 
   const buyIt = function (infoCheckout) {
     let curl = new user.Curl()
-    TCP_KEEPALIVE
+
     return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
       .setOtherOpt(function (curl) {
         user.config.end = Date.now();

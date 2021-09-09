@@ -1149,7 +1149,7 @@ const getCart = async function (ctx, getCache = false) {
     }).catch((err) => err)
   } else {
     let checkoutInterval = setInterval(async function () {
-      if (Date.now() - user.config.start > 1000) clearInterval(checkoutInterval);
+      if (Date.now() - user.config.start > 5) clearInterval(checkoutInterval);
 
       await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
@@ -1161,7 +1161,6 @@ const getCart = async function (ctx, getCache = false) {
           clearInterval(checkoutInterval);
         }
         curl.close()
-        console.log(Date.now() - user.config.start, chunk.error || typeof chunk)
       }).catch((err) => err)
     }, 0);
   }
