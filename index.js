@@ -1123,16 +1123,18 @@ const getCart = async function (ctx, getCache = false) {
     }).catch((err) => err)
   }
 
-  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.shoporders) {
-      user.config.infoCheckoutLong = chunk
-      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.config.infoCheckoutLong.now = Date.now()
-    }
-    curl.close()
-  }).catch((err) => err)
+  if (getCache || !user.infoCheckoutLong) {
+    postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.shoporders) {
+        user.config.infoCheckoutLong = chunk
+        user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.config.infoCheckoutLong.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+  }
 
   if (getCache || !user.infoCheckoutQuick || !user.config.predictPrice) {
     await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -1146,19 +1148,21 @@ const getCart = async function (ctx, getCache = false) {
       curl.close()
     }).catch((err) => err)
   } else {
-    let checkoutInterval = setInterval(function () {
-      postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    let checkoutInterval = setInterval(async function () {
+      if (Date.now() - user.config.start > 1000) clearInterval(checkoutInterval);
+
+      await postInfoCheckoutQuick(user, getCache).then(({ statusCode, body, headers, curlInstance, curl }) => {
         user.userCookie = setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.shoporders) {
           user.infoCheckoutQuick = chunk
           user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
           user.infoCheckoutQuick.now = Date.now()
+          clearInterval(checkoutInterval);
         }
         curl.close()
+        console.log(Date.now() - user.config.start, chunk.error || typeof chunk)
       }).catch((err) => err)
-      
-      if (Date.now() - user.config.start > 10) clearInterval(checkoutInterval);
     }, 0);
   }
 
