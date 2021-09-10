@@ -163,7 +163,7 @@ module.exports = {
     }
   },
 
-  sendReportToDev: function (ctx, msg, type = 'Error') {
+  sendReportToDev: function (ctx, msg, type = '') {
     if (ctx.telegram) {
       return ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
     } else {

@@ -24,7 +24,7 @@ bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_USERNAME = botInfo.username
   process.env.BOT_ID = botInfo.id
 
-  await User.updateMany({}, {
+  await User.updateMany({ teleBotId: process.env.BOT_ID }, {
     queue: false
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
@@ -47,10 +47,11 @@ bot.use((ctx, next) => {
       lastName: ctx.message.chat.last_name,
       username: ctx.message.chat.username
     },
-    userLoginInfo: { email: null, },
+    userLoginInfo: { email: null },
     userCookie: { csrftoken: generateString(32) },
     userRole: 4,
-    queue: false
+    queue: false,
+    alarm: false
   }, async function (err, user, created) {
     if (err) return sendReportToDev(ctx, new Error(err))
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
