@@ -38,6 +38,7 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
           check = check && typeof fromObject[each] != 'undefined'
         }
         if(!wantToCheck){
+          console.log(fromObject);
           check = check && fromObject
         }
         if (check) {

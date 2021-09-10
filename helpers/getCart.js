@@ -98,7 +98,7 @@ module.exports = async function (ctx, getCache) {
 
   let checkoutInterval = setInterval(async function () {
     if (Date.now() - user.config.start > (getCache ? 1000 : 100)) clearInterval(checkoutInterval);
-
+    
     await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
@@ -152,8 +152,13 @@ module.exports = async function (ctx, getCache) {
       return sendReportToDev(ctx, new Error(err))
     })
   } else {
-    return waitUntil(infoKeranjangInterval._destroyed, true, function (resolve, reject) {
-      return waitUntil(checkoutInterval._destroyed, true).then(() => resolve()).catch((err) => reject(err));
-    }).then(async () => await buyItem(ctx)).catch(async (err) => sendReportToDev(ctx, new Error(err)))
+
+    let buyInterval = setInterval(async () => {
+      if(infoKeranjangInterval._destroyed && checkoutInterval._destroyed){
+        clearInterval(buyInterval)
+        return await replaceMessage(ctx, user.config.message, await buyItem(ctx), false)
+      }
+    }, 0)
+
   }
 }

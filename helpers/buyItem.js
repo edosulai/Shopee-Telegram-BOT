@@ -41,7 +41,6 @@ module.exports = function buyItem(ctx) {
       }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
     } else {
-      user.config.fail = 0
       user.config.success = true
       user.info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
 

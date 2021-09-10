@@ -255,24 +255,5 @@ module.exports = async function (ctx) {
       queue: false
     }).exec()
 
-  }).catch((err) => sendReportToDev(ctx, new Error(err)).then((result) => {
-    return Log.updateOne({
-      teleBotId: process.env.BOT_ID,
-      teleChatId: ctx.message.chat.id,
-      itemid: user.config.itemid,
-      modelid: user.config.modelid
-    }, {
-      status: user.config.success,
-      buyBody: user.postBuyBody,
-      buyBodyLong: user.postBuyBodyLong,
-      infoPengiriman: user.infoPengiriman,
-      infoKeranjang: user.infoKeranjang,
-      updateKeranjang: user.updateKeranjang,
-      infoCheckoutQuick: user.infoCheckoutQuick,
-      infoCheckoutLong: user.infoCheckoutLong,
-      payment: user.payment,
-      selectedShop: user.selectedShop,
-      selectedItem: user.selectedItem
-    }, { upsert: true }).exec()
-  }).catch((err) => sendReportToDev(ctx, new Error(err))));
+  }).catch((err) => sendReportToDev(ctx, new Error(err)));
 }
