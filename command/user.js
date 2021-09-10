@@ -1,4 +1,4 @@
-const User = require('./models/User');
+const User = require('../models/User');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];

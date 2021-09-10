@@ -1,4 +1,8 @@
+const User = require('../models/User');
 
+(function (helpers) {
+  for (const key in helpers) global[key] = helpers[key];
+})(require('../helpers'))
 
 module.exports = function (ctx) {
   if (!ensureRole(ctx)) return

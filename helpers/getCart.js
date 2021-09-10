@@ -23,7 +23,7 @@ module.exports = async function (ctx, getCache) {
   }).catch((err) => err)
 
   let infoKeranjangInterval = setInterval(async function () {
-    if (Date.now() - user.config.start > (getCache ? 1000 : 1000)) clearInterval(infoKeranjangInterval);
+    if (Date.now() - user.config.start > (getCache ? 1000 : 100)) clearInterval(infoKeranjangInterval);
 
     await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
@@ -36,7 +36,7 @@ module.exports = async function (ctx, getCache) {
         user.selectedShop = function (shops) {
           for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
         }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
-    
+
         user.selectedItem = function (items) {
           for (const item of items) {
             if (item.modelid == user.config.modelid) return item
@@ -84,19 +84,20 @@ module.exports = async function (ctx, getCache) {
 
   }, 0)
 
-  let checkoutInterval = setInterval(async function () {
-    if (Date.now() - user.config.start > (getCache ? 1000 : 1000)) clearInterval(checkoutInterval);
+  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+    if (chunk.shoporders) {
+      user.config.infoCheckoutLong = chunk
+      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.config.infoCheckoutLong.now = Date.now()
+      clearInterval(checkoutInterval);
+    }
+    curl.close()
+  }).catch((err) => err)
 
-    postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      if (chunk.shoporders) {
-        user.config.infoCheckoutLong = chunk
-        user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        user.config.infoCheckoutLong.now = Date.now()
-      }
-      curl.close()
-    }).catch((err) => err)
+  let checkoutInterval = setInterval(async function () {
+    if (Date.now() - user.config.start > (getCache ? 1000 : 100)) clearInterval(checkoutInterval);
 
     await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
@@ -111,43 +112,48 @@ module.exports = async function (ctx, getCache) {
     }).catch((err) => err)
   }, 0)
 
-  return getCache ? waitUntil(user.config, 'infoCheckoutLong', function (resolve, reject) {
-    return waitUntil(user, 'updateKeranjang').then(() => resolve()).catch((err) => reject(err));
-  }).then(async () => {
-    user.infoCheckoutLong = user.config.infoCheckoutLong
-    delete user.config.infoCheckoutLong
+  if (getCache) {
+    return waitUntil(user.config, 'infoCheckoutLong').then(async () => {
+      user.infoCheckoutLong = user.config.infoCheckoutLong
+      delete user.config.infoCheckoutLong
 
-    await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      curl.close()
-      setNewCookie(user.userCookie, headers['set-cookie'])
-    }).catch((err) => err);
-
-    user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
-
-    await Log.updateOne({
-      teleBotId: process.env.BOT_ID,
-      teleChatId: ctx.message.chat.id,
-      itemid: user.config.itemid,
-      modelid: user.config.modelid
-    }, {
-      buyBody: user.postBuyBody,
-      buyBodyLong: user.postBuyBodyLong,
-      infoKeranjang: user.infoKeranjang,
-      updateKeranjang: user.updateKeranjang,
-      infoCheckoutQuick: user.infoCheckoutQuick,
-      infoCheckoutLong: user.infoCheckoutLong,
-      payment: user.payment,
-      selectedShop: user.selectedShop,
-      selectedItem: user.selectedItem
-    }, { upsert: true }).exec()
-
-    return `${ensureRole(ctx, true) ? `Cache Produk Telah Di Dapatkan` : null}`
-  }).catch(async (err) => {
-    return sendReportToDev(ctx, new Error(err)).then((result) => {
-      return postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         setNewCookie(user.userCookie, headers['set-cookie'])
       }).catch((err) => err);
-    }).catch((err) => sendReportToDev(ctx, new Error(err)));
-  }) : buyItem(ctx)
+
+      user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
+
+      return Log.updateOne({
+        teleBotId: process.env.BOT_ID,
+        teleChatId: ctx.message.chat.id,
+        itemid: user.config.itemid,
+        modelid: user.config.modelid
+      }, {
+        status: true,
+        buyBody: user.postBuyBody,
+        buyBodyLong: user.postBuyBodyLong,
+        infoPengiriman: user.infoPengiriman,
+        infoKeranjang: user.infoKeranjang,
+        updateKeranjang: user.updateKeranjang,
+        infoCheckoutQuick: user.infoCheckoutQuick,
+        infoCheckoutLong: user.infoCheckoutLong,
+        payment: user.payment,
+        selectedShop: user.selectedShop,
+        selectedItem: user.selectedItem
+      }, { upsert: true }).exec()
+
+    }).catch(async (err) => {
+      await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        curl.close()
+        setNewCookie(user.userCookie, headers['set-cookie'])
+      }).catch((err) => err);
+
+      return sendReportToDev(ctx, new Error(err))
+    })
+  } else {
+    return waitUntil(infoKeranjangInterval._destroyed, true, function (resolve, reject) {
+      return waitUntil(checkoutInterval._destroyed, true).then(() => resolve()).catch((err) => reject(err));
+    }).then(async () => await buyItem(ctx)).catch(async (err) => sendReportToDev(ctx, new Error(err)))
+  }
 }

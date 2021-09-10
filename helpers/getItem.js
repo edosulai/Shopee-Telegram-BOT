@@ -7,7 +7,6 @@ const getInfoPengiriman = require('../request/other/getInfoPengiriman');
 const User = require('../models/User');
 const Other = require('../models/Other');
 const Log = require('../models/Log');
-const Failure = require('../models/Failure');
 
 const getCart = require('../helpers/getCart');
 
@@ -96,6 +95,7 @@ module.exports = async function (ctx) {
       teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
+      status: true
     }, async function (err, log) {
       if (err || !log) return ensureRole(ctx, true) ? replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!') : null
       log = JSON.parse(JSON.stringify(log))
@@ -231,40 +231,24 @@ module.exports = async function (ctx) {
     let info = await getCart(ctx)
     if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
 
-    if (!user.config.success) {
-      await Failure.updateOne({
-        teleBotId: process.env.BOT_ID,
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        modelid: user.config.modelid
-      }, {
-        buyBody: user.postBuyBody,
-        buyBodyLong: user.postBuyBodyLong,
-        infoBarang: user.infoBarang,
-        infoPengiriman: user.infoPengiriman,
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong
-      }, { upsert: true }).exec()
-    } else {
-      await Log.updateOne({
-        teleBotId: process.env.BOT_ID,
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        modelid: user.config.modelid
-      }, {
-        buyBody: user.postBuyBody,
-        buyBodyLong: user.postBuyBodyLong,
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment,
-        selectedShop: user.selectedShop,
-        selectedItem: user.selectedItem
-      }, { upsert: true }).exec()
-    }
+    await Log.updateOne({
+      teleBotId: process.env.BOT_ID,
+      teleChatId: ctx.message.chat.id,
+      itemid: user.config.itemid,
+      modelid: user.config.modelid
+    }, {
+      status: user.config.success,
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
+      infoPengiriman: user.infoPengiriman,
+      infoKeranjang: user.infoKeranjang,
+      updateKeranjang: user.updateKeranjang,
+      infoCheckoutQuick: user.infoCheckoutQuick,
+      infoCheckoutLong: user.infoCheckoutLong,
+      payment: user.payment,
+      selectedShop: user.selectedShop,
+      selectedItem: user.selectedItem
+    }, { upsert: true }).exec()
 
     return User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { 
       userCookie: user.userCookie,
@@ -272,20 +256,23 @@ module.exports = async function (ctx) {
     }).exec()
 
   }).catch((err) => sendReportToDev(ctx, new Error(err)).then((result) => {
-    return Failure.updateOne({
+    return Log.updateOne({
       teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
       modelid: user.config.modelid
     }, {
+      status: user.config.success,
       buyBody: user.postBuyBody,
       buyBodyLong: user.postBuyBodyLong,
-      infoBarang: user.infoBarang,
       infoPengiriman: user.infoPengiriman,
       infoKeranjang: user.infoKeranjang,
       updateKeranjang: user.updateKeranjang,
       infoCheckoutQuick: user.infoCheckoutQuick,
-      infoCheckoutLong: user.infoCheckoutLong
+      infoCheckoutLong: user.infoCheckoutLong,
+      payment: user.payment,
+      selectedShop: user.selectedShop,
+      selectedItem: user.selectedItem
     }, { upsert: true }).exec()
   }).catch((err) => sendReportToDev(ctx, new Error(err))));
 }

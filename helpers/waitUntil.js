@@ -1,6 +1,7 @@
 module.exports = function (fromObject, ...wantToCheckValueIsExist) {
   const start = Date.now()
   let x = 0;
+  let wahtToCheck = null;
   let check = true
   let callback = null
   let timeOut = 3000
@@ -13,8 +14,14 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
           continue;
         } else if (typeof each == 'number') {
           timeOut = each;
+          continue;
         }
-        check = check && typeof fromObject[each] != 'undefined'
+        wahtToCheck = each;
+        if (typeof each == 'boolean'){
+          check = check && each
+        } else {
+          check = check && typeof fromObject[each] != 'undefined'
+        }
       }
       if (check) {
         if (typeof callback == 'function') return callback(resolve, reject)
@@ -28,7 +35,12 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
             callback = each;
             continue;
           }
-          check = check && typeof fromObject[each] != 'undefined'
+          wahtToCheck = each;
+          if (typeof each == 'boolean'){
+            check = check && each
+          } else {
+            check = check && typeof fromObject[each] != 'undefined'
+          }
         }
         if (check) {
           clearInterval(until)
@@ -40,11 +52,11 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
         x &= 3;
         if (Date.now() - start > timeOut) {
           clearInterval(until)
-          return reject(`Wait Until TimeOut : Max Time Out = ${timeOut}`)
+          return reject(`${wahtToCheck} Timeout ${timeOut}`)
         }
       }, 0)
     } catch (error) {
-      return reject(`Wait Until Error : ${error}`)
+      return reject(`${wahtToCheck} TimeOut Error ${error}`)
     }
   });
 }

@@ -1,16 +1,15 @@
-const User = require('./models/User');
-
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
 })(require('../helpers'))
 
-module.exports = function (ctx) {
+module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return
-  let commands = getCommands(ctx.message.text)
-  if (objectSize(commands) < 1) return ctx.reply(`/speed <code>limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
+  let user = ctx.session
+  user.commands = getCommands(ctx.message.text)
+  if (objectSize(user.commands) < 1) return ctx.reply(`/speed <code>limit=1 url=http://example.com/</code>`, { parse_mode: 'HTML' })
 
-  if (typeof commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
-  if (!isValidURL(commands.url)) return ctx.reply('Format Url Salah')
+  if (typeof user.commands.url != 'string') return ctx.reply('Syntax Tidak Lengkap')
+  if (!isValidURL(user.commands.url)) return ctx.reply('Format Url Salah')
 
   let howmuch = commands.time || 1;
 
@@ -19,19 +18,19 @@ module.exports = function (ctx) {
     let totalWaktu = 0;
     let tunggu = Date.now();
 
-    while (totalWaktu < (commands.limit * 1000)) {
-      let curl = new Curl();
+    while (totalWaktu < (user.commands.limit * 1000)) {
+      let curl = new user.Curl();
       await curl.setOtherOpt(function (curl) {
-        if (commands['-noresponse']) {
+        if (user.commands['-noresponse']) {
           curl
             .setOpt(curl.libcurl.option.TIMEOUT_MS, 1)
             .setOpt(curl.libcurl.option.NOSIGNAL, true)
         }
-      }).get(commands.url).then().catch((err) => err);
+      }).get(user.commands.url).then().catch((err) => err);
       totalWaktu = Date.now() - tunggu;
       totalRequest++;
     }
 
-    await ctx.reply(`Total cURL Dalam ${commands.limit} Detik = ${totalRequest}`)
+    await ctx.reply(`Total cURL Dalam ${user.commands.limit} Detik = ${totalRequest}`)
   }
 }

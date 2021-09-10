@@ -1,4 +1,8 @@
-const User = require('./models/User');
+const psl = require('psl');
+const url = require('url');
+const fs = require('fs');
+
+const Log = require('../models/Log');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
@@ -34,7 +38,7 @@ module.exports = function (ctx) {
       }).catch((err) => sendReportToDev(ctx, new Error(err)));
   }
 
-  return Log.findOne({ itemid: user.itemid, shopid: user.shopid }, async function (err, log) {
+  return Log.findOne({ itemid: user.itemid, shopid: user.shopid, status: user.commands['-fail'] ? false : true }, async function (err, log) {
     if (err || !log) return ctx.reply('Log Untuk Produk Ini Tidak Tersedia!!')
     fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(log));
     await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.error(chalk.red(err)))
