@@ -8,7 +8,7 @@ const getCheckouts = require('../request/other/getCheckouts');
   for (const key in helpers) global[key] = helpers[key];
 })(require('../helpers'))
 
-module.exports = function (ctx) {
+module.exports = function buyItem(ctx) {
   let user = ctx.session;
 
   return postBuy(user, ctx).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {

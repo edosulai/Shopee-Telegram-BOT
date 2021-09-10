@@ -137,7 +137,10 @@ module.exports = async function (ctx) {
         } else {
           user.infoBarang = chunk;
         }
-      }).catch((err) => userLogs(ctx, new Error(err), 'Error', () => user.config.start = false));
+      }).catch((err) => {
+        user.config.start = false
+        return err;
+      });
 
       if (!user.infoBarang || !user.config.start) continue;
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
