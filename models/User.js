@@ -8,6 +8,8 @@ module.exports = mongoose.model('Users', new mongoose.Schema({
   userLoginInfo: Object,
   userCookie: Object,
   userRole: Number,
+  queue: Boolean,
+  alarm: Boolean,
   updatedAt: {
     type: Date,
     default: Date.now

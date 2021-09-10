@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 nodemon index.js",
     "dev": "NODE_ENV=development TOKEN=1782212419:AAEW9ObIQwrqN0V9VuLRdA-k1o6_LoAQYu8 npm run start",
     "01": "NODE_ENV=development TOKEN=1786610133:AAEP_maLPHaTjo4vQr0gjmFhHcR1VYht57U npm run start",
     "02": "NODE_ENV=development TOKEN=1720996361:AAFsn3Z9_C8QkvC1AydAKIDQJSssxBsV0xA npm run start",
