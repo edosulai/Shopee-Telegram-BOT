@@ -4,8 +4,12 @@ const { Telegraf, session } = require('telegraf');
 const mongoose = require('mongoose');
 const chalk = require('chalk');
 
+const getFlashSaleSession = require('./request/other/getFlashSaleSession');
+
 const User = require('./models/User');
 const Other = require('./models/Other');
+const Event = require('./models/Event');
+const FlashSale = require('./models/FlashSale');
 
 const bot = new Telegraf(process.env.TOKEN);
 
@@ -33,8 +37,38 @@ bot.telegram.getMe().then(async (botInfo) => {
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
   await Other.findOrCreate({}, {
-    "promotionId": [], "eventProducts": [{ "url": null, "itemid": null, "shopid": null, "price": null }], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
+    "promotionId": [], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
   }, async function (err, other, created) { if (err) return sendReportToDev(bot, err) })
+
+  setTimeout(async () => {
+
+    await Event.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
+    await FlashSale.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
+
+    await getFlashSaleSession({ Curl: require('./helpers/curl') }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      const getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
+
+      for await (const [index, session] of getFlashSaleSession.data.sessions.entries()) {
+        await FlashSale.findOrCreate({
+          end_time: session.end_time,
+          promotionid: session.promotionid,
+          start_time: session.start_time,
+          teleBotId: process.env.BOT_ID
+        }, {
+          description: session.description,
+          end_time: session.end_time,
+          is_ongoing: session.is_ongoing,
+          name: session.name,
+          promotionid: session.promotionid,
+          start_time: session.start_time,
+          status: session.statuss
+        }, async function (err, event, created) { if (err) return sendReportToDev(bot, err) })
+      }
+
+      curl.close()
+    }).catch((err) => console.error(chalk.red(err)));
+
+  }, 0);
 
 }).catch((err) => console.error(chalk.red(err)))
 

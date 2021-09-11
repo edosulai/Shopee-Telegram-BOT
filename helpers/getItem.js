@@ -7,6 +7,7 @@ const getInfoPengiriman = require('../request/other/getInfoPengiriman');
 const User = require('../models/User');
 const Other = require('../models/Other');
 const Log = require('../models/Log');
+const Event = require('../models/Event');
 
 const getCart = require('../helpers/getCart');
 
@@ -33,14 +34,6 @@ module.exports = async function (ctx) {
 
   user.other = (await Other.find())[0]
 
-  for (const product of user.other.disableProducts) {
-    if (
-      product.itemid == user.config.itemid &&
-      product.shopid == user.config.shopid &&
-      !ensureRole(ctx, true, product.allowed)
-    ) return replaceMessage(ctx, user.config.message, product.msg || `Shopee Bot Untuk Produk <code>${user.commands.url}</code> Tidak Tersedia Untuk Anda`, false)
-  }
-
   user.config = {
     ...user.config, ...{
       quantity: parseInt(user.commands.qty) || 1,
@@ -61,7 +54,7 @@ module.exports = async function (ctx) {
       },
       skiptimer: user.commands['-skiptimer'] || false,
       autocancel: user.commands['-autocancel'] || false,
-      cache: user.commands['-cache'] ? ensureRole(ctx, false, [1]) : false,
+      cache: user.commands['-cache'] ? ensureRole(ctx, false) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       flashSale: false,
       fail: 0,
@@ -71,22 +64,12 @@ module.exports = async function (ctx) {
     }
   }
 
-  if (user.commands['-premium'] ? ensureRole(ctx, true, [1, 2, 3]) : false) {
-    user.config.cache = true;
-    await replaceMessage(ctx, user.config.message, 'Fitur Premium Terpasang')
-  }
-
   if (user.commands['-vip'] ? ensureRole(ctx, true, [1, 2]) : false) {
     user.config.cache = true;
-    for (const product of user.other.eventProducts) {
-      if (
-        product.itemid == user.config.itemid &&
-        product.shopid == user.config.shopid
-      ) {
-        user.config.predictPrice = parseInt(product.price) * 100000
-        await replaceMessage(ctx, user.config.message, 'Fitur VIP Terpasang')
-        break
-      }
+    let event = await Event.findOne({ itemid: user.config.itemid, shopid: user.config.shopid })
+    if (event) {
+      user.config.predictPrice = parseInt(event.price) * 100000
+      await replaceMessage(ctx, user.config.message, 'Fitur VIP Terpasang')
     }
   }
 
@@ -250,7 +233,7 @@ module.exports = async function (ctx) {
       selectedItem: user.selectedItem
     }, { upsert: true }).exec()
 
-    return User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { 
+    return User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
       userCookie: user.userCookie,
       queue: false
     }).exec()
