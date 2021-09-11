@@ -1,5 +1,7 @@
 const psl = require('psl');
 
+const User = require('../models/User');
+
 const getItem = require('../helpers/getItem');
 
 (function (helpers) {
@@ -31,7 +33,7 @@ module.exports = async function (ctx) {
   if (user.commands['-cod'] && user.commands['-shopeepay']) return replaceMessage(ctx, user.config.message, 'Silahkan Pilih Hanya Salah Satu Metode Pembayaran')
 
   if (user.queue) {
-    if (queue.split(':')[0] == getSessionKey(ctx) && !ensureRole(ctx, true)) return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
+    return replaceMessage(ctx, user.config.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
   return getItem(ctx);

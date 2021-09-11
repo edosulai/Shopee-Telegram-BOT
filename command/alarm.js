@@ -126,7 +126,8 @@ module.exports = async function (ctx) {
 
       if (index == 0) {
         if (user.beginMax.url != user.max.url && user.beginMax.price_before_discount != user.max.price_before_discount) {
-
+          user.beginMax = user.max
+          
           user.commands = {
             url: user.max.url,
             '-vip': true
