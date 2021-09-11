@@ -7,7 +7,6 @@ const chalk = require('chalk');
 const getFlashSaleSession = require('./request/other/getFlashSaleSession');
 
 const User = require('./models/User');
-const Other = require('./models/Other');
 const Event = require('./models/Event');
 const FlashSale = require('./models/FlashSale');
 
@@ -36,12 +35,7 @@ bot.telegram.getMe().then(async (botInfo) => {
     userRole: 1
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
-  await Other.findOrCreate({}, {
-    "promotionId": [], "metaPayment": { "channels": [{ "name_label": "label_shopee_wallet_v2", "version": 2, "spm_channel_id": 8001400, "be_channel_id": 80030, "name": "ShopeePay", "enabled": true, "channel_id": 8001400 }, { "name_label": "label_offline_bank_transfer", "version": 2, "spm_channel_id": 8005200, "be_channel_id": 80060, "name": "Transfer Bank", "enabled": true, "channel_id": 8005200, "banks": [{ "bank_name": "Bank BCA (Dicek Otomatis)", "option_info": "89052001", "be_channel_id": 80061, "enabled": true }, { "bank_name": "Bank Mandiri(Dicek Otomatis)", "option_info": "89052002", "enabled": true, "be_channel_id": 80062 }, { "bank_name": "Bank BNI (Dicek Otomatis)", "option_info": "89052003", "enabled": true, "be_channel_id": 80063 }, { "bank_name": "Bank BRI (Dicek Otomatis)", "option_info": "89052004", "be_channel_id": 80064, "enabled": true }, { "bank_name": "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", "option_info": "89052005", "be_channel_id": 80065, "enabled": true }, { "bank_name": "Bank Permata (Dicek Otomatis)", "be_channel_id": 80066, "enabled": true, "option_info": "89052006" }] }, { "channelid": 89000, "name_label": "label_cod", "version": 1, "spm_channel_id": 0, "be_channel_id": 89000, "name": "COD (Bayar di Tempat)", "enabled": true }] }
-  }, async function (err, other, created) { if (err) return sendReportToDev(bot, err) })
-
-  setTimeout(async () => {
-
+  return async function _tryGetFlashSale(timeout) {
     await Event.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
     await FlashSale.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
 
@@ -49,6 +43,8 @@ bot.telegram.getMe().then(async (botInfo) => {
       const getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
 
       for await (const [index, session] of getFlashSaleSession.data.sessions.entries()) {
+        if (index == 0) timeout = session.end_time + 10
+
         await FlashSale.findOrCreate({
           end_time: session.end_time,
           promotionid: session.promotionid,
@@ -68,7 +64,8 @@ bot.telegram.getMe().then(async (botInfo) => {
       curl.close()
     }).catch((err) => console.error(chalk.red(err)));
 
-  }, 0);
+    setTimeout(_tryGetFlashSale.bind(null, timeout), (timeout * 1000) - Date.now());
+  }(0)
 
 }).catch((err) => console.error(chalk.red(err)))
 
@@ -91,6 +88,7 @@ bot.use((ctx, next) => {
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
     ctx.session.Curl = require('./helpers/curl')
+    ctx.session.metaPayment = { channels: [{ name_label: "label_shopee_wallet_v2", version: 2, spm_channel_id: 8001400, be_channel_id: 80030, name: "ShopeePay", enabled: !0, channel_id: 8001400 }, { name_label: "label_offline_bank_transfer", version: 2, spm_channel_id: 8005200, be_channel_id: 80060, name: "Transfer Bank", enabled: !0, channel_id: 8005200, banks: [{ bank_name: "Bank BCA (Dicek Otomatis)", option_info: "89052001", be_channel_id: 80061, enabled: !0 }, { bank_name: "Bank Mandiri(Dicek Otomatis)", option_info: "89052002", enabled: !0, be_channel_id: 80062 }, { bank_name: "Bank BNI (Dicek Otomatis)", option_info: "89052003", enabled: !0, be_channel_id: 80063 }, { bank_name: "Bank BRI (Dicek Otomatis)", option_info: "89052004", be_channel_id: 80064, enabled: !0 }, { bank_name: "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", option_info: "89052005", be_channel_id: 80065, enabled: !0 }, { bank_name: "Bank Permata (Dicek Otomatis)", be_channel_id: 80066, enabled: !0, option_info: "89052006" }] }, { channelid: 89e3, name_label: "label_cod", version: 1, spm_channel_id: 0, be_channel_id: 89e3, name: "COD (Bayar di Tempat)", enabled: !0 }] }
     if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
       ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
       return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `${ctx.session.teleChatId} Meninggalkan BOT`, 'Info'));
@@ -116,7 +114,7 @@ bot.command((ctx) => {
   let user = ctx.session;
   user.commands = splitAtFirstSpace(ctx.message.text)
   if (user.commands.length < 2) return ctx.reply(`/(user) <code>...message...</code>`, { parse_mode: 'HTML' })
-  User.findOne(function (userData) {
+  User.findOne({ teleBotId: process.env.BOT_ID }, function (userData) {
     if (Number.isInteger(parseInt(userData))) return {
       teleBotId: process.env.BOT_ID,
       teleChatId: userData

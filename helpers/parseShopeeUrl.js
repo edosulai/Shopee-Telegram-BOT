@@ -1,14 +1,14 @@
 const psl = require('psl');
 const url = require('url');
 
-module.exports = function (url) {
+module.exports = function (urlShopee) {
   let chunk = { err: null }
-  if (!isValidURL(url) || psl.get(extractRootDomain(url)) != 'shopee.co.id') {
+  if (!isValidURL(urlShopee) || psl.get(extractRootDomain(urlShopee)) != 'shopee.co.id') {
     chunk.err = 'Format Url Salah'
     return chunk
   }
 
-  let pathname = url.parse(url, true).pathname.split('/')
+  let pathname = url.parse(urlShopee, true).pathname.split('/')
   if (pathname.length == 4) {
     chunk.itemid = parseInt(pathname[3])
     chunk.shopid = parseInt(pathname[2])
@@ -18,7 +18,7 @@ module.exports = function (url) {
     chunk.shopid = parseInt(pathname[pathname.length - 2])
   }
 
-  if (!Number.isInteger(itemid) || !Number.isInteger(chunk.shopid)) {
+  if (!Number.isInteger(chunk.itemid) || !Number.isInteger(chunk.shopid)) {
     chunk.err = 'Bukan Url Produk Shopee'
   }
 

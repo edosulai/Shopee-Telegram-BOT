@@ -6,25 +6,23 @@ const postInfoCheckoutQuick = require('../request/buy/postInfoCheckoutQuick');
 
 const Log = require('../models/Log');
 
-const buyItem = require('../helpers/buyItem');
+const buyItem = require('./buyItem');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+})(require('./index'))
 
 module.exports = async function (ctx, getCache) {
-  let user = ctx.session;
+  let user = ctx.session
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
-  postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
     curl.close()
   }).catch((err) => err)
 
-  let infoKeranjangInterval = setInterval(async function () {
-    if (Date.now() - user.config.start > (getCache ? 1000 : 100)) clearInterval(infoKeranjangInterval);
-
+  if (getCache) {
     await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
@@ -65,8 +63,6 @@ module.exports = async function (ctx, getCache) {
           }
           return item.origin_cart_item_price
         }(user.selectedItem) || user.config.price
-
-        clearInterval(infoKeranjangInterval);
       }
       curl.close()
     }).catch((err) => err)
@@ -82,35 +78,29 @@ module.exports = async function (ctx, getCache) {
       curl.close()
     }).catch((err) => err)
 
-  }, 0)
-
-  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.shoporders) {
-      user.config.infoCheckoutLong = chunk
-      user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.config.infoCheckoutLong.now = Date.now()
-      clearInterval(checkoutInterval);
-    }
-    curl.close()
-  }).catch((err) => err)
-
-  let checkoutInterval = setInterval(async function () {
-    if (Date.now() - user.config.start > (getCache ? 1000 : 100)) clearInterval(checkoutInterval);
-    
-    await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.shoporders) {
-        user.infoCheckoutQuick = chunk
-        user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        user.infoCheckoutQuick.now = Date.now()
+        user.config.infoCheckoutLong = chunk
+        user.config.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.config.infoCheckoutLong.now = Date.now()
         clearInterval(checkoutInterval);
       }
       curl.close()
     }).catch((err) => err)
-  }, 0)
+  }
+
+  await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+    if (chunk.shoporders) {
+      user.infoCheckoutQuick = chunk
+      user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.infoCheckoutQuick.now = Date.now()
+    }
+    curl.close()
+  }).catch((err) => err)
 
   if (getCache) {
     return waitUntil(user.config, 'infoCheckoutLong').then(async () => {
@@ -151,14 +141,5 @@ module.exports = async function (ctx, getCache) {
 
       return sendReportToDev(ctx, new Error(err))
     })
-  } else {
-
-    let buyInterval = setInterval(async () => {
-      if(infoKeranjangInterval._destroyed && checkoutInterval._destroyed){
-        clearInterval(buyInterval)
-        return await replaceMessage(ctx, user.config.message, await buyItem(ctx), false)
-      }
-    }, 0)
-
-  }
+  } else return buyItem(ctx)
 }

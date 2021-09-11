@@ -1,38 +1,30 @@
-const url = require('url');
-
 const getAddress = require('../request/other/getAddress');
 const getInfoBarang = require('../request/buy/getInfoBarang');
 const getInfoPengiriman = require('../request/other/getInfoPengiriman');
 
 const User = require('../models/User');
-const Other = require('../models/Other');
 const Log = require('../models/Log');
 const Event = require('../models/Event');
+const FlashSale = require('../models/FlashSale');
 
-const getCart = require('../helpers/getCart');
+const getCart = require('./getCart');
+const parseShopeeUrl = require('./parseShopeeUrl');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+})(require('./index'))
 
 module.exports = async function (ctx) {
   let user = ctx.session
+  
+  let { itemid, shopid, err } = parseShopeeUrl(user.commands.url)
+  if (err) return sendMessage(ctx, err)
+  user.config.itemid = itemid
+  user.config.shopid = shopid
 
-  let pathname = url.parse(user.commands.url, true).pathname.split('/')
-
-  if (pathname.length == 4) {
-    user.config.itemid = parseInt(pathname[3])
-    user.config.shopid = parseInt(pathname[2])
-  } else {
-    pathname = pathname[1].split('.')
-    user.config.itemid = parseInt(pathname[pathname.length - 1])
-    user.config.shopid = parseInt(pathname[pathname.length - 2])
-  }
-
-  if (!Number.isInteger(user.config.itemid) || !Number.isInteger(user.config.shopid)) return replaceMessage(ctx, user.config.message, 'Bukan Url Produk Shopee')
   if (user.queue.length > 0) return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
 
-  user.other = (await Other.find())[0]
+  user.flashsale = await FlashSale.find({ teleBotId: process.env.BOT_ID })
 
   user.config = {
     ...user.config, ...{
@@ -66,7 +58,7 @@ module.exports = async function (ctx) {
 
   if (user.commands['-vip'] ? ensureRole(ctx, true, [1, 2]) : false) {
     user.config.cache = true;
-    let event = await Event.findOne({ itemid: user.config.itemid, shopid: user.config.shopid })
+    let event = await Event.findOne({ teleBotId: process.env.BOT_ID, itemid: user.config.itemid, shopid: user.config.shopid })
     if (event) {
       user.config.predictPrice = parseInt(event.price) * 100000
       await replaceMessage(ctx, user.config.message, 'Fitur VIP Terpasang')
@@ -88,7 +80,7 @@ module.exports = async function (ctx) {
     })
   }
 
-  user.payment = require('../helpers/paymentMethod')(user, user.other.metaPayment.channels)
+  user.payment = require('../helpers/paymentMethod')(user, user.metaPayment.channels)
 
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
@@ -127,7 +119,7 @@ module.exports = async function (ctx) {
 
       if (!user.infoBarang || !user.config.start) continue;
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
-      user.config.promotionid = (user.infoBarang.item.flash_sale ? user.other.promotionId[0] : user.other.promotionId[1])
+      user.config.promotionid = (user.infoBarang.item.flash_sale ? user.flashsale[0].promotionid : user.flashsale[1].promotionid)
       if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
 
       user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
@@ -174,7 +166,7 @@ module.exports = async function (ctx) {
           if (!barang.item.flash_sale) break;
           if (model.stock < 1 || model.price_stocks.length < 1) continue
           for (const stock of model.price_stocks) {
-            if (user.other.promotionId[0] == stock.promotion_id) return stock.model_id
+            if (user.flashsale[0].promotionid == stock.promotion_id) return stock.model_id
           }
         }
 

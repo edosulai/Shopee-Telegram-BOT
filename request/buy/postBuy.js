@@ -1,18 +1,9 @@
-const waitUntil = require('../../helpers/waitUntil');
+(function (helpers) {
+  for (const key in helpers) global[key] = helpers[key];
+})(require('../../helpers'))
 
-module.exports = async function (user, ctx) {
-
-  const addDots = function (nStr) {
-    nStr += '';
-    x = nStr.split('.');
-    x1 = x[0];
-    x2 = x.length > 1 ? '.' + x[1] : '';
-    let rgx = /(\d+)(\d{3})/;
-    while (rgx.test(x1)) {
-      x1 = x1.replace(rgx, '$1' + '.' + '$2');
-    }
-    return x1 + x2;
-  }
+module.exports = async function (ctx) {
+  let user = ctx.session;
 
   const taxCalc = function (payment, shipping_fee, price) {
     if (payment.payment_channelid) {
@@ -51,7 +42,7 @@ module.exports = async function (user, ctx) {
   const buyIt = function (infoCheckout) {
     let curl = new user.Curl()
 
-    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
+    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
       .setOtherOpt(function (curl) {
         user.config.end = Date.now();
         user.config.checkout = user.config.checkout || user.config.end

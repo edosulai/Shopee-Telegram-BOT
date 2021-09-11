@@ -3,8 +3,8 @@ const findOrCreate = require('mongoose-findorcreate');
 
 module.exports = mongoose.model('Events', new mongoose.Schema({
   teleBotId: Number,
-  barang: Number,
-  url: Number,
+  barang: String,
+  url: String,
   itemid: Object,
   shopid: Object,
   price: Object,

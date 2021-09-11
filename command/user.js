@@ -10,7 +10,7 @@ module.exports = function (ctx) {
   user.commands = getCommands(ctx.message.text)
 
   if (objectSize(user.commands) < 1) {
-    return User.find(function (err, users) {
+    return User.find({ teleBotId: process.env.BOT_ID }, function (err, users) {
       if (err) return sendReportToDev(ctx, new Error(err))
       let alluser = ``
       for (let user of users) {

@@ -1,7 +1,7 @@
-module.exports = async function (user, howmuch = 50) {
+module.exports = async function (user) {
   let curl = new user.Curl()
 
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
+  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
     .setHeaders([
       'authority: shopee.co.id',
       'pragma: no-cache',
@@ -26,7 +26,7 @@ module.exports = async function (user, howmuch = 50) {
         if (index < 50) return item.itemid
       }).map((item, index) => item.itemid),
       "sort_soldout": true,
-      "limit": 12,
+      "limit": 50,
       "need_personalize": true,
       "with_dp_items": true
     })).post(`https://shopee.co.id/api/v2/flash_sale/flash_sale_batch_get_items`)

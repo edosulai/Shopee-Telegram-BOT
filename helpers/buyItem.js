@@ -6,12 +6,12 @@ const getCheckouts = require('../request/other/getCheckouts');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+})(require('./index'))
 
 module.exports = function buyItem(ctx) {
   let user = ctx.session;
 
-  return postBuy(user, ctx).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {
+  return postBuy(ctx).then(async ({ statusCode, body, headers, curlInstance, curl, err }) => {
     if (err) return err;
 
     setNewCookie(user.userCookie, headers['set-cookie'])

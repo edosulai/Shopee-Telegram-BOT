@@ -6,7 +6,7 @@ const parseShopeeUrl = require('./parseShopeeUrl');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+})(require('./index'))
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -47,14 +47,12 @@ module.exports = async function (ctx) {
     }, {
       barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
       url: user.commands.url,
-      itemid: user.itemid,
-      shopid: user.shopid,
       price: user.commands.price
     }, async function (err, event, created) {
-      if (err) return sendReportToDev(bot, err)
+      if (err) return sendReportToDev(ctx, err)
       user.event
     })
   }
 
-  if (!user.commands['-silent']) return sendMessage(ctx, `<code>${JSON.stringify(user.event, null, "\t")}</code>`, { parse_mode: 'HTML' })
+  if (!user.commands['-silent']) return sendMessage(ctx, `<code>${JSON.stringify(await Event.find({ teleBotId: process.env.BOT_ID }), null, "\t")}</code>`, { parse_mode: 'HTML' })
 }
