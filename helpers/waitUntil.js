@@ -19,9 +19,6 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
         wantToCheck = each;
         check = check && typeof fromObject[each] != 'undefined'
       }
-      if(!wantToCheck){
-        check = check && fromObject
-      }
       if (check) {
         if (typeof callback == 'function') return callback(resolve, reject)
         return resolve()
@@ -36,10 +33,6 @@ module.exports = function (fromObject, ...wantToCheckValueIsExist) {
           }
           wantToCheck = each;
           check = check && typeof fromObject[each] != 'undefined'
-        }
-        if(!wantToCheck){
-          console.log(fromObject);
-          check = check && fromObject
         }
         if (check) {
           clearInterval(until)

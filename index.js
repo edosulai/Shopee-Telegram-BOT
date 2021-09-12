@@ -27,6 +27,8 @@ bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_USERNAME = botInfo.username
   process.env.BOT_ID = botInfo.id
 
+  await sendReportToDev(bot, botInfo.first_name, `Starting`)
+
   await User.updateMany({ teleBotId: process.env.BOT_ID }, {
     queue: false
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })

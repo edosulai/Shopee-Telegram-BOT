@@ -15,6 +15,7 @@ const buyItem = require('./buyItem');
 
 module.exports = async function (ctx, getCache) {
   let user = ctx.session
+  let infoCheckoutInterval
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
@@ -95,16 +96,33 @@ module.exports = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => err)
 
-  postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.shoporders) {
-      user.infoCheckoutQuick = chunk
-      user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.infoCheckoutQuick.now = Date.now()
-    }
-    curl.close()
-  }).catch((err) => err)
+  if (getCache) {
+    postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.shoporders) {
+        user.infoCheckoutQuick = chunk
+        user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.infoCheckoutQuick.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+  } else {
+    infoCheckoutInterval = setInterval(() => {
+      postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        setNewCookie(user.userCookie, headers['set-cookie'])
+        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+        if (chunk.shoporders) {
+          user.infoCheckoutQuick = chunk
+          user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoCheckoutQuick.now = Date.now()
+          user.infoCheckoutInterval = true
+          clearInterval(infoCheckoutInterval)
+        }
+        curl.close()
+      }).catch((err) => err)
+    }, 50);
+  }
 
   if (getCache) {
     return waitUntil(user, 'infoCheckoutTemp', 'updateKeranjang').then(async () => {
@@ -145,5 +163,7 @@ module.exports = async function (ctx, getCache) {
 
       return sendReportToDev(ctx, new Error(err))
     })
-  } else return buyItem(ctx)
+  } else {
+    return waitUntil(user, 'infoCheckoutInterval').then(() => buyItem(ctx)).catch((err) => err)
+  }
 }
