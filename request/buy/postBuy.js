@@ -42,7 +42,7 @@ module.exports = async function (ctx) {
   const buyIt = function (infoCheckout) {
     let curl = new user.Curl()
 
-    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
+    return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
       .setOtherOpt(function (curl) {
         user.config.end = Date.now();
         user.config.checkout = user.config.checkout || user.config.end
@@ -71,14 +71,14 @@ module.exports = async function (ctx) {
   }
 
   let postBuyBodyLong = function (user) {
-    user.infoCheckout = user.config.infoCheckoutLong || user.infoCheckoutLong
+    user.infoCheckout = user.infoCheckoutTemp || user.infoCheckoutLong
 
     let shipping_orders = user.infoCheckout.shipping_orders[0]
     let checkout_price_data = user.infoCheckout.checkout_price_data
     let shoporders = user.infoCheckout.shoporders[0]
     let promotion_data = user.infoCheckout.promotion_data
     let logistic = shoporders.logistics.logistic_channels[shipping_orders.selected_logistic_channelid]
-    let tax = taxCalc(user.payment.method, shipping_orders.shipping_fee, user.config.price)
+    let tax = taxCalc(user.payment.method, shipping_orders.shipping_fee, user.price)
 
     if (!user.infoCheckout.can_checkout) sendReportToDev(ctx, `${user.infoCheckout.disabled_checkout_info.description} - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`)
 
@@ -90,7 +90,7 @@ module.exports = async function (ctx) {
         {
           "selected_logistic_channelid": shipping_orders.selected_logistic_channelid,
           "cod_fee": shipping_orders.cod_fee,
-          "order_total": shipping_orders.shipping_fee + (user.config.price * user.config.quantity),
+          "order_total": shipping_orders.shipping_fee + (user.price * user.config.quantity),
           "shipping_id": shipping_orders.shipping_id,
           "shopee_shipping_discount_id": shipping_orders.shopee_shipping_discount_id,
           "selected_logistic_channelid_with_warning": shipping_orders.selected_logistic_channelid_with_warning,
@@ -99,7 +99,7 @@ module.exports = async function (ctx) {
           "selected_preferred_delivery_time_option_id": 0,
           "buyer_remark": shipping_orders.buyer_remark || "",
           "buyer_address_data": shipping_orders.buyer_address_data,
-          "order_total_without_shipping": user.config.price * user.config.quantity,
+          "order_total_without_shipping": user.price * user.config.quantity,
           "tax_payable": shipping_orders.tax_payable,
           "amount_detail": {
             "BASIC_SHIPPING_FEE": shipping_orders.amount_detail.BASIC_SHIPPING_FEE,
@@ -110,7 +110,7 @@ module.exports = async function (ctx) {
             "SELLER_ESTIMATED_BASIC_SHIPPING_FEE": shipping_orders.amount_detail.SELLER_ESTIMATED_BASIC_SHIPPING_FEE,
             "SHIPPING_DISCOUNT_BY_SHOPEE": shipping_orders.amount_detail.SHIPPING_DISCOUNT_BY_SHOPEE,
             "INSURANCE_FEE": shipping_orders.amount_detail.INSURANCE_FEE,
-            "ITEM_TOTAL": user.config.price * user.config.quantity,
+            "ITEM_TOTAL": user.price * user.config.quantity,
             "TAX_EXEMPTION": shipping_orders.amount_detail.TAX_EXEMPTION,
             "shop_promo_only": shipping_orders.amount_detail.shop_promo_only,
             "COD_FEE": shipping_orders.amount_detail.COD_FEE,
@@ -134,13 +134,13 @@ module.exports = async function (ctx) {
         "shipping_subtotal_before_discount": checkout_price_data.shipping_subtotal_before_discount,
         "bundle_deals_discount": checkout_price_data.bundle_deals_discount,
         "group_buy_discount": checkout_price_data.group_buy_discount,
-        "merchandise_subtotal": user.config.price * user.config.quantity,
+        "merchandise_subtotal": user.price * user.config.quantity,
         "tax_payable": checkout_price_data.tax_payable,
         "buyer_txn_fee": checkout_price_data.buyer_txn_fee,
         "credit_card_promotion": checkout_price_data.credit_card_promotion,
         "promocode_applied": checkout_price_data.promocode_applied,
         "shopee_coins_redeemed": checkout_price_data.shopee_coins_redeemed,
-        "total_payable": shipping_orders.shipping_fee + (user.config.price * user.config.quantity) + tax.value,
+        "total_payable": shipping_orders.shipping_fee + (user.price * user.config.quantity) + tax.value,
         "tax_exemption": checkout_price_data.tax_exemption
       },
       "client_id": user.infoCheckout.client_id,
@@ -189,12 +189,12 @@ module.exports = async function (ctx) {
           "shop": shoporders.shop,
           "buyer_remark": shoporders.buyer_remark || "",
           "shipping_fee": shoporders.shipping_fee,
-          "order_total": shoporders.shipping_fee + (user.config.price * user.config.quantity),
+          "order_total": shoporders.shipping_fee + (user.price * user.config.quantity),
           "shipping_id": shoporders.shipping_id,
           "buyer_ic_number": shoporders.buyer_ic_number || "",
           "items": function (items) {
             items[0].stock = 0
-            items[0].price = user.config.price
+            items[0].price = user.price
             items[0].promotion_id = user.config.promotionid
             items[0].is_flash_sale = user.config.flashSale
             return items
@@ -206,7 +206,7 @@ module.exports = async function (ctx) {
           "buyer_address_data": shoporders.buyer_address_data,
           "shipping_fee_discount": shoporders.shipping_fee_discount,
           "tax_info": shoporders.tax_info,
-          "order_total_without_shipping": user.config.price * user.config.quantity,
+          "order_total_without_shipping": user.price * user.config.quantity,
           "tax_exemption": shoporders.tax_exemption,
           "amount_detail": {
             "BASIC_SHIPPING_FEE": shoporders.amount_detail.BASIC_SHIPPING_FEE,
@@ -217,7 +217,7 @@ module.exports = async function (ctx) {
             "SELLER_ESTIMATED_BASIC_SHIPPING_FEE": shoporders.amount_detail.SELLER_ESTIMATED_BASIC_SHIPPING_FEE,
             "SHIPPING_DISCOUNT_BY_SHOPEE": shoporders.amount_detail.SHIPPING_DISCOUNT_BY_SHOPEE,
             "INSURANCE_FEE": shoporders.amount_detail.INSURANCE_FEE,
-            "ITEM_TOTAL": user.config.price * user.config.quantity,
+            "ITEM_TOTAL": user.price * user.config.quantity,
             "TAX_EXEMPTION": shoporders.amount_detail.TAX_EXEMPTION,
             "shop_promo_only": shoporders.amount_detail.shop_promo_only,
             "COD_FEE": shoporders.amount_detail.COD_FEE,
@@ -234,7 +234,7 @@ module.exports = async function (ctx) {
     }
   }
 
-  if (user.infoCheckoutLong || user.config.infoCheckoutLong) {
+  if (user.infoCheckoutLong || user.infoCheckoutTemp) {
     user.postBuyBodyLong = user.postBuyBodyLong || postBuyBodyLong(user)
     return buyIt(user.postBuyBodyLong)
   }
@@ -291,7 +291,7 @@ module.exports = async function (ctx) {
 
     if (!selectedShipping) return new Promise((resolve, reject) => resolve({ err: `Maaf Sayang Sekali Tidak ada opsi pengiriman yang tersedia untuk barang <b><i>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</i></b>` }))
 
-    let tax = taxCalc(user.payment.method, selectedShipping.cost_info.estimated_shipping_fee, user.config.price)
+    let tax = taxCalc(user.payment.method, selectedShipping.cost_info.estimated_shipping_fee, user.price)
 
     user.infoCheckout = {
       "cart_type": 0,
@@ -385,7 +385,7 @@ module.exports = async function (ctx) {
           "buyer_ic_number": null,
           "items": function (items) {
             items[0].stock = 0
-            items[0].price = user.config.price
+            items[0].price = user.price
             items[0].promotion_id = user.config.promotionid
             items[0].is_flash_sale = user.config.flashSale
             return items
@@ -415,7 +415,7 @@ module.exports = async function (ctx) {
     user.shipinfo = {
       "selected_logistic_channelid": selectedShipping.channel.channelid,
       "cod_fee": shipping_orders.cod_fee,
-      "order_total": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity),
+      "order_total": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller + (user.price * user.config.quantity),
       "shipping_id": shipping_orders.shipping_id,
       "shipping_fee_discount": shipping_orders.shipping_fee_discount + selectedShipping.cost_info.discounts.seller,
       "selected_preferred_delivery_time_option_id": 0,
@@ -426,7 +426,7 @@ module.exports = async function (ctx) {
         "address_type": shipping_orders.buyer_address_data.address_type,
         "addressid": user.address.id
       },
-      "order_total_without_shipping": user.config.price * user.config.quantity,
+      "order_total_without_shipping": user.price * user.config.quantity,
       "tax_payable": shipping_orders.tax_payable,
       "buyer_ic_number": shipping_orders.buyer_ic_number || "",
       "shipping_fee": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller,
@@ -440,7 +440,7 @@ module.exports = async function (ctx) {
         "SELLER_ESTIMATED_BASIC_SHIPPING_FEE": shipping_orders.amount_detail.SELLER_ESTIMATED_BASIC_SHIPPING_FEE,
         "SHIPPING_DISCOUNT_BY_SHOPEE": selectedShipping.cost_info.discounts.shopee,
         "INSURANCE_FEE": shipping_orders.amount_detail.INSURANCE_FEE,
-        "ITEM_TOTAL": user.config.price * user.config.quantity,
+        "ITEM_TOTAL": user.price * user.config.quantity,
         "TAX_EXEMPTION": shipping_orders.amount_detail.TAX_EXEMPTION,
         "shop_promo_only": true,
         "COD_FEE": shipping_orders.amount_detail.COD_FEE,
@@ -473,13 +473,13 @@ module.exports = async function (ctx) {
         "shipping_subtotal_before_discount": selectedShipping.cost_info.original_cost,
         "bundle_deals_discount": checkout_price_data.bundle_deals_discount,
         "group_buy_discount": checkout_price_data.group_buy_discount,
-        "merchandise_subtotal": user.config.price * user.config.quantity,
+        "merchandise_subtotal": user.price * user.config.quantity,
         "tax_payable": checkout_price_data.tax_payable,
         "buyer_txn_fee": tax.value,
         "credit_card_promotion": checkout_price_data.credit_card_promotion,
         "promocode_applied": checkout_price_data.promocode_applied,
         "shopee_coins_redeemed": checkout_price_data.shopee_coins_redeemed,
-        "total_payable": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller + (user.config.price * user.config.quantity) + tax.value,
+        "total_payable": estimated_shipping_fee - selectedShipping.cost_info.discounts.seller + (user.price * user.config.quantity) + tax.value,
         "tax_exemption": checkout_price_data.tax_exemption
       },
       "client_id": user.infoCheckout.client_id,

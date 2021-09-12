@@ -3,7 +3,7 @@ const querystring = require('querystring')
 module.exports = async function (user) {
   let curl = new user.Curl()
 
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, false).setOpt(curl.libcurl.option.TIMEOUT, 2)
+  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
     .setHeaders([
       'authority: shopee.co.id',
       'x-shopee-language: id',

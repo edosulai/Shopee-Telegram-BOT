@@ -22,7 +22,9 @@ module.exports = async function (ctx) {
   }
 
   user.config = {
-    alarmMessage: []
+    alarmMessage: [],
+    beginMax: [],
+    max: []
   }
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
@@ -33,6 +35,8 @@ module.exports = async function (ctx) {
       inlineMsgId: replyCtx.inline_message_id,
       text: replyCtx.text
     })
+    user.config.beginMax.push({ price_before_discount: 0, url: null })
+    user.config.max.push({ price_before_discount: 0, url: null })
   })
 
   await sendMessage(ctx, `Prepare... <code>Alarm Flash Sale 2</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
@@ -42,6 +46,8 @@ module.exports = async function (ctx) {
       inlineMsgId: replyCtx.inline_message_id,
       text: replyCtx.text
     })
+    user.config.beginMax.push({ price_before_discount: 0, url: null })
+    user.config.max.push({ price_before_discount: 0, url: null })
   })
 
   await sendMessage(ctx, `Prepare... <code>Alarm Flash Sale 3</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
@@ -51,9 +57,9 @@ module.exports = async function (ctx) {
       inlineMsgId: replyCtx.inline_message_id,
       text: replyCtx.text
     })
+    user.config.beginMax.push({ price_before_discount: 0, url: null })
+    user.config.max.push({ price_before_discount: 0, url: null })
   })
-
-  user.beginMax = { price_before_discount: 0, url: null }
 
   do {
     for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
@@ -95,14 +101,14 @@ module.exports = async function (ctx) {
 
       if (!user.start) continue;
 
-      let banner = timeConverter(Date.now(), { usemilis: false }) + "\n\n" + session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "") + `\n\nList Item yang Mencurigakan : `
-      user.max = { price_before_discount: 0, url: null }
+      let banner = timeConverter(Date.now(), { usemilis: false }) + "\n\n" + session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
+      user.config.max[index] = { price_before_discount: 0, url: null }
       let hasEvent = false;
 
       for await (const item of user.getFlashSaleSession.data.items) {
         if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
-          if (item.price_before_discount > user.max.price_before_discount) {
-            user.max = {
+          if (item.price_before_discount > user.config.max[index].price_before_discount) {
+            user.config.max[index] = {
               price_before_discount: item.price_before_discount,
               url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`
             }
@@ -124,27 +130,29 @@ module.exports = async function (ctx) {
         }
       }
 
-      if (index == 0) {
-        if (user.beginMax.url != user.max.url && user.beginMax.price_before_discount != user.max.price_before_discount) {
-          user.beginMax = user.max
-          
-          user.commands = {
-            url: user.max.url,
-            '-vip': true
-          }
+      if (
+        index == 0 &&
+        user.config.beginMax[index].url != user.config.max[index].url &&
+        user.config.beginMax[index].price_before_discount != user.config.max[index].price_before_discount
+      ) {
+        user.config.beginMax[index] = user.config.max[index]
 
-          await sendMessage(ctx, `Prepare... <code>${user.max.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-            user.config.message = {
-              chatId: replyCtx.chat.id,
-              msgId: replyCtx.message_id,
-              inlineMsgId: replyCtx.inline_message_id,
-              text: replyCtx.text
-            }
-          })
-
-          await getItem(ctx)
-          // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
+        user.commands = {
+          url: user.config.max[index].url,
+          '-vip': true
         }
+
+        await sendMessage(ctx, `Prepare... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+          user.config.message = {
+            chatId: replyCtx.chat.id,
+            msgId: replyCtx.message_id,
+            inlineMsgId: replyCtx.inline_message_id,
+            text: replyCtx.text
+          }
+        })
+
+        await getItem(ctx)
+        // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
       if (hasEvent) await replaceMessage(ctx, user.config.alarmMessage[index], banner, { parse_mode: 'HTML' })

@@ -35,7 +35,7 @@ bot.telegram.getMe().then(async (botInfo) => {
     userRole: 1
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
-  return async function _tryGetFlashSale(timeout) {
+  return await async function _tryGetFlashSale(timeout) {
     await Event.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
     await FlashSale.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
 
@@ -64,7 +64,7 @@ bot.telegram.getMe().then(async (botInfo) => {
       curl.close()
     }).catch((err) => console.error(chalk.red(err)));
 
-    setTimeout(_tryGetFlashSale.bind(null, timeout), (timeout * 1000) - Date.now());
+    setTimeout(await _tryGetFlashSale.bind(null, 0), (timeout * 1000) - Date.now());
   }(0)
 
 }).catch((err) => console.error(chalk.red(err)))
@@ -113,7 +113,7 @@ bot.command('quit', require('./command/quit'))
 bot.command((ctx) => {
   let user = ctx.session;
   user.commands = splitAtFirstSpace(ctx.message.text)
-  if (user.commands.length < 2) return ctx.reply(`/(user) <code>...message...</code>`, { parse_mode: 'HTML' })
+  if (user.commands.length < 2) return ctx.reply(`/user <code>...message...</code>`, { parse_mode: 'HTML' })
   User.findOne({ teleBotId: process.env.BOT_ID }, function (userData) {
     if (Number.isInteger(parseInt(userData))) return {
       teleBotId: process.env.BOT_ID,
