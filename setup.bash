@@ -8,3 +8,4 @@ sudo apt-get install -y nodejs
 npm install -y
 npm audit fix -y
 sudo npm install -g nodemon
+sudo git config credential.helper store
