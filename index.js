@@ -108,6 +108,7 @@ bot.command('user', require('./command/user'))
 bot.command('login', require('./command/login'))
 bot.command('event', require('./command/event'))
 bot.command('beli', require('./command/beli'))
+bot.command('restart', require('./command/restart'))
 bot.command('quit', require('./command/quit'))
 
 bot.command((ctx) => {
