@@ -5,10 +5,13 @@ const mongoose = require('mongoose');
 const chalk = require('chalk');
 
 const getFlashSaleSession = require('./request/other/getFlashSaleSession');
+const getAddress = require('./request/other/getAddress');
 
 const User = require('./models/User');
 const Event = require('./models/Event');
 const FlashSale = require('./models/FlashSale');
+
+const Curl = require('./helpers/curl')
 
 const bot = new Telegraf(process.env.TOKEN);
 
@@ -39,10 +42,29 @@ bot.telegram.getMe().then(async (botInfo) => {
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
   return await async function _tryGetFlashSale(timeout) {
+    await User.find(async function (err, users) {
+      if (err) return sendReportToDev(bot, err)
+      
+      for (const user of users) {
+        user.Curl = Curl
+        await getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+          setNewCookie(user.userCookie, headers['set-cookie'])
+          curl.close()
+        })
+
+        await User.updateOne({
+          teleBotId: user.teleBotId,
+          teleChatId: user.teleChatId
+        }, {
+          userCookie: user.userCookie
+        }).exec()
+      }
+    })
+
     await Event.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
     await FlashSale.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
 
-    await getFlashSaleSession({ Curl: require('./helpers/curl') }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    await getFlashSaleSession({ Curl: Curl }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       const getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
 
       for await (const [index, session] of getFlashSaleSession.data.sessions.entries()) {
@@ -90,7 +112,7 @@ bot.use((ctx, next) => {
     if (err) return sendReportToDev(ctx, new Error(err))
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
-    ctx.session.Curl = require('./helpers/curl')
+    ctx.session.Curl = Curl
     ctx.session.metaPayment = { channels: [{ name_label: "label_shopee_wallet_v2", version: 2, spm_channel_id: 8001400, be_channel_id: 80030, name: "ShopeePay", enabled: !0, channel_id: 8001400 }, { name_label: "label_offline_bank_transfer", version: 2, spm_channel_id: 8005200, be_channel_id: 80060, name: "Transfer Bank", enabled: !0, channel_id: 8005200, banks: [{ bank_name: "Bank BCA (Dicek Otomatis)", option_info: "89052001", be_channel_id: 80061, enabled: !0 }, { bank_name: "Bank Mandiri(Dicek Otomatis)", option_info: "89052002", enabled: !0, be_channel_id: 80062 }, { bank_name: "Bank BNI (Dicek Otomatis)", option_info: "89052003", enabled: !0, be_channel_id: 80063 }, { bank_name: "Bank BRI (Dicek Otomatis)", option_info: "89052004", be_channel_id: 80064, enabled: !0 }, { bank_name: "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", option_info: "89052005", be_channel_id: 80065, enabled: !0 }, { bank_name: "Bank Permata (Dicek Otomatis)", be_channel_id: 80066, enabled: !0, option_info: "89052006" }] }, { channelid: 89e3, name_label: "label_cod", version: 1, spm_channel_id: 0, be_channel_id: 89e3, name: "COD (Bayar di Tempat)", enabled: !0 }] }
     if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
       ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
