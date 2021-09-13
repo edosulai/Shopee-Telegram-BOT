@@ -51,5 +51,6 @@ module.exports = async function (user) {
         },
         "use_coins": false
       })).post(`https://shopee.co.id/api/v4/cart/checkout`)
+      
   }).catch((err) => new Promise((resolve, reject) => reject(err)));
 }

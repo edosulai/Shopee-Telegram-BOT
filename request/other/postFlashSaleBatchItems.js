@@ -24,7 +24,7 @@ module.exports = async function (user) {
       "categoryid": 0,
       "itemids": user.getAllItemids.data.item_brief_list.filter((item, index) => {
         if (index < 50) return item.itemid
-      }).map((item, index) => item.itemid),
+      }).map((item) => item.itemid),
       "sort_soldout": true,
       "limit": 50,
       "need_personalize": true,

@@ -17,8 +17,13 @@ module.exports = async function (ctx) {
   let user = ctx.session
 
   user.commands = getCommands(ctx.message.text)
+
   if (user.commands['-stop']) {
     return User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: false }).exec()
+  }
+
+  if (user.alarm) {
+    return sendMessage(ctx,'Alarm Sudah Berjalan!!')
   }
 
   user.config = {

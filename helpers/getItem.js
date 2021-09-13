@@ -16,7 +16,7 @@ const parseShopeeUrl = require('./parseShopeeUrl');
 
 module.exports = async function (ctx) {
   let user = ctx.session
-  
+
   let { itemid, shopid, err } = parseShopeeUrl(user.commands.url)
   if (err) return sendMessage(ctx, err)
   user.config.itemid = itemid
@@ -104,18 +104,15 @@ module.exports = async function (ctx) {
       }
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close();
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-        if (chunk.error != null) {
-          user.config.start = false
-        } else {
+        if (chunk.error == null) {
           user.infoBarang = chunk;
+        } else {
+          user.config.start = false
         }
-      }).catch((err) => {
-        user.config.start = false
-        return err;
-      });
+        curl.close();
+      }).catch((err) => user.config.start = false);
 
       if (!user.infoBarang || !user.config.start) continue;
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
@@ -201,6 +198,7 @@ module.exports = async function (ctx) {
       return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
     }
 
+    await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang >>> ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
     while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
     let info = await getCart(ctx)

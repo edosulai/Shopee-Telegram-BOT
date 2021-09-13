@@ -15,7 +15,6 @@ const buyItem = require('./buyItem');
 
 module.exports = async function (ctx, getCache) {
   let user = ctx.session
-  let infoCheckoutInterval
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
@@ -24,49 +23,99 @@ module.exports = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => err)
 
-  postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.data.shop_orders.length > 0) {
-      user.infoKeranjang = chunk
-      user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.infoKeranjang.now = Date.now()
+  if (getCache) {
+    await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.data.shop_orders.length > 0) {
+        user.infoKeranjang = chunk
+        user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.infoKeranjang.now = Date.now()
 
-      user.selectedShop = function (shops) {
-        for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
-      }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
+        user.selectedShop = function (shops) {
+          for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
+        }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
 
-      user.selectedItem = function (items) {
-        for (const item of items) {
-          if (item.modelid == user.config.modelid) return item
+        user.selectedItem = function (items) {
+          for (const item of items) {
+            if (item.modelid == user.config.modelid) return item
+            if (item.models) {
+              for (const model of item.models) {
+                if (
+                  model.itemid == user.config.itemid &&
+                  model.shop_id == user.config.shopid &&
+                  model.modelid == user.config.modelid
+                ) return item
+              }
+            }
+          }
+        }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
+
+        user.price = user.config.predictPrice || function (item) {
           if (item.models) {
             for (const model of item.models) {
               if (
                 model.itemid == user.config.itemid &&
                 model.shop_id == user.config.shopid &&
-                model.modelid == user.config.modelid
-              ) return item
+                model.modelid == user.config.modelid &&
+                model.promotionid == user.config.promotionid
+              ) return model.price
             }
           }
-        }
-      }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
+          return item.origin_cart_item_price
+        }(user.selectedItem) || user.price
+      }
+      curl.close()
+    }).catch((err) => err)
+  } else {
+    let infoKeranjangInterval = setInterval(() => {
+      postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        setNewCookie(user.userCookie, headers['set-cookie'])
+        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+        if (chunk.data.shop_orders.length > 0) {
+          user.infoKeranjang = chunk
+          user.infoKeranjang.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoKeranjang.now = Date.now()
 
-      user.price = user.config.predictPrice || function (item) {
-        if (item.models) {
-          for (const model of item.models) {
-            if (
-              model.itemid == user.config.itemid &&
-              model.shop_id == user.config.shopid &&
-              model.modelid == user.config.modelid &&
-              model.promotionid == user.config.promotionid
-            ) return model.price
-          }
+          user.selectedShop = function (shops) {
+            for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
+          }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
+
+          user.selectedItem = function (items) {
+            for (const item of items) {
+              if (item.modelid == user.config.modelid) return item
+              if (item.models) {
+                for (const model of item.models) {
+                  if (
+                    model.itemid == user.config.itemid &&
+                    model.shop_id == user.config.shopid &&
+                    model.modelid == user.config.modelid
+                  ) return item
+                }
+              }
+            }
+          }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
+
+          user.price = user.config.predictPrice || function (item) {
+            if (item.models) {
+              for (const model of item.models) {
+                if (
+                  model.itemid == user.config.itemid &&
+                  model.shop_id == user.config.shopid &&
+                  model.modelid == user.config.modelid &&
+                  model.promotionid == user.config.promotionid
+                ) return model.price
+              }
+            }
+            return item.origin_cart_item_price
+          }(user.selectedItem) || user.price
+
+          clearInterval(infoKeranjangInterval)
         }
-        return item.origin_cart_item_price
-      }(user.selectedItem) || user.price
-    }
-    curl.close()
-  }).catch((err) => err)
+        curl.close()
+      }).catch((err) => err)
+    })
+  }
 
   postUpdateKeranjang(user, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
@@ -81,6 +130,12 @@ module.exports = async function (ctx, getCache) {
 
   postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+    if (chunk.data && chunk.error == 0) {
+      user.checkout = chunk
+      user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.checkout.now = Date.now()
+    }
     curl.close()
   }).catch((err) => err)
 
@@ -97,7 +152,7 @@ module.exports = async function (ctx, getCache) {
   }).catch((err) => err)
 
   if (getCache) {
-    postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.shoporders) {
@@ -107,25 +162,8 @@ module.exports = async function (ctx, getCache) {
       }
       curl.close()
     }).catch((err) => err)
-  } else {
-    infoCheckoutInterval = setInterval(() => {
-      postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        setNewCookie(user.userCookie, headers['set-cookie'])
-        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-        if (chunk.shoporders) {
-          user.infoCheckoutQuick = chunk
-          user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.infoCheckoutQuick.now = Date.now()
-          user.infoCheckoutInterval = true
-          clearInterval(infoCheckoutInterval)
-        }
-        curl.close()
-      }).catch((err) => err)
-    }, 50);
-  }
 
-  if (getCache) {
-    return waitUntil(user, 'infoCheckoutTemp', 'updateKeranjang').then(async () => {
+    return waitUntil(user, 'infoCheckoutTemp').then(async () => {
       user.infoCheckoutLong = user.infoCheckoutTemp
       delete user.infoCheckoutTemp
 
@@ -157,13 +195,28 @@ module.exports = async function (ctx, getCache) {
 
     }).catch(async (err) => {
       await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
         setNewCookie(user.userCookie, headers['set-cookie'])
+        curl.close()
       }).catch((err) => err);
 
       return sendReportToDev(ctx, new Error(err))
     })
   } else {
-    return waitUntil(user, 'infoCheckoutInterval').then(() => buyItem(ctx)).catch((err) => err)
+    let infoCheckoutInterval = setInterval(() => {
+      postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        setNewCookie(user.userCookie, headers['set-cookie'])
+        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+        if (chunk.shoporders) {
+          user.infoCheckoutQuick = chunk
+          user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoCheckoutQuick.now = Date.now()
+          user.infoCheckoutInterval = true
+          clearInterval(infoCheckoutInterval)
+        }
+        curl.close()
+      }).catch((err) => err)
+    }, 0);
+    // return waitUntil(user, 'infoCheckoutInterval').then(() => buyItem(ctx)).catch((err) => err)
+    return buyItem(ctx)
   }
 }
