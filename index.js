@@ -28,7 +28,7 @@ bot.use(session())
 bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
-  process.env.BOT_ID = botInfo.id
+  process.env.BOT_ID = parseInt(botInfo.id)
 
   await sendReportToDev(bot, botInfo.first_name, `Starting`)
 
@@ -44,7 +44,7 @@ bot.telegram.getMe().then(async (botInfo) => {
   return await async function _tryGetFlashSale(timeout) {
     await User.find(async function (err, users) {
       if (err) return sendReportToDev(bot, err)
-      
+
       for (const user of users) {
         user.Curl = Curl
         await getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {

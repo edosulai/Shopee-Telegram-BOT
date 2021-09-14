@@ -178,7 +178,8 @@ module.exports = async function (ctx, getCache) {
         teleBotId: process.env.BOT_ID,
         teleChatId: ctx.message.chat.id,
         itemid: user.config.itemid,
-        modelid: user.config.modelid
+        modelid: user.config.modelid,
+        shopid: user.config.shopid
       }, {
         status: true,
         buyBody: user.postBuyBody,

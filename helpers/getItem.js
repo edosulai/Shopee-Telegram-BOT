@@ -70,6 +70,7 @@ module.exports = async function (ctx) {
       teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
+      shopid: user.config.shopid,
       status: true
     }, async function (err, log) {
       if (err || !log) return ensureRole(ctx, true) ? replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!') : null
@@ -208,7 +209,8 @@ module.exports = async function (ctx) {
       teleBotId: process.env.BOT_ID,
       teleChatId: ctx.message.chat.id,
       itemid: user.config.itemid,
-      modelid: user.config.modelid
+      modelid: user.config.modelid,
+      shopid: user.config.shopid
     }, {
       status: user.config.success,
       buyBody: user.postBuyBody,

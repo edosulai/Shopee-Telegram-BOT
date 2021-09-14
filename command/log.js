@@ -22,13 +22,13 @@ module.exports = function (ctx) {
   }
 
   if (user.commands['-clear']) {
-    return Log.deleteMany(user.itemid ? { teleBotId: process.env.BOT_ID, itemid: user.itemid, shopid: user.shopid } : null)
+    return Log.deleteMany(user.itemid ? { teleBotId: process.env.BOT_ID, itemid: user.itemid, shopid: user.shopid } : { teleBotId: process.env.BOT_ID })
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Log Telah Terhapus`)
       }).catch((err) => sendReportToDev(ctx, new Error(err)));
   }
 
-  return Log.findOne({ teleBotId: process.env.BOT_ID, itemid: user.itemid, shopid: user.shopid, status: user.commands['-fail'] ? false : true }, async function (err, log) {
+  return Log.findOne({ teleBotId: process.env.BOT_ID, itemid: user.itemid, shopid: user.shopid }, async function (err, log) {
     if (err || !log) return ctx.reply('Log Untuk Produk Ini Tidak Tersedia!!')
     fs.writeFileSync(`log-${user.itemid}.json`, JSON.stringify(log));
     await ctx.telegram.sendDocument(ctx.message.chat.id, { source: `./log-${user.itemid}.json` }).catch((err) => console.error(chalk.red(err)))

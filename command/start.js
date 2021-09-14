@@ -3,8 +3,6 @@ module.exports = function (ctx) {
   banner += `\n\n<b>==== LIST OPSI SHOP BOT ====</b>`
   banner += `\n\nOpsi <code>/beli</code> ini lah BOT online shopee nya, Agan akan Diperingatkan Login terlebih dahulu apabila email password Agan masih kosong`
   banner += `\n >> Contohnya : /beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
-  banner += `\n\nOpsi <code>/stop</code> Digunakan untuk membatalkan atau stop antrian pembelian flashsale berjadwal`
-  banner += `\n >> Contohnya : /stop <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`
   banner += `\n\nOpsi <code>/login</code> di gunakan untuk melakukan input data untuk Login Sekaligus Login ke akun Shopee Agan`
   banner += `\n >> Contohnya : /login <code>email=emailagan@email.com password=rahasia</code>`
   banner += `\n\n==== CATATAN TAMBAHAN ====`
