@@ -49,9 +49,9 @@ module.exports = async function (ctx) {
       cache: user.commands['-cache'] ? ensureRole(ctx, false) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       flashSale: false,
-      fail: 0,
+      notHaveCache: true,
       success: false,
-      outstock: false,
+      fail: 0,
       info: []
     }
   }
@@ -130,7 +130,7 @@ module.exports = async function (ctx) {
       msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 
       if (user.infoBarang.item.stock < 1) {
-        user.config.outstock = true
+        user.config.notHaveCache = true
         msg += ` - Barang Sudah Di Ikat Untuk Flash Sale${function (barang) {
           for (const model of barang.item.models) {
             for (const stock of model.price_stocks) {
@@ -138,24 +138,17 @@ module.exports = async function (ctx) {
             }
           }
         }(user.infoBarang)}`
-      } else if (user.config.outstock || user.config.firstCache) {
-        let info = await getCart(ctx, true)
-        if (typeof info == 'string') {
-          msg += ` - ${info}`
-          user.config.outstock = false
-          if (user.config.firstCache) user.config.firstCache = false
-        }
-      }
+      } else if (user.config.notHaveCache) await getCart(ctx, true)
 
       await replaceMessage(ctx, user.config.message, msg)
-      sleep(ensureRole(ctx, true) ? 200 : (200 * global.QUEUEBUY.length) - (Date.now() - user.config.start))
+      sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
 
     } while (!user.config.skiptimer)
 
     await getInfoPengiriman(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      curl.close()
       setNewCookie(user.userCookie, headers['set-cookie'])
       user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
+      curl.close()
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
     if (!user.config.modelid) {
@@ -190,16 +183,13 @@ module.exports = async function (ctx) {
       return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis`)
     }
 
-    if (user.config.cache && user.infoBarang.item.stock > 0) {
-      let info = await getCart(ctx, true)
-      if (typeof info == 'string') replaceMessage(ctx, user.config.message, info)
-    }
+    if (user.config.cache && user.infoBarang.item.stock > 0) await getCart(ctx, true)
 
     if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
       return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
     }
 
-    await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang >>> ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
+    await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
     while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
     let info = await getCart(ctx)

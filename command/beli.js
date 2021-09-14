@@ -17,7 +17,7 @@ module.exports = async function (ctx) {
     return User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: false }).exec()
   }
 
-  await ctx.reply(`Prepare... <code>${user.commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+  await ctx.reply(`Memuat... <code>${user.commands.url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
     user.config = {
       message: {
         chatId: replyCtx.chat.id,

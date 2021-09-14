@@ -128,16 +128,29 @@ module.exports = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => err)
 
-  postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.data && chunk.error == 0) {
-      user.checkout = chunk
-      user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.checkout.now = Date.now()
-    }
-    curl.close()
-  }).catch((err) => err)
+  if (getCache) {
+    await postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.data && chunk.error == 0) {
+        user.checkout = chunk
+        user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.checkout.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+  } else {
+    postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.data && chunk.error == 0) {
+        user.checkout = chunk
+        user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.checkout.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+  }
 
   postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
@@ -192,7 +205,9 @@ module.exports = async function (ctx, getCache) {
         payment: user.payment,
         selectedShop: user.selectedShop,
         selectedItem: user.selectedItem
-      }, { upsert: true }).exec()
+      }, { upsert: true }).exec(function () {
+        user.config.notHaveCache = false
+      })
 
     }).catch(async (err) => {
       await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {

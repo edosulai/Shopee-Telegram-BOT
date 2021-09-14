@@ -33,38 +33,19 @@ module.exports = async function (ctx) {
   }
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
-  await sendMessage(ctx, `Prepare... <code>Alarm Flash Sale 1</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-    user.config.alarmMessage.push({
-      chatId: replyCtx.chat.id,
-      msgId: replyCtx.message_id,
-      inlineMsgId: replyCtx.inline_message_id,
-      text: replyCtx.text
-    })
-    user.config.beginMax.push({ price_before_discount: 0, url: null })
-    user.config.max.push({ price_before_discount: 0, url: null })
-  })
 
-  await sendMessage(ctx, `Prepare... <code>Alarm Flash Sale 2</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-    user.config.alarmMessage.push({
-      chatId: replyCtx.chat.id,
-      msgId: replyCtx.message_id,
-      inlineMsgId: replyCtx.inline_message_id,
-      text: replyCtx.text
+  for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
+    await sendMessage(ctx, `Memuat... <code>${session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+      user.config.alarmMessage.push({
+        chatId: replyCtx.chat.id,
+        msgId: replyCtx.message_id,
+        inlineMsgId: replyCtx.inline_message_id,
+        text: replyCtx.text
+      })
+      user.config.beginMax.push({ price_before_discount: 0, url: null })
+      user.config.max.push({ price_before_discount: 0, url: null })
     })
-    user.config.beginMax.push({ price_before_discount: 0, url: null })
-    user.config.max.push({ price_before_discount: 0, url: null })
-  })
-
-  await sendMessage(ctx, `Prepare... <code>Alarm Flash Sale 3</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-    user.config.alarmMessage.push({
-      chatId: replyCtx.chat.id,
-      msgId: replyCtx.message_id,
-      inlineMsgId: replyCtx.inline_message_id,
-      text: replyCtx.text
-    })
-    user.config.beginMax.push({ price_before_discount: 0, url: null })
-    user.config.max.push({ price_before_discount: 0, url: null })
-  })
+  }
 
   do {
     for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
@@ -147,7 +128,7 @@ module.exports = async function (ctx) {
           '-vip': true
         }
 
-        await sendMessage(ctx, `Prepare... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+        await sendMessage(ctx, `Memuat... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
           user.config.message = {
             chatId: replyCtx.chat.id,
             msgId: replyCtx.message_id,
