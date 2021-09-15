@@ -96,7 +96,7 @@ module.exports = function (ctx) {
 
               if (user.loginStatus.data.link_status == 4) return ctx.reply('Login Anda Gagal Coba Beberapa Saat Lagi')
 
-              sleep(1000);
+              await sleep(1000);
             } while (user.loginStatus.data.link_status != 2);
 
             await postLoginTokenVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {

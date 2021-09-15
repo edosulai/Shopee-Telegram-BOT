@@ -141,7 +141,7 @@ module.exports = async function (ctx) {
       } else if (user.config.notHaveCache) await getCart(ctx, true)
 
       await replaceMessage(ctx, user.config.message, msg)
-      sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
+      await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
 
     } while (!user.config.skiptimer)
 

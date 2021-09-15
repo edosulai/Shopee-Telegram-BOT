@@ -53,7 +53,7 @@ module.exports = async function alarmFlashSale(ctx) {
           await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
         }
         await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: false }).exec()
-        return alarmFlashSale(ctx);
+        return setTimeout(await alarmFlashSale.bind(null, ctx), 30000);
       }
 
       user.start = Date.now()

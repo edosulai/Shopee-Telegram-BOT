@@ -162,12 +162,10 @@ module.exports = {
     return false;
   },
 
-  sleep: function (milliseconds, callback = null) {
-    const date = Date.now();
-    do {
-      continue;
-    } while (Date.now() - date < milliseconds);
-    if (typeof callback == 'function') return callback()
+  sleep(ms) {
+    return new Promise(
+      resolve => setTimeout(resolve, ms)
+    );
   },
 
   extractHostname: function (url) {
