@@ -52,7 +52,7 @@ module.exports = function (ctx) {
       setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
-    return async function _tryLogin(msg) {
+    return async function tryLogin(msg) {
       if (msg) await ctx.reply(msg)
       return postLogin(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
@@ -61,7 +61,7 @@ module.exports = function (ctx) {
 
         switch (user.login.error) {
           case 1:
-            return _tryLogin('Ada Yang Error.. Sedang Mencoba Kembali..');
+            return tryLogin('Ada Yang Error.. Sedang Mencoba Kembali..');
           case 2:
             return ctx.reply('Akun dan/atau password Anda salah, silakan coba lagi')
           case 98:

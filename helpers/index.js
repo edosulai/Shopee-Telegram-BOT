@@ -2,7 +2,63 @@ const cookie = require('cookie');
 const chalk = require('chalk');
 
 module.exports = {
-  waitUntil: require('./waitUntil'),
+  waitUntil: function (fromObject, ...wantToCheckValueIsExist) {
+    const start = Date.now()
+    let x = 0;
+    let failed = null;
+    let check = true
+    let callback = null
+    let timeOut = 3000
+  
+    return new Promise((resolve, reject) => {
+      try {
+        for (const each of wantToCheckValueIsExist) {
+          if (typeof each == 'function') {
+            callback = each;
+            continue;
+          } else if (typeof each == 'number') {
+            timeOut = each;
+            continue;
+          }
+          check = check && typeof fromObject[each] != 'undefined'
+          if(typeof fromObject[each] == 'undefined') failed = each
+        }
+        if (check) {
+          if (typeof callback == 'function') return callback(resolve, reject)
+          return resolve()
+        }
+  
+        let until = setInterval(function () {
+          check = true
+          for (const each of wantToCheckValueIsExist) {
+            if (typeof each == 'function') {
+              callback = each;
+              continue;
+            } else if (typeof each == 'number') {
+              timeOut = each;
+              continue;
+            }
+            check = check && typeof fromObject[each] != 'undefined'
+            if(typeof fromObject[each] == 'undefined') failed = each
+          }
+          if (check) {
+            clearInterval(until)
+            if (typeof callback == 'function') return callback(resolve, reject)
+            return resolve()
+          }
+  
+          // process.stdout.write(`\rLoading ${["\\", "|", "/", "-"][x++]}`);
+          x &= 3;
+          if (Date.now() - start > timeOut) {
+            clearInterval(until)
+            return reject(`${failed} Timeout ${timeOut}`)
+          }
+        }, 0)
+      } catch (error) {
+        return reject(`${failed} TimeOut Error ${error}`)
+      }
+    });
+  },
 
   generateString: function (length = 0, chartset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
     let result = '';

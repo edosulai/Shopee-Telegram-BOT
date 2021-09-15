@@ -41,7 +41,8 @@ bot.telegram.getMe().then(async (botInfo) => {
     userRole: 1
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
-  return await async function _tryGetFlashSale(timeout) {
+  return await async function tryGetFlashSale(timeout) {
+    
     await User.find(async function (err, users) {
       if (err) return sendReportToDev(bot, err)
 
@@ -89,7 +90,7 @@ bot.telegram.getMe().then(async (botInfo) => {
       curl.close()
     }).catch((err) => console.error(chalk.red(err)));
 
-    setTimeout(await _tryGetFlashSale.bind(null, 0), (timeout * 1000) - Date.now());
+    setTimeout(await tryGetFlashSale.bind(null, 0), (timeout * 1000) - Date.now());
   }(0)
 
 }).catch((err) => console.error(chalk.red(err)))

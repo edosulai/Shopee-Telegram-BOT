@@ -5,14 +5,13 @@ const User = require('../models/User');
 const FlashSale = require('../models/FlashSale');
 const Event = require('../models/Event');
 
-const setEvent = require('../helpers/setEvent');
 const getItem = require('../helpers/getItem');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
 })(require('../helpers'))
 
-module.exports = async function (ctx) {
+module.exports = async function alarmFlashSale(ctx) {
   if (!ensureRole(ctx)) return
   let user = ctx.session
 
@@ -23,7 +22,7 @@ module.exports = async function (ctx) {
   }
 
   if (user.alarm) {
-    return sendMessage(ctx,'Alarm Sudah Berjalan!!')
+    return sendMessage(ctx, 'Alarm Sudah Berjalan!!')
   }
 
   user.config = {
@@ -35,7 +34,7 @@ module.exports = async function (ctx) {
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
 
   for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
-    await sendMessage(ctx, `Memuat... <code>${session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+    await sendMessage(ctx, `<code>${session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
       user.config.alarmMessage.push({
         chatId: replyCtx.chat.id,
         msgId: replyCtx.message_id,
@@ -49,6 +48,14 @@ module.exports = async function (ctx) {
 
   do {
     for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
+      if (index == 0 && ((session.end_time - 15) * 1000) - Date.now() < 0) {
+        for (const msg of user.config.alarmMessage) {
+          await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
+        }
+        await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: false }).exec()
+        return alarmFlashSale(ctx);
+      }
+
       user.start = Date.now()
 
       await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -141,10 +148,8 @@ module.exports = async function (ctx) {
         // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
-      if (hasEvent) await replaceMessage(ctx, user.config.alarmMessage[index], banner, { parse_mode: 'HTML' })
+      if (hasEvent) await replaceMessage(ctx, user.config.alarmMessage[index], banner)
     }
-
-    sleep(1000)
 
   } while (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, alarm: true }));
 }
