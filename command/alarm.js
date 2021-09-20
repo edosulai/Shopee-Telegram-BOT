@@ -26,6 +26,7 @@ module.exports = async function alarmFlashSale(ctx) {
   }
 
   user.config = {
+    autobuy: user.commands['-autobuy'],
     alarmMessage: [],
     beginMax: [],
     max: []
@@ -53,7 +54,7 @@ module.exports = async function alarmFlashSale(ctx) {
           await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
         }
         await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: false }).exec()
-        return setTimeout(await alarmFlashSale.bind(null, ctx), 30000);
+        return await sleep(30000).then(async () => await alarmFlashSale(ctx))
       }
 
       user.start = Date.now()
@@ -126,17 +127,23 @@ module.exports = async function alarmFlashSale(ctx) {
       if (
         index == 0 &&
         user.config.beginMax[index].url != user.config.max[index].url &&
-        user.config.beginMax[index].price_before_discount != user.config.max[index].price_before_discount
+        user.config.beginMax[index].price_before_discount != user.config.max[index].price_before_discount &&
+        user.config.autobuy
       ) {
         user.config.beginMax[index] = user.config.max[index]
 
-        user.commands = {
+        let newCtx = function (theCtx) {
+          let newCtx = theCtx
+          return newCtx
+        }(ctx)
+
+        newCtx.session.commands = {
           url: user.config.max[index].url,
           '-vip': true
         }
 
         await sendMessage(ctx, `Memuat... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-          user.config.message = {
+          newCtx.session.config.message = {
             chatId: replyCtx.chat.id,
             msgId: replyCtx.message_id,
             inlineMsgId: replyCtx.inline_message_id,
@@ -144,7 +151,7 @@ module.exports = async function alarmFlashSale(ctx) {
           }
         })
 
-        await getItem(ctx)
+        await getItem(newCtx)
         // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 

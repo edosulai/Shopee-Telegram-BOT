@@ -4,7 +4,7 @@ const User = require('../models/User');
   for (const key in helpers) global[key] = helpers[key];
 })(require('../helpers'))
 
-module.exports = function (ctx) {
+module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return
   let user = ctx.session;
   user.commands = getCommands(ctx.message.text)
@@ -23,9 +23,17 @@ module.exports = function (ctx) {
   }
 
   if (user.commands.id) {
-    return User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: user.commands.id }, function (err, user) {
+    
+    await User.updateOne({
+      teleBotId: process.env.BOT_ID,
+      teleChatId: parseInt(user.commands.id)
+    }, {
+      ...(user.commands.userRole ? { userRole: user.commands.userRole } : null)
+    }).exec()
+
+    return User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: user.commands.id }, async function (err, newUser) {
       if (err) return sendReportToDev(ctx, new Error(err))
-      return ctx.reply(`<code>${user}</code>`, { parse_mode: 'HTML' })
+      return ctx.reply(`<code>${newUser}</code>`, { parse_mode: 'HTML' })
     })
   }
 }

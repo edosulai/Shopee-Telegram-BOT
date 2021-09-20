@@ -116,8 +116,7 @@ bot.use((ctx, next) => {
     ctx.session.Curl = Curl
     ctx.session.metaPayment = { channels: [{ name_label: "label_shopee_wallet_v2", version: 2, spm_channel_id: 8001400, be_channel_id: 80030, name: "ShopeePay", enabled: !0, channel_id: 8001400 }, { name_label: "label_offline_bank_transfer", version: 2, spm_channel_id: 8005200, be_channel_id: 80060, name: "Transfer Bank", enabled: !0, channel_id: 8005200, banks: [{ bank_name: "Bank BCA (Dicek Otomatis)", option_info: "89052001", be_channel_id: 80061, enabled: !0 }, { bank_name: "Bank Mandiri(Dicek Otomatis)", option_info: "89052002", enabled: !0, be_channel_id: 80062 }, { bank_name: "Bank BNI (Dicek Otomatis)", option_info: "89052003", enabled: !0, be_channel_id: 80063 }, { bank_name: "Bank BRI (Dicek Otomatis)", option_info: "89052004", be_channel_id: 80064, enabled: !0 }, { bank_name: "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", option_info: "89052005", be_channel_id: 80065, enabled: !0 }, { bank_name: "Bank Permata (Dicek Otomatis)", be_channel_id: 80066, enabled: !0, option_info: "89052006" }] }, { channelid: 89e3, name_label: "label_cod", version: 1, spm_channel_id: 0, be_channel_id: 89e3, name: "COD (Bayar di Tempat)", enabled: !0 }] }
     if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
-      ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
-      return ctx.telegram.leaveChat(ctx.message.chat.id).then().catch((err) => sendReportToDev(ctx, `${ctx.session.teleChatId} Meninggalkan BOT`, 'Info'));
+      return ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
     }
     return next(ctx)
   })
