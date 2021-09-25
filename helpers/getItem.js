@@ -142,7 +142,7 @@ module.exports = async function (ctx) {
 
       await replaceMessage(ctx, user.config.message, msg)
       // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
-      sleep(500 - (Date.now() - user.start))
+      await sleep(500 - (Date.now() - user.config.start))
 
     } while (!user.config.skiptimer)
 
