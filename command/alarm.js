@@ -48,6 +48,7 @@ module.exports = async function alarmFlashSale(ctx) {
   }
 
   do {
+
     for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
       if (index == 0 && ((session.end_time - 15) * 1000) - Date.now() < 0) {
         for (const msg of user.config.alarmMessage) {
@@ -156,6 +157,8 @@ module.exports = async function alarmFlashSale(ctx) {
       }
 
       if (hasEvent) await replaceMessage(ctx, user.config.alarmMessage[index], banner)
+
+      await sleep(1000 - (Date.now() - user.start))
     }
 
   } while (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, alarm: true }));
