@@ -18,10 +18,17 @@ module.exports = async function (ctx, getCache) {
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
-  await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    curl.close()
-  }).catch((err) => err)
+  if (getCache) {
+    await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      curl.close()
+    }).catch((err) => err)
+  } else {
+    postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      curl.close()
+    }).catch((err) => err)
+  }
 
   if (getCache) {
     await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -128,30 +135,43 @@ module.exports = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => err)
 
-  await postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.data && chunk.error == 0) {
-      user.checkout = chunk
-      user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.checkout.now = Date.now()
-    }
-    curl.close()
-  }).catch((err) => err)
-
-  postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-    if (chunk.shoporders) {
-      user.infoCheckoutTemp = chunk
-      user.infoCheckoutTemp.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-      user.infoCheckoutTemp.now = Date.now()
-      clearInterval(checkoutInterval);
-    }
-    curl.close()
-  }).catch((err) => err)
+  if (getCache) {
+    await postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.data && chunk.error == 0) {
+        user.checkout = chunk
+        user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.checkout.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+  } else {
+    postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.data && chunk.error == 0) {
+        user.checkout = chunk
+        user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.checkout.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+  }
 
   if (getCache) {
+    await postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.shoporders) {
+        user.infoCheckoutLong = chunk
+        user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.infoCheckoutLong.now = Date.now()
+        user.config.notHaveCache = false
+      }
+      curl.close()
+    }).catch((err) => err)
+
     await postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
@@ -163,63 +183,59 @@ module.exports = async function (ctx, getCache) {
       curl.close()
     }).catch((err) => err)
 
-    return waitUntil(user, 'infoCheckoutTemp').then(async () => {
-      user.infoCheckoutLong = user.infoCheckoutTemp
-      delete user.infoCheckoutTemp
+    await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      curl.close()
+      setNewCookie(user.userCookie, headers['set-cookie'])
+    }).catch((err) => err);
 
-      await postUpdateKeranjang(user, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
-        setNewCookie(user.userCookie, headers['set-cookie'])
-      }).catch((err) => err);
+    user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
 
-      user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
+    return Log.updateOne({
+      teleBotId: process.env.BOT_ID,
+      teleChatId: ctx.message.chat.id,
+      itemid: user.config.itemid,
+      modelid: user.config.modelid,
+      shopid: user.config.shopid
+    }, {
+      status: true,
+      buyBody: user.postBuyBody,
+      buyBodyLong: user.postBuyBodyLong,
+      infoPengiriman: user.infoPengiriman,
+      infoKeranjang: user.infoKeranjang,
+      updateKeranjang: user.updateKeranjang,
+      infoCheckoutQuick: user.infoCheckoutQuick,
+      infoCheckoutLong: user.infoCheckoutLong,
+      payment: user.payment,
+      selectedShop: user.selectedShop,
+      selectedItem: user.selectedItem
+    }, { upsert: true }).exec()
 
-      return Log.updateOne({
-        teleBotId: process.env.BOT_ID,
-        teleChatId: ctx.message.chat.id,
-        itemid: user.config.itemid,
-        modelid: user.config.modelid,
-        shopid: user.config.shopid
-      }, {
-        status: true,
-        buyBody: user.postBuyBody,
-        buyBodyLong: user.postBuyBodyLong,
-        infoPengiriman: user.infoPengiriman,
-        infoKeranjang: user.infoKeranjang,
-        updateKeranjang: user.updateKeranjang,
-        infoCheckoutQuick: user.infoCheckoutQuick,
-        infoCheckoutLong: user.infoCheckoutLong,
-        payment: user.payment,
-        selectedShop: user.selectedShop,
-        selectedItem: user.selectedItem
-      }, { upsert: true }).exec(function () {
-        user.config.notHaveCache = false
-      })
-
-    }).catch(async (err) => {
-      await postUpdateKeranjang(user, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        setNewCookie(user.userCookie, headers['set-cookie'])
-        curl.close()
-      }).catch((err) => err);
-
-      return sendReportToDev(ctx, new Error(err))
-    })
   } else {
+    postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.shoporders) {
+        user.infoCheckoutTemp = chunk
+        user.infoCheckoutTemp.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.infoCheckoutTemp.now = Date.now()
+      }
+      curl.close()
+    }).catch((err) => err)
+
     let infoCheckoutInterval = setInterval(() => {
       postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.shoporders) {
-          user.infoCheckoutQuick = chunk
-          user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.infoCheckoutQuick.now = Date.now()
-          user.infoCheckoutInterval = true
+          user.infoCheckoutQuickTemp = chunk
+          user.infoCheckoutQuickTemp.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoCheckoutQuickTemp.now = Date.now()
           clearInterval(infoCheckoutInterval)
         }
         curl.close()
       }).catch((err) => err)
     }, 0);
-    // return waitUntil(user, 'infoCheckoutInterval').then(() => buyItem(ctx)).catch((err) => err)
-    return buyItem(ctx)
+
+    return waitUntil(user, 'infoCheckoutQuickTemp').then(() => buyItem(ctx)).catch((err) => err)
   }
 }

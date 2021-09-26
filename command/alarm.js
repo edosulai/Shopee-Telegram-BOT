@@ -34,24 +34,25 @@ module.exports = async function alarmFlashSale(ctx) {
   }
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
+  user.flashsale = await FlashSale.find({ teleBotId: process.env.BOT_ID });
 
-  for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
+  for await (const [index, session] of user.flashsale.entries()) {
     await sendMessage(ctx, `<code>${session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-      user.config.alarmMessage.push({
+      user.config.alarmMessage[index] = {
         chatId: replyCtx.chat.id,
         msgId: replyCtx.message_id,
         inlineMsgId: replyCtx.inline_message_id,
         text: replyCtx.text
-      })
-      user.config.beginMax.push({ price_before_discount: 0, url: null })
-      user.config.max.push({ price_before_discount: 0, url: null })
+      }
+      user.config.beginMax[index] = { price_before_discount: 0, url: null }
+      user.config.max[index] = { price_before_discount: 0, url: null }
       user.config.eventLength[index] = 0
     })
   }
 
   do {
 
-    for await (const [index, session] of (await FlashSale.find({ teleBotId: process.env.BOT_ID })).entries()) {
+    for await (const [index, session] of user.flashsale.entries()) {
       if (index == 0 && ((session.end_time - 15) * 1000) - Date.now() < 0) {
         for (const msg of user.config.alarmMessage) {
           await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
