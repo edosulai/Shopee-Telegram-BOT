@@ -98,7 +98,7 @@ module.exports = async function alarmFlashSale(ctx) {
 
       if (!user.start) continue;
 
-      let banner = timeConverter(Date.now(), { usemilis: false }) + "\n\n" + session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
+      let banner = session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
       user.config.max[index] = { price_before_discount: 0, url: null }
       let eventLength = 0;
 
