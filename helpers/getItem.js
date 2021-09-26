@@ -113,7 +113,7 @@ module.exports = async function (ctx) {
         curl.close();
       }).catch((err) => err);
 
-      if (user.infoBarangTemp) continue;
+      if (!user.infoBarangTemp) continue;
       user.infoBarang = user.infoBarangTemp
       delete user.infoBarangTemp
 
