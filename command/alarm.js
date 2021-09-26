@@ -29,7 +29,8 @@ module.exports = async function alarmFlashSale(ctx) {
     autobuy: user.commands['-autobuy'],
     alarmMessage: [],
     beginMax: [],
-    max: []
+    max: [],
+    eventLength: []
   }
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
@@ -44,6 +45,7 @@ module.exports = async function alarmFlashSale(ctx) {
       })
       user.config.beginMax.push({ price_before_discount: 0, url: null })
       user.config.max.push({ price_before_discount: 0, url: null })
+      user.config.eventLength[index] = 0
     })
   }
 
@@ -98,7 +100,7 @@ module.exports = async function alarmFlashSale(ctx) {
 
       let banner = timeConverter(Date.now(), { usemilis: false }) + "\n\n" + session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
       user.config.max[index] = { price_before_discount: 0, url: null }
-      let hasEvent = false;
+      let eventLength = 0;
 
       for await (const item of user.getFlashSaleSession.data.items) {
         if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
@@ -108,7 +110,7 @@ module.exports = async function alarmFlashSale(ctx) {
               url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`
             }
           }
-          hasEvent = true
+          eventLength++
           banner += `\n\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
 
           await Event.findOrCreate({
@@ -156,7 +158,10 @@ module.exports = async function alarmFlashSale(ctx) {
         // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
-      if (hasEvent) await replaceMessage(ctx, user.config.alarmMessage[index], banner)
+      if (eventLength != user.config.eventLength[index]) {
+        user.config.eventLength[index] = eventLength;
+        await replaceMessage(ctx, user.config.alarmMessage[index], banner)
+      }
 
       await sleep(1000 - (Date.now() - user.start))
     }

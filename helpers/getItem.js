@@ -108,14 +108,15 @@ module.exports = async function (ctx) {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.error == null) {
-          user.infoBarang = chunk;
-        } else {
-          user.config.start = false
+          user.infoBarangTemp = chunk;
         }
         curl.close();
-      }).catch((err) => user.config.start = false);
+      }).catch((err) => err);
 
-      if (!user.infoBarang || !user.config.start) continue;
+      if (user.infoBarangTemp) continue;
+      user.infoBarang = user.infoBarangTemp
+      delete user.infoBarangTemp
+
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
       user.config.promotionid = (user.infoBarang.item.flash_sale ? user.flashsale[0].promotionid : user.flashsale[1].promotionid)
       if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
@@ -142,7 +143,7 @@ module.exports = async function (ctx) {
 
       await replaceMessage(ctx, user.config.message, msg)
       // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
-      await sleep(500 - (Date.now() - user.config.start))
+      await sleep(1000 - (Date.now() - user.config.start))
 
     } while (!user.config.skiptimer)
 
