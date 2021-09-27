@@ -18,17 +18,10 @@ module.exports = async function (ctx, getCache) {
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
-  if (getCache) {
-    await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      curl.close()
-    }).catch((err) => err)
-  } else {
-    postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      curl.close()
-    }).catch((err) => err)
-  }
+  await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    setNewCookie(user.userCookie, headers['set-cookie'])
+    curl.close()
+  }).catch((err) => err)
 
   if (getCache) {
     await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -135,29 +128,16 @@ module.exports = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => err)
 
-  if (getCache) {
-    await postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      if (chunk.data && chunk.error == 0) {
-        user.checkout = chunk
-        user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        user.checkout.now = Date.now()
-      }
-      curl.close()
-    }).catch((err) => err)
-  } else {
-    postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      if (chunk.data && chunk.error == 0) {
-        user.checkout = chunk
-        user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        user.checkout.now = Date.now()
-      }
-      curl.close()
-    }).catch((err) => err)
-  }
+  postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+    if (chunk.data && chunk.error == 0) {
+      user.checkout = chunk
+      user.checkout.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+      user.checkout.now = Date.now()
+    }
+    curl.close()
+  }).catch((err) => err)
 
   if (getCache) {
     await postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -188,7 +168,7 @@ module.exports = async function (ctx, getCache) {
       setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => err);
 
-    user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
+    if (user.infoCheckoutLong) user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
 
     return Log.updateOne({
       teleBotId: process.env.BOT_ID,
@@ -215,9 +195,9 @@ module.exports = async function (ctx, getCache) {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.shoporders) {
-        user.infoCheckoutTemp = chunk
-        user.infoCheckoutTemp.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        user.infoCheckoutTemp.now = Date.now()
+        user.infoCheckoutLong = chunk
+        user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+        user.infoCheckoutLong.now = Date.now()
       }
       curl.close()
     }).catch((err) => err)
@@ -236,6 +216,8 @@ module.exports = async function (ctx, getCache) {
       }).catch((err) => err)
     }, 0);
 
-    return waitUntil(user, 'infoCheckoutQuickTemp').then(() => buyItem(ctx)).catch((err) => err)
+    // return waitUntil(user, 'infoCheckoutQuickTemp').then(() => buyItem(ctx)).catch((err) => err)
+    await sleep(10)
+    return buyItem(ctx)
   }
 }
