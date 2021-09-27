@@ -69,7 +69,7 @@ bot.telegram.getMe().then(async (botInfo) => {
       const getFlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
 
       for await (const [index, session] of getFlashSaleSession.data.sessions.entries()) {
-        if (index == 0) timeout = session.end_time + 10
+        if (index == 0) timeout = session.end_time + 5
 
         await FlashSale.findOrCreate({
           end_time: session.end_time,

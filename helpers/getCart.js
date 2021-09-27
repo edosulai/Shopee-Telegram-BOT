@@ -208,8 +208,9 @@ module.exports = async function (ctx, getCache) {
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.shoporders) {
           user.infoCheckoutQuickTemp = chunk
-          user.infoCheckoutQuickTemp.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.infoCheckoutQuickTemp.now = Date.now()
+          user.infoCheckoutQuick = chunk
+          user.infoCheckoutQuick.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoCheckoutQuick.now = Date.now()
           clearInterval(infoCheckoutInterval)
         }
         curl.close()
