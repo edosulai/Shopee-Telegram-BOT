@@ -122,12 +122,11 @@ module.exports = async function (ctx) {
       if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
 
       user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
-      user.config.end = user.infoBarang.item.upcoming_flash_sale.start_time * 1000
+      user.config.end =  parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
 
       if (user.config.end < Date.now() + 10000) break;
-
-      let msg = ``
-      msg += timeConverter(Date.now() - user.config.end, { countdown: true })
+      process.stdout.write(`\r ${user.infoBarang.item.upcoming_flash_sale.start_time}`);
+      let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
       msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 
       if (user.infoBarang.item.stock < 1) {

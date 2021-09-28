@@ -34,7 +34,7 @@ module.exports = async function alarmFlashSale(ctx) {
   }
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
-  user.flashsale = await FlashSale.find({ teleBotId: process.env.BOT_ID });
+  user.flashsale = (await FlashSale.find({ teleBotId: process.env.BOT_ID })).sort((a, b) => a.start_time - b.start_time);
 
   for await (const [index, session] of user.flashsale.entries()) {
     await sendMessage(ctx, `<code>${session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
