@@ -122,7 +122,9 @@ module.exports = async function (ctx) {
       if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
 
       user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
-      user.config.end =  parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
+      if (!user.config.end) {
+        user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
+      }
 
       if (user.config.end < Date.now() + 10000) break;
       process.stdout.write(`\r ${user.infoBarang.item.upcoming_flash_sale.start_time}`);
