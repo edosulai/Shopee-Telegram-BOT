@@ -1,4 +1,4 @@
-const { ensureRole, getCommands, objectSize, isValidURL } = require('./helpers')
+const { ensureRole, getCommands, objectSize, isValidURL } = require('../helpers')
 
 module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return

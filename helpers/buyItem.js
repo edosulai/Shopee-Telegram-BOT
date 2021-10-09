@@ -4,7 +4,7 @@ const postCancel = require('../request/other/postCancel');
 const getOrders = require('../request/other/getOrders');
 const getCheckouts = require('../request/other/getCheckouts');
 
-const { sendReportToDev, setNewCookie, timeConverter, ensureRole } = require('./helpers')
+const { sendReportToDev, setNewCookie, timeConverter, ensureRole } = require('./index')
 
 module.exports = function buyItem(ctx) {
   let user = ctx.session;

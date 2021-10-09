@@ -1,4 +1,4 @@
-const { waitUntil } = require('./helpers')
+const { waitUntil } = require('../../helpers')
 
 module.exports = async function (user, action) {
 

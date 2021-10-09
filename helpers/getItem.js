@@ -9,7 +9,7 @@ const FlashSale = require('../models/FlashSale');
 
 const getCart = require('./getCart');
 
-const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, paymentMethod, sendMessage, replaceMessage, ensureRole, sleep } = require('./helpers')
+const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, paymentMethod, sendMessage, replaceMessage, ensureRole, sleep } = require('./index')
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -142,7 +142,6 @@ module.exports = async function (ctx) {
       }
 
       if (user.config.end < Date.now() + 10000) break;
-      process.stdout.write(`\r ${user.infoBarang.item.upcoming_flash_sale.start_time}`);
       let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
       msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 

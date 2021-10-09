@@ -1,6 +1,6 @@
 const User = require('../models/User');
 
-const { ensureRole, splitAtFirstSpace, sendReportToDev } = require('./helpers')
+const { ensureRole, splitAtFirstSpace, sendReportToDev } = require('../helpers')
 
 module.exports = function (ctx) {
   if (!ensureRole(ctx)) return

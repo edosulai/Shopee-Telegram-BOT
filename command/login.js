@@ -12,7 +12,7 @@ const postLoginDone = require('../request/auth/postLoginDone');
 
 const User = require('../models/User');
 
-const { sendReportToDev, getCommands, setNewCookie, checkAccount, sleep } = require('./helpers')
+const { sendReportToDev, getCommands, setNewCookie, checkAccount, sleep } = require('../helpers')
 
 module.exports = function (ctx) {
   let user = ctx.session;

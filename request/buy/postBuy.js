@@ -1,4 +1,4 @@
-const { sendReportToDev, addDots, waitUntil } = require('./helpers')
+const { sendReportToDev, addDots, waitUntil } = require('../../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;

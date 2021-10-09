@@ -4,7 +4,7 @@ const User = require('../models/User');
 
 const getItem = require('../helpers/getItem');
 
-const { checkAccount, getCommands, objectSize, isValidURL, replaceMessage, extractRootDomain } = require('./helpers')
+const { checkAccount, getCommands, objectSize, isValidURL, replaceMessage, extractRootDomain } = require('../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session

@@ -1,6 +1,6 @@
 const { exec, spawn } = require("child_process");
 
-const { sendReportToDev, ensureRole, getCommands } = require('./helpers')
+const { sendReportToDev, ensureRole, getCommands } = require('../helpers')
 
 module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return

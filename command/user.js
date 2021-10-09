@@ -1,6 +1,6 @@
 const User = require('../models/User');
 
-const { sendReportToDev, ensureRole, getCommands, objectSize } = require('./helpers')
+const { sendReportToDev, ensureRole, getCommands, objectSize } = require('../helpers')
 
 module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return

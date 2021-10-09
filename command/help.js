@@ -1,4 +1,4 @@
-const { splitAtFirstSpace, sendReportToDev } = require('./helpers')
+const { splitAtFirstSpace, sendReportToDev } = require('../helpers')
 
 module.exports = function (ctx) {
   let commands = splitAtFirstSpace(ctx.message.text)

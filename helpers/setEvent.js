@@ -2,7 +2,7 @@ const getInfoBarang = require('../request/buy/getInfoBarang');
 
 const Event = require('../models/Event');
 
-const { sendReportToDev, parseShopeeUrl, sendMessage } = require('./helpers')
+const { sendReportToDev, parseShopeeUrl, sendMessage } = require('./index')
 
 module.exports = async function (ctx) {
   let user = ctx.session
