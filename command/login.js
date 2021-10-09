@@ -12,9 +12,7 @@ const postLoginDone = require('../request/auth/postLoginDone');
 
 const User = require('../models/User');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { sendReportToDev, getCommands, setNewCookie, checkAccount, sleep } = require('./helpers')
 
 module.exports = function (ctx) {
   let user = ctx.session;

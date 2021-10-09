@@ -2,9 +2,7 @@ const fs = require('fs');
 
 const Log = require('../models/Log');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { ensureRole, getCommands, objectSize, parseShopeeUrl, sendMessage, sendReportToDev } = require('./helpers')
 
 module.exports = function (ctx) {
   if (!ensureRole(ctx)) return

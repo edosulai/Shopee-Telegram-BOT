@@ -15,9 +15,7 @@ const Curl = require('./helpers/curl')
 
 const bot = new Telegraf(process.env.TOKEN);
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('./helpers'))
+const { sendReportToDev, generateString, ensureRole, setNewCookie, splitAtFirstSpace } = require('./helpers')
 
 mongoose.connect(process.env.MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((res, err) => err ? console.error(chalk.red(err)) : console.log(chalk.green('MongoDB connection successful.')))
@@ -42,7 +40,7 @@ bot.telegram.getMe().then(async (botInfo) => {
   }, async function (err, user, created) { if (err) return sendReportToDev(bot, err) })
 
   return await async function tryGetFlashSale(timeout) {
-    
+
     await User.find(async function (err, users) {
       if (err) return sendReportToDev(bot, err)
 

@@ -1,8 +1,6 @@
 const setEvent = require('../helpers/setEvent');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { ensureRole, getCommands } = require('./helpers')
 
 module.exports = function (ctx) {
   if (!ensureRole(ctx)) return

@@ -4,16 +4,14 @@ const User = require('../models/User');
 
 const getItem = require('../helpers/getItem');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { checkAccount, getCommands, objectSize, isValidURL, replaceMessage, extractRootDomain } = require('./helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session
   user.commands = getCommands(ctx.message.text)
   if (objectSize(user.commands) < 1) return ctx.reply(`/beli <code>url=https://shopee.co.id/Sebuah-Produk-Shop.....</code>`, { parse_mode: 'HTML' })
 
-  if (user.commands['-stop']){
+  if (user.commands['-stop']) {
     return User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: false }).exec()
   }
 

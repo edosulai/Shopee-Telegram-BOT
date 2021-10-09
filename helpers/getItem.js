@@ -9,9 +9,7 @@ const FlashSale = require('../models/FlashSale');
 
 const getCart = require('./getCart');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('./index'))
+const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, paymentMethod, sendMessage, replaceMessage, ensureRole, sleep } = require('./helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -34,10 +32,7 @@ module.exports = async function (ctx) {
         shopeePay: user.commands['-shopeepay'] || false,
         transferBank: function (tansferPrioritys) {
           if (tansferPrioritys.includes(user.commands.transfer)) {
-            tansferPrioritys.sort(function (index, transfer) {
-              return index == user.commands.transfer ? -1 : transfer == user.commands.transfer ? 1 : 0;
-            });
-            return tansferPrioritys;
+            return tansferPrioritys.sort((index, transfer) => index == user.commands.transfer ? -1 : transfer == user.commands.transfer ? 1 : 0)
           } else {
             return tansferPrioritys
           }
@@ -50,8 +45,7 @@ module.exports = async function (ctx) {
       flashSale: false,
       notHaveCache: true,
       success: false,
-      fail: 0,
-      info: []
+      fail: 0
     }
   }
 

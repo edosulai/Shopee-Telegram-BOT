@@ -1,6 +1,4 @@
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { splitAtFirstSpace, sendReportToDev } = require('./helpers')
 
 module.exports = function (ctx) {
   let commands = splitAtFirstSpace(ctx.message.text)

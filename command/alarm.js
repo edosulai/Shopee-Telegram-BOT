@@ -7,9 +7,7 @@ const Event = require('../models/Event');
 
 const getItem = require('../helpers/getItem');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { sendReportToDev, ensureRole, getCommands, numTocurrency, sendMessage, replaceMessage, sleep } = require('./helpers')
 
 module.exports = async function alarmFlashSale(ctx) {
   if (!ensureRole(ctx)) return

@@ -4,9 +4,7 @@ const postCancel = require('../request/other/postCancel');
 const getOrders = require('../request/other/getOrders');
 const getCheckouts = require('../request/other/getCheckouts');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('./index'))
+const { sendReportToDev, setNewCookie, timeConverter, ensureRole } = require('./helpers')
 
 module.exports = function buyItem(ctx) {
   let user = ctx.session;
@@ -50,7 +48,7 @@ module.exports = function buyItem(ctx) {
         }).catch((err) => sendReportToDev(ctx, new Error(err)));
       }
     }
-    user.config.info.push(user.info)
-    return user.config.info.join('\n\n')
+
+    return user.info
   }).catch((err) => sendReportToDev(ctx, new Error(err)));
 }

@@ -197,11 +197,6 @@ module.exports = {
     return domain;
   },
 
-  userLogs: function (ctx, msg, type = 'Error', callback = null) {
-    console.log(chalk.blue(`(${ctx.message.chat.first_name} ${ctx.message.chat.id}) ${msg.stack ? msg.stack : `${type} : ${msg}`}`));
-    if (typeof callback == 'function') return callback()
-  },
-
   sendMessage: function (ctx, msg, extra = {}) {
     if (ctx.telegram) {
       return ctx.telegram.sendMessage(ctx.message.chat.id, msg, extra)
@@ -291,13 +286,13 @@ module.exports = {
     return chunk
   },
 
-  paymentMethod:function (user, channels, checkEnable = false) {
+  paymentMethod: function (user, channels, checkEnable = false) {
     let payment = user.config.payment
-  
+
     let paymentMethod = {}
     for (const channel of channels) {
       if (!Object.hasOwnProperty.call(channel, 'name')) continue;
-  
+
       if (channel.name_label == 'label_shopee_wallet_v2') {
         paymentMethod.shopeePay = function (channel, checkEnable) {
           if (!checkEnable) {
@@ -310,9 +305,9 @@ module.exports = {
               enable: true
             }
           }
-        
+
           if (!channel.enabled) return false;
-        
+
           return {
             method: {
               channel_id: channel.channel_id,
@@ -323,7 +318,7 @@ module.exports = {
           }
         }(channel, checkEnable)
       }
-  
+
       if (channel.name_label == 'label_cod') {
         paymentMethod.cod = function (channel, checkEnable) {
           if (!checkEnable) {
@@ -336,9 +331,9 @@ module.exports = {
               enable: true
             }
           }
-  
+
           if (!channel.enabled) return false;
-  
+
           return {
             method: {
               payment_channelid: channel.channelid,
@@ -349,7 +344,7 @@ module.exports = {
           }
         }(channel, checkEnable)
       }
-  
+
       if (Object.hasOwnProperty.call(channel, 'banks')) {
         paymentMethod.transferBank = function (payment, channel, checkEnable) {
           let bank_name = {
@@ -360,11 +355,11 @@ module.exports = {
             bsi: 'Bank Syariah Indonesia (BSI) (Dicek Otomatis)',
             permata: 'Bank Permata (Dicek Otomatis)'
           }
-        
+
           for (const eachTransfer of payment.transferBank) {
             for (const bank of channel.banks) {
               if (bank.bank_name != bank_name[eachTransfer]) continue;
-        
+
               if (!checkEnable) {
                 return {
                   method: {
@@ -377,9 +372,9 @@ module.exports = {
                   enable: true
                 }
               }
-        
+
               if (!bank.enabled) continue;
-        
+
               return {
                 method: {
                   channel_id: channel.channel_id,
@@ -392,18 +387,18 @@ module.exports = {
               }
             }
           }
-        
+
           return false;
         }(payment, channel, checkEnable)
       }
     }
-  
+
     // let allowingPayment = paymentMethod.filter(method => typeof method == 'object');
-  
+
     if (payment.cod && paymentMethod.cod) return paymentMethod.cod
     if (payment.shopeePay && paymentMethod.shopeePay) return paymentMethod.shopeePay
     if (paymentMethod.transferBank && paymentMethod.transferBank) return paymentMethod.transferBank
-  
+
     return {
       method: user.payment.method,
       msg: `Semua Metode Pembayaran Tidak Tersedia`,

@@ -1,6 +1,4 @@
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../../helpers'))
+const { sendReportToDev, addDots, waitUntil } = require('./helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;

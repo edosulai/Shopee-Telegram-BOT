@@ -9,9 +9,7 @@ const Log = require('../models/Log');
 
 const buyItem = require('./buyItem');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('./index'))
+const { setNewCookie, paymentMethod, sleep } = require('./helpers')
 
 module.exports = async function (ctx, getCache) {
   let user = ctx.session

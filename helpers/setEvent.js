@@ -2,9 +2,7 @@ const getInfoBarang = require('../request/buy/getInfoBarang');
 
 const Event = require('../models/Event');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('./index'))
+const { sendReportToDev, parseShopeeUrl, sendMessage } = require('./helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session

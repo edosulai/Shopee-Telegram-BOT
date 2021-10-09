@@ -1,8 +1,6 @@
 const User = require('../models/User');
 
-(function (helpers) {
-  for (const key in helpers) global[key] = helpers[key];
-})(require('../helpers'))
+const { sendReportToDev, ensureRole, getCommands, objectSize } = require('./helpers')
 
 module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return
@@ -23,7 +21,7 @@ module.exports = async function (ctx) {
   }
 
   if (user.commands.id) {
-    
+
     await User.updateOne({
       teleBotId: process.env.BOT_ID,
       teleChatId: parseInt(user.commands.id)
