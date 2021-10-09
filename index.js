@@ -6,6 +6,7 @@ const chalk = require('chalk');
 
 const getFlashSaleSession = require('./request/other/getFlashSaleSession');
 const getAddress = require('./request/other/getAddress');
+const postInfoKeranjang = require('./request/buy/postInfoKeranjang');
 
 const User = require('./models/User');
 const Event = require('./models/Event');
@@ -50,6 +51,17 @@ bot.telegram.getMe().then(async (botInfo) => {
           setNewCookie(user.userCookie, headers['set-cookie'])
           curl.close()
         })
+
+        user.config = {
+          itemid: 0,
+          modelid: 0,
+          shopid: 0,
+        }
+
+        await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+          setNewCookie(user.userCookie, headers['set-cookie'])
+          curl.close()
+        }).catch((err) => err)
 
         await User.updateOne({
           teleBotId: user.teleBotId,

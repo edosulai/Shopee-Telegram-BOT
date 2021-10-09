@@ -16,7 +16,7 @@ module.exports = async function (user, session) {
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      'referer: https://shopee.co.id/checkout',
+      `referer: https://shopee.co.id/flash_sale?promotionId=${session.promotionid}`,
       'accept-language: en-US,en;q=0.9'
     ]).get(`https://shopee.co.id/api/v2/flash_sale/get_all_itemids?need_personalize=true&promotionid=${session.promotionid}&sort_soldout=true`)
 }
