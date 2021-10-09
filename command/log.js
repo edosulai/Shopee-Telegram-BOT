@@ -2,8 +2,6 @@ const fs = require('fs');
 
 const Log = require('../models/Log');
 
-const parseShopeeUrl = require('../helpers/parseShopeeUrl');
-
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
 })(require('../helpers'))

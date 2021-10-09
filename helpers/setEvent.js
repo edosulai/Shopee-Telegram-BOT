@@ -2,8 +2,6 @@ const getInfoBarang = require('../request/buy/getInfoBarang');
 
 const Event = require('../models/Event');
 
-const parseShopeeUrl = require('./parseShopeeUrl');
-
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
 })(require('./index'))

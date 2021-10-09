@@ -168,7 +168,7 @@ module.exports = async function (ctx, getCache) {
       setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => err);
 
-    if (user.infoCheckoutLong) user.payment = require('../helpers/paymentMethod')(user, user.infoCheckoutLong.payment_channel_info.channels, true)
+    if (user.infoCheckoutLong) user.payment = paymentMethod(user, user.infoCheckoutLong.payment_channel_info.channels, true)
 
     return Log.updateOne({
       teleBotId: process.env.BOT_ID,

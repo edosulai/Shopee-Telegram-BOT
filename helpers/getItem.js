@@ -8,7 +8,6 @@ const Event = require('../models/Event');
 const FlashSale = require('../models/FlashSale');
 
 const getCart = require('./getCart');
-const parseShopeeUrl = require('./parseShopeeUrl');
 
 (function (helpers) {
   for (const key in helpers) global[key] = helpers[key];
@@ -81,7 +80,7 @@ module.exports = async function (ctx) {
     })
   }
 
-  user.payment = require('../helpers/paymentMethod')(user, user.metaPayment.channels)
+  user.payment = paymentMethod(user, user.metaPayment.channels)
 
   return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
@@ -119,9 +118,31 @@ module.exports = async function (ctx) {
 
       if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
       user.config.promotionid = (user.infoBarang.item.flash_sale ? user.flashsale[0].promotionid : user.flashsale[1].promotionid)
+
+      user.config.modelid = function (barang) {
+        for (const model of barang.item.models) {
+          if (!barang.item.flash_sale) break;
+          if (model.stock < 1 || model.price_stocks.length < 1) continue
+          for (const stock of model.price_stocks) {
+            if (user.flashsale[0].promotionid == stock.promotion_id) return stock.model_id
+          }
+        }
+
+        for (const model of barang.item.models) {
+          if (model.stock < 1 || model.price_stocks.length < 1) continue
+          return model.price_stocks[0].model_id
+        }
+
+        for (const model of barang.item.models) {
+          if (model.stock < 1) continue
+          return model.modelid
+        }
+
+        return null
+      }(user.infoBarang)
+
       if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
 
-      user.config.modelid = parseInt(user.infoBarang.item.upcoming_flash_sale.modelids[0])
       if (!user.config.end) {
         user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
       }
@@ -153,30 +174,6 @@ module.exports = async function (ctx) {
       user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
-
-    if (!user.config.modelid) {
-      user.config.modelid = function (barang) {
-        for (const model of barang.item.models) {
-          if (!barang.item.flash_sale) break;
-          if (model.stock < 1 || model.price_stocks.length < 1) continue
-          for (const stock of model.price_stocks) {
-            if (user.flashsale[0].promotionid == stock.promotion_id) return stock.model_id
-          }
-        }
-
-        for (const model of barang.item.models) {
-          if (model.stock < 1 || model.price_stocks.length < 1) continue
-          return model.price_stocks[0].model_id
-        }
-
-        for (const model of barang.item.models) {
-          if (model.stock < 1) continue
-          return model.modelid
-        }
-
-        return null
-      }(user.infoBarang)
-    }
 
     if (!user.config.modelid) {
       User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {

@@ -1,5 +1,7 @@
 const cookie = require('cookie');
 const chalk = require('chalk');
+const psl = require('psl');
+const url = require('url');
 
 module.exports = {
   waitUntil: function (fromObject, ...wantToCheckValueIsExist) {
@@ -9,7 +11,7 @@ module.exports = {
     let check = true
     let callback = null
     let timeOut = 3000
-  
+
     return new Promise((resolve, reject) => {
       try {
         for (const each of wantToCheckValueIsExist) {
@@ -21,13 +23,13 @@ module.exports = {
             continue;
           }
           check = check && typeof fromObject[each] != 'undefined'
-          if(typeof fromObject[each] == 'undefined') failed = each
+          if (typeof fromObject[each] == 'undefined') failed = each
         }
         if (check) {
           if (typeof callback == 'function') return callback(resolve, reject)
           return resolve()
         }
-  
+
         let until = setInterval(function () {
           check = true
           for (const each of wantToCheckValueIsExist) {
@@ -39,14 +41,14 @@ module.exports = {
               continue;
             }
             check = check && typeof fromObject[each] != 'undefined'
-            if(typeof fromObject[each] == 'undefined') failed = each
+            if (typeof fromObject[each] == 'undefined') failed = each
           }
           if (check) {
             clearInterval(until)
             if (typeof callback == 'function') return callback(resolve, reject)
             return resolve()
           }
-  
+
           // process.stdout.write(`\rLoading ${["\\", "|", "/", "-"][x++]}`);
           x &= 3;
           if (Date.now() - start > timeOut) {
@@ -263,6 +265,150 @@ module.exports = {
       x1 = x1.replace(rgx, '$1' + '.' + '$2');
     }
     return x1 + x2;
+  },
+
+  parseShopeeUrl: function (urlShopee) {
+    let chunk = { err: null }
+    if (!isValidURL(urlShopee) || psl.get(extractRootDomain(urlShopee)) != 'shopee.co.id') {
+      chunk.err = 'Format Url Salah'
+      return chunk
+    }
+
+    let pathname = url.parse(urlShopee, true).pathname.split('/')
+    if (pathname.length == 4) {
+      chunk.itemid = parseInt(pathname[3])
+      chunk.shopid = parseInt(pathname[2])
+    } else {
+      pathname = pathname[1].split('.')
+      chunk.itemid = parseInt(pathname[pathname.length - 1])
+      chunk.shopid = parseInt(pathname[pathname.length - 2])
+    }
+
+    if (!Number.isInteger(chunk.itemid) || !Number.isInteger(chunk.shopid)) {
+      chunk.err = 'Bukan Url Produk Shopee'
+    }
+
+    return chunk
+  },
+
+  paymentMethod:function (user, channels, checkEnable = false) {
+    let payment = user.config.payment
+  
+    let paymentMethod = {}
+    for (const channel of channels) {
+      if (!Object.hasOwnProperty.call(channel, 'name')) continue;
+  
+      if (channel.name_label == 'label_shopee_wallet_v2') {
+        paymentMethod.shopeePay = function (channel, checkEnable) {
+          if (!checkEnable) {
+            return {
+              method: {
+                channel_id: channel.channel_id,
+                version: channel.version
+              },
+              msg: 'ShopeePay',
+              enable: true
+            }
+          }
+        
+          if (!channel.enabled) return false;
+        
+          return {
+            method: {
+              channel_id: channel.channel_id,
+              version: channel.version
+            },
+            msg: 'ShopeePay',
+            enable: true
+          }
+        }(channel, checkEnable)
+      }
+  
+      if (channel.name_label == 'label_cod') {
+        paymentMethod.cod = function (channel, checkEnable) {
+          if (!checkEnable) {
+            return {
+              method: {
+                payment_channelid: channel.channelid,
+                version: channel.version
+              },
+              msg: 'COD',
+              enable: true
+            }
+          }
+  
+          if (!channel.enabled) return false;
+  
+          return {
+            method: {
+              payment_channelid: channel.channelid,
+              version: channel.version
+            },
+            msg: 'COD',
+            enable: true
+          }
+        }(channel, checkEnable)
+      }
+  
+      if (Object.hasOwnProperty.call(channel, 'banks')) {
+        paymentMethod.transferBank = function (payment, channel, checkEnable) {
+          let bank_name = {
+            bca: 'Bank BCA (Dicek Otomatis)',
+            mandiri: 'Bank Mandiri (Dicek Otomatis)',
+            bni: 'Bank BNI (Dicek Otomatis)',
+            bri: 'Bank BRI (Dicek Otomatis)',
+            bsi: 'Bank Syariah Indonesia (BSI) (Dicek Otomatis)',
+            permata: 'Bank Permata (Dicek Otomatis)'
+          }
+        
+          for (const eachTransfer of payment.transferBank) {
+            for (const bank of channel.banks) {
+              if (bank.bank_name != bank_name[eachTransfer]) continue;
+        
+              if (!checkEnable) {
+                return {
+                  method: {
+                    channel_id: channel.channel_id,
+                    channel_item_option_info: { option_info: bank.option_info },
+                    version: channel.version,
+                    text_info: {}
+                  },
+                  msg: `Transfer ${bank.bank_name}`,
+                  enable: true
+                }
+              }
+        
+              if (!bank.enabled) continue;
+        
+              return {
+                method: {
+                  channel_id: channel.channel_id,
+                  channel_item_option_info: { option_info: bank.option_info },
+                  version: channel.version,
+                  text_info: {}
+                },
+                msg: `Transfer ${bank.bank_name}`,
+                enable: true
+              }
+            }
+          }
+        
+          return false;
+        }(payment, channel, checkEnable)
+      }
+    }
+  
+    // let allowingPayment = paymentMethod.filter(method => typeof method == 'object');
+  
+    if (payment.cod && paymentMethod.cod) return paymentMethod.cod
+    if (payment.shopeePay && paymentMethod.shopeePay) return paymentMethod.shopeePay
+    if (paymentMethod.transferBank && paymentMethod.transferBank) return paymentMethod.transferBank
+  
+    return {
+      method: user.payment.method,
+      msg: `Semua Metode Pembayaran Tidak Tersedia`,
+      enable: false
+    }
   }
 
 }
