@@ -48,6 +48,13 @@ module.exports = async function alarmFlashSale(ctx) {
     })
   }
 
+  let predictPrice = {
+    "?.000": 1000,
+    "?0.000": 10000
+  }
+
+  let minPredict = 100000
+
   do {
 
     for await (const [index, session] of user.flashsale.entries()) {
@@ -102,7 +109,7 @@ module.exports = async function alarmFlashSale(ctx) {
       let eventLength = 0;
 
       for await (const item of user.getFlashSaleSession.data.items) {
-        if (item.hidden_price_display === "?.000" && (item.price_before_discount / 100000 > 100000)) {
+        if (predictPrice[item.hidden_price_display] && (item.price_before_discount / minPredict > minPredict)) {
           if (item.price_before_discount > user.config.max[index].price_before_discount) {
             user.config.max[index] = {
               price_before_discount: item.price_before_discount,
@@ -110,7 +117,7 @@ module.exports = async function alarmFlashSale(ctx) {
             }
           }
           eventLength++
-          banner += `\n\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / 100000)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
+          banner += `\n\n${item.name} - (Rp. ${item.hidden_price_display}) - Rp. ${numTocurrency(item.price_before_discount / minPredict)} - https://shopee.co.id/product/${item.shopid}/${item.itemid}`
 
           await Event.findOrCreate({
             teleBotId: process.env.BOT_ID,
@@ -119,7 +126,7 @@ module.exports = async function alarmFlashSale(ctx) {
           }, {
             barang: item.name.replace(/<[^>]*>?/gm, ""),
             url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`,
-            price: 1000
+            price: predictPrice[item.hidden_price_display]
           }, async function (err, event, created) {
             if (err) return sendReportToDev(ctx, err)
           })
