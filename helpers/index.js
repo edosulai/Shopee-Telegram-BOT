@@ -148,7 +148,7 @@ const ensureRole = function (ctx, ignoreReport = false, allowRole = [1]) {
   return false
 }
 
-const checkAccount = async function (ctx) {
+const checkAccount = function (ctx) {
   if (
     ctx.session.userLoginInfo.email &&
     ctx.session.userLoginInfo.password
@@ -158,7 +158,7 @@ const checkAccount = async function (ctx) {
   info += `\nEmail : ${ctx.session.userLoginInfo.email || ''} `
   info += `\nPassword : ${(ctx.session.userLoginInfo.metaPassword ? '**********' : '')} `
 
-  await sendMessage(ctx, info);
+  sendMessage(ctx, info);
   return false;
 }
 

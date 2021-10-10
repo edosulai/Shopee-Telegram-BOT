@@ -58,12 +58,12 @@ module.exports = async function alarmFlashSale(ctx) {
   do {
 
     for await (const [index, session] of user.flashsale.entries()) {
-      if (index == 0 && ((session.end_time - 15) * 1000) - Date.now() < 0) {
+      if (index == 0 && ((session.end_time - 10) * 1000) - Date.now() < 0) {
         for (const msg of user.config.alarmMessage) {
           await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
         }
         await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: false }).exec()
-        return await sleep(30000).then(async () => await alarmFlashSale(ctx))
+        return await sleep(15000).then(async () => await alarmFlashSale(ctx))
       }
 
       user.start = Date.now()
