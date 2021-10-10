@@ -16,10 +16,17 @@ module.exports = async function (ctx, getCache) {
   user.config.start = Date.now();
   user.config.timestamp = Date.now();
 
-  await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    curl.close()
-  }).catch((err) => err)
+  if (getCache) {
+    await postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      curl.close()
+    }).catch((err) => err)
+  } else {
+    postKeranjang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      curl.close()
+    }).catch((err) => err)
+  }
 
   if (getCache) {
     await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
@@ -126,6 +133,8 @@ module.exports = async function (ctx, getCache) {
     curl.close()
   }).catch((err) => err)
 
+  await sleep(10)
+
   postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
     let chunk = typeof body == 'string' ? JSON.parse(body) : body;
@@ -217,6 +226,7 @@ module.exports = async function (ctx, getCache) {
 
     // return waitUntil(user, 'infoCheckoutQuickTemp').then(() => buyItem(ctx)).catch((err) => err)
     await sleep(10)
+
     return buyItem(ctx)
   }
 }

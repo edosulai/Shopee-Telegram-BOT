@@ -90,6 +90,8 @@ module.exports = async function (ctx) {
     await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: true }).exec()
     if (user.config.cache) user.config.firstCache = true
 
+    user.config.end = Date.now() + 10000
+
     do {
       user.config.start = Date.now()
 
@@ -141,7 +143,7 @@ module.exports = async function (ctx) {
         user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
       }
 
-      if (user.config.end < Date.now() + 10000) break;
+      if (user.config.end < Date.now() + 5000) break;
       let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
       msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 
