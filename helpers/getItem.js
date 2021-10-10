@@ -90,7 +90,7 @@ module.exports = async function (ctx) {
     await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: true }).exec()
     if (user.config.cache) user.config.firstCache = true
 
-    user.config.end = Date.now() + 10000
+    // user.config.end = Date.now() + 10000
 
     do {
       user.config.start = Date.now()
