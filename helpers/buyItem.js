@@ -40,7 +40,7 @@ module.exports = function buyItem(ctx) {
       user.config.success = true
       user.info += `\n\n<i>Barang <b>(${user.selectedItem.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
 
-      if (user.config.autocancel) {
+      if (user.config.cancel) {
         await postCancel(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
           curl.close()
           setNewCookie(user.userCookie, headers['set-cookie'])

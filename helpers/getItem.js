@@ -39,10 +39,9 @@ module.exports = async function (ctx) {
         }(['bni', 'bri', 'bca', 'mandiri', 'bsi', 'permata'])
       },
       skiptimer: user.commands['-skiptimer'] || false,
-      autocancel: user.commands['-autocancel'] || false,
+      cancel: user.commands['-cancel'] || false,
       cache: user.commands['-cache'] ? ensureRole(ctx, false) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
-      flashSale: false,
       notHaveCache: true,
       success: false,
       fail: 0
@@ -94,7 +93,7 @@ module.exports = async function (ctx) {
       user.config.start = Date.now()
 
       if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
-        return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
+        return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
       await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -110,10 +109,9 @@ module.exports = async function (ctx) {
       user.infoBarang = user.infoBarangTemp
       delete user.infoBarangTemp
 
-      if (user.infoBarang.item.upcoming_flash_sale || user.infoBarang.item.flash_sale) user.config.flashSale = true;
       user.config.promotionid = (user.infoBarang.item.flash_sale ? user.flashsale[0].promotionid : user.flashsale[1].promotionid)
 
-      user.config.modelid = function (barang) {
+      user.config.modelid = user.infoBarang.item.upcoming_flash_sale ? user.infoBarang.item.upcoming_flash_sale.modelids[0] : function (barang) {
         for (const model of barang.item.models) {
           if (!barang.item.flash_sale) break;
           if (model.stock < 1 || model.price_stocks.length < 1) continue
@@ -142,12 +140,13 @@ module.exports = async function (ctx) {
       }
 
       if (user.config.end < Date.now() + 5000) break;
+
       let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
       msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 
       if (user.infoBarang.item.stock < 1) {
         user.config.notHaveCache = true
-        msg += ` - Barang Sudah Di Ikat Untuk Flash Sale${function (barang) {
+        msg += `\n\nBarang Sudah Di Ikat Untuk Flash Sale${function (barang) {
           for (const model of barang.item.models) {
             for (const stock of model.price_stocks) {
               if (stock.stockout_time) return ` Sejak : ${timeConverter(stock.stockout_time * 1000, { usemilis: false })}`
@@ -179,7 +178,7 @@ module.exports = async function (ctx) {
     if (user.config.cache && user.infoBarang.item.stock > 0) await getCart(ctx, true)
 
     if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
-      return replaceMessage(ctx, user.config.message, `Timer${user.infoBarang ? ` Untuk Barang ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}` : ''} - ${user.payment.msg} - Sudah Di Matikan`)
+      return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
     }
 
     await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)

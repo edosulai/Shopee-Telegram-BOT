@@ -147,6 +147,7 @@ module.exports = async function (ctx, getCache) {
   }).catch((err) => err)
 
   if (getCache) {
+
     await postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
@@ -198,16 +199,29 @@ module.exports = async function (ctx, getCache) {
     }, { upsert: true }).exec()
 
   } else {
-    postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      if (chunk.shoporders) {
-        user.infoCheckoutLong = chunk
-        user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-        user.infoCheckoutLong.now = Date.now()
-      }
-      curl.close()
-    }).catch((err) => err)
+    if (user.infoCheckoutLong) {
+      postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+        setNewCookie(user.userCookie, headers['set-cookie'])
+        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+        if (chunk.shoporders) {
+          user.infoCheckoutLong = chunk
+          user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoCheckoutLong.now = Date.now()
+        }
+        curl.close()
+      }).catch((err) => err)
+    } else {
+      await postInfoCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+        setNewCookie(user.userCookie, headers['set-cookie'])
+        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+        if (chunk.shoporders) {
+          user.infoCheckoutLong = chunk
+          user.infoCheckoutLong.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.infoCheckoutLong.now = Date.now()
+        }
+        curl.close()
+      }).catch((err) => err)
+    }
 
     let infoCheckoutInterval = setInterval(() => {
       postInfoCheckoutQuick(user).then(({ statusCode, body, headers, curlInstance, curl }) => {

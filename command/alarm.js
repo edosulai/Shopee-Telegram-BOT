@@ -49,6 +49,7 @@ module.exports = async function alarmFlashSale(ctx) {
   }
 
   let predictPrice = {
+    "?1": 11,
     "?.000": 1000,
     "?0.000": 10000
   }
@@ -141,15 +142,15 @@ module.exports = async function alarmFlashSale(ctx) {
       ) {
         user.config.beginMax[index] = user.config.max[index]
 
-        let newCtx = function (theCtx) {
-          let newCtx = theCtx
-          return newCtx
-        }(ctx)
+        // let newCtx = function (theCtx) {
+        //   let newCtx = theCtx
+        //   return newCtx
+        // }(ctx)
 
-        newCtx.session.commands = {
-          url: user.config.max[index].url,
-          '-vip': true
-        }
+        // newCtx.session.commands = {
+        //   url: user.config.max[index].url,
+        //   '-vip': true
+        // }
 
         await sendMessage(ctx, `Memuat... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
           newCtx.session.config.message = {
@@ -160,7 +161,7 @@ module.exports = async function alarmFlashSale(ctx) {
           }
         })
 
-        await getItem(newCtx)
+        // await getItem(newCtx)
         // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
@@ -173,4 +174,8 @@ module.exports = async function alarmFlashSale(ctx) {
     }
 
   } while (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, alarm: true }));
+
+  for (const msg of user.config.alarmMessage) {
+    await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
+  }
 }
