@@ -69,7 +69,7 @@ module.exports = async function alarmFlashSale(ctx) {
 
       user.start = Date.now()
 
-      await getAllItemids(user, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      await getAllItemids(ctx, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.data.promotionid) {
@@ -87,7 +87,7 @@ module.exports = async function alarmFlashSale(ctx) {
 
       if (!user.start) continue;
 
-      await postFlashSaleBatchItems(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      await postFlashSaleBatchItems(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.data) {

@@ -1,3 +1,5 @@
+const puppeteer = require('puppeteer');
+
 const getAddress = require('../request/other/getAddress');
 const getInfoBarang = require('../request/buy/getInfoBarang');
 const getInfoPengiriman = require('../request/other/getInfoPengiriman');
@@ -75,7 +77,7 @@ module.exports = async function (ctx) {
 
   user.payment = paymentMethod(user, user.metaPayment.channels)
 
-  return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  return getAddress(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
     setNewCookie(user.userCookie, headers['set-cookie'])
     user.address = typeof body == 'string' ? JSON.parse(body) : body;
@@ -96,7 +98,7 @@ module.exports = async function (ctx) {
         return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
-      await getInfoBarang(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      await getInfoBarang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.error == null) {
@@ -153,7 +155,7 @@ module.exports = async function (ctx) {
             }
           }
         }(user.infoBarang)}`
-      } else if (user.config.notHaveCache) await getCart(ctx, true)
+      } else if (user.config.notHaveCache) await getCart(ctx)
 
       await replaceMessage(ctx, user.config.message, msg)
       // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
@@ -161,7 +163,7 @@ module.exports = async function (ctx) {
 
     } while (!user.config.skiptimer)
 
-    await getInfoPengiriman(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    await getInfoPengiriman(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
       curl.close()
@@ -175,16 +177,29 @@ module.exports = async function (ctx) {
       return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis`)
     }
 
-    if (user.config.cache && user.infoBarang.item.stock > 0) await getCart(ctx, true)
+    if (user.config.cache && user.infoBarang.item.stock > 0) await getCart(ctx)
 
     if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
       return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
     }
 
+    const browser = await puppeteer.launch({
+      headless: true,
+      defaultViewport: null,
+      args: ['--start-maximized']
+    })
+
+    const page = await browser.newPage();
+    await page.setUserAgent(process.env.USER_AGENT)
+
     await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
+
     while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
-    let info = await getCart(ctx)
+    let info = await getCart(ctx, page)
+
+    await browser.close()
+
     if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
 
     await Log.updateOne({
@@ -200,7 +215,6 @@ module.exports = async function (ctx) {
       infoPengiriman: user.infoPengiriman,
       infoKeranjang: user.infoKeranjang,
       updateKeranjang: user.updateKeranjang,
-      infoCheckoutQuick: user.infoCheckoutQuick,
       infoCheckoutLong: user.infoCheckoutLong,
       payment: user.payment,
       selectedShop: user.selectedShop,

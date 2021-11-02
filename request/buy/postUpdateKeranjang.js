@@ -1,6 +1,7 @@
 const { waitUntil } = require('../../helpers')
 
-module.exports = async function (user, action) {
+module.exports = async function (ctx, action) {
+  let user = ctx.session;
 
   return waitUntil(user, 'selectedItem', 'price').then(async () => {
     let curl = new user.Curl()

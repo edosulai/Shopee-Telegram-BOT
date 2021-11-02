@@ -18,7 +18,7 @@ module.exports = function (ctx) {
   let user = ctx.session;
   let commands = getCommands(ctx.message.text)
 
-  return getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  return getAddress(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
     setNewCookie(user.userCookie, headers['set-cookie'])
     user.address = typeof body == 'string' ? JSON.parse(body) : body;
@@ -52,7 +52,7 @@ module.exports = function (ctx) {
 
     return async function tryLogin(msg) {
       if (msg) await ctx.reply(msg)
-      return postLogin(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      return postLogin(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         setNewCookie(user.userCookie, headers['set-cookie'])
         user.login = typeof body == 'string' ? JSON.parse(body) : body;
@@ -63,7 +63,7 @@ module.exports = function (ctx) {
           case 2:
             return ctx.reply('Akun dan/atau password Anda salah, silakan coba lagi')
           case 98:
-            await postLoginMethod(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await postLoginMethod(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginMethod = typeof body == 'string' ? JSON.parse(body) : body;
@@ -73,7 +73,7 @@ module.exports = function (ctx) {
               return ctx.reply('Maaf, kami tidak dapat memverifikasi log in kamu. Silakan hubungi Customer Service untuk bantuan.')
             }
 
-            await postLoginLinkVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await postLoginLinkVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginLinkVerify = typeof body == 'string' ? JSON.parse(body) : body;
@@ -86,7 +86,7 @@ module.exports = function (ctx) {
             ctx.reply('Silahkan Cek Notifikasi SMS dari Shopee di Handphone Anda')
 
             do {
-              await postStatusLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              await postStatusLogin(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
                 curl.close()
                 setNewCookie(user.userCookie, headers['set-cookie'])
                 user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
@@ -97,13 +97,13 @@ module.exports = function (ctx) {
               await sleep(1000);
             } while (user.loginStatus.data.link_status != 2);
 
-            await postLoginTokenVerify(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await postLoginTokenVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginTokenVerify = typeof body == 'string' ? JSON.parse(body) : body;
             }).catch((err) => sendReportToDev(ctx, new Error(err)));
 
-            await postLoginDone(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await postLoginDone(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginDoneStatus = typeof body == 'string' ? JSON.parse(body) : body;

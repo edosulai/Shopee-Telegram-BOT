@@ -1,4 +1,6 @@
-module.exports = async function (user) {
+module.exports = async function (ctx) {
+  let user = ctx.session;
+
   let curl = new user.Curl()
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)

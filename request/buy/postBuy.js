@@ -86,7 +86,7 @@ module.exports = async function (ctx) {
     return {
       status: 200,
       headers: {},
-      client_id: 0,
+      client_id: user.infoCheckout.client_id,
       timestamp: Math.floor(user.config.timestamp / 1000),
       cart_type: user.infoCheckout.cart_type,
       shipping_orders: [
@@ -132,7 +132,6 @@ module.exports = async function (ctx) {
         insurance_subtotal: 0,
         vat_subtotal: 0
       },
-      client_id: user.infoCheckout.client_id,
       promotion_data: {
         promotion_msg: promotion_data.promotion_msg,
         price_discount: promotion_data.price_discount,
@@ -205,20 +204,10 @@ module.exports = async function (ctx) {
           ext_ad_info_mappings: []
         }
       ],
-      buyer_info: {
-        share_to_friends_info: {
-          display_toggle: false,
-          enable_toggle: false,
-          allow_to_share: false
-        },
-        checkout_email: ""
-      },
+      buyer_info: user.infoCheckout.buyer_info,
       _cft: [],
-      // device_info: cookie.parse(`device_sz_fingerprint=${user.userCookie.shopee_webUnique_ccd}`),
-      device_info: {
-        device_sz_fingerprint: "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||MTAwMDA="
-      },
-      fsv_selection_infos: [],
+      device_info: cookie.parse(`device_sz_fingerprint=${user.userCookie.shopee_webUnique_ccd}`),
+      fsv_selection_infos: user.infoCheckout.fsv_selection_infos,
       can_checkout: true,
       order_update_info: {},
       buyer_txn_fee_info: tax.msg,

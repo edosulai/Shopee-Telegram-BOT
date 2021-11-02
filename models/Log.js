@@ -12,7 +12,6 @@ module.exports = mongoose.model('Logs', {
   infoPengiriman: Object,
   infoKeranjang: Object,
   updateKeranjang: Object,
-  infoCheckoutQuick: Object,
   infoCheckoutLong: Object,
   payment: Object,
   selectedShop: Object,

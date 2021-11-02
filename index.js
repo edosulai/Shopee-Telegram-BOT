@@ -3,6 +3,7 @@ require('dotenv').config()
 const { Telegraf, session } = require('telegraf');
 const mongoose = require('mongoose');
 const chalk = require('chalk');
+const path = require('path');
 
 const getFlashSaleSession = require('./request/other/getFlashSaleSession');
 const getAddress = require('./request/other/getAddress');
@@ -14,9 +15,9 @@ const FlashSale = require('./models/FlashSale');
 
 const Curl = require('./helpers/curl')
 
-const bot = new Telegraf(process.env.TOKEN);
+const { sendReportToDev, generateString, ensureRole, setNewCookie } = require('./helpers')
 
-const { sendReportToDev, generateString, ensureRole, setNewCookie, splitAtFirstSpace } = require('./helpers')
+const bot = new Telegraf(process.env.TOKEN);
 
 mongoose.connect(process.env.MONGODB, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((res, err) => err ? console.error(chalk.red(err)) : console.log(chalk.green('MongoDB connection successful.')))
@@ -47,7 +48,7 @@ bot.telegram.getMe().then(async (botInfo) => {
 
       for (const user of users) {
         user.Curl = Curl
-        await getAddress(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+        await getAddress({ session: user }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
           setNewCookie(user.userCookie, headers['set-cookie'])
           curl.close()
         })
@@ -58,7 +59,7 @@ bot.telegram.getMe().then(async (botInfo) => {
           shopid: 0,
         }
 
-        await postInfoKeranjang(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        await postInfoKeranjang({ session: user }).then(({ statusCode, body, headers, curlInstance, curl }) => {
           setNewCookie(user.userCookie, headers['set-cookie'])
           curl.close()
         }).catch((err) => err)
@@ -145,25 +146,6 @@ bot.command('event', require('./command/event'))
 bot.command('beli', require('./command/beli'))
 bot.command('restart', require('./command/restart'))
 bot.command('quit', require('./command/quit'))
-
-bot.command((ctx) => {
-  let user = ctx.session;
-  user.commands = splitAtFirstSpace(ctx.message.text)
-  if (user.commands.length < 2) return ctx.reply(`/user <code>...message...</code>`, { parse_mode: 'HTML' })
-  User.findOne({ teleBotId: process.env.BOT_ID }, function (userData) {
-    if (Number.isInteger(parseInt(userData))) return {
-      teleBotId: process.env.BOT_ID,
-      teleChatId: userData
-    }
-    return {
-      teleBotId: process.env.BOT_ID,
-      'teleChatData.username': userData
-    }
-  }(user.commands[0].substring(1)), function (err, u) {
-    if (err || !u) return
-    return ctx.reply(`<code>${`@${ctx.message.chat.username}` || ctx.message.chat.first_name} : ${user.commands[1].replace(/(<([^>]+)>)/gi, "")}</code>`, { chat_id: u.teleChatId, parse_mode: 'HTML' })
-  })
-})
 
 bot.catch((err, ctx) => sendReportToDev(ctx, new Error(err)))
 
