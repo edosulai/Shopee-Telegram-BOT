@@ -40,11 +40,10 @@ module.exports = async function (ctx) {
           }
         }(['bni', 'bri', 'bca', 'mandiri', 'bsi', 'permata'])
       },
-      skiptimer: user.commands['-skiptimer'] || false,
+      skip: user.commands['-skip'] || false,
       cancel: user.commands['-cancel'] || false,
       cache: user.commands['-cache'] ? ensureRole(ctx, false) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
-      notHaveCache: true,
       success: false,
       fail: 0
     }
@@ -88,13 +87,19 @@ module.exports = async function (ctx) {
       }
     }(user.address.addresses)
 
+    user.browser = await puppeteer.launch({
+      headless: true,
+      defaultViewport: null,
+      args: ['--start-maximized']
+    })
+
     await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: true }).exec()
-    if (user.config.cache) user.config.firstCache = true
 
     do {
       user.config.start = Date.now()
 
       if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
+        await browser.close()
         return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
       }
 
@@ -135,7 +140,18 @@ module.exports = async function (ctx) {
         return null
       }(user.infoBarang)
 
-      if (!user.infoBarang.item.upcoming_flash_sale || user.config.skiptimer) break;
+      // if (user.infoBarang.item.stock > 1 && Math.floor(Date.now() / 1000) % 10 == 0) {
+      if (user.infoBarang.item.stock > 1) {
+        // const [page] = await user.browser.pages();
+        const page = await user.browser.newPage();
+        await page.setUserAgent(process.env.USER_AGENT)
+        await getCart(ctx, page)
+      }
+
+      let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
+      msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
+
+      if (!user.infoBarang.item.upcoming_flash_sale || user.config.skip) break;
 
       if (!user.config.end) {
         user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
@@ -143,31 +159,13 @@ module.exports = async function (ctx) {
 
       if (user.config.end < Date.now() + 5000) break;
 
-      let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
-      msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
-
-      if (user.infoBarang.item.stock < 1) {
-        user.config.notHaveCache = true
-        msg += `\n\nBarang Sudah Di Ikat Untuk Flash Sale${function (barang) {
-          for (const model of barang.item.models) {
-            for (const stock of model.price_stocks) {
-              if (stock.stockout_time) return ` Sejak : ${timeConverter(stock.stockout_time * 1000, { usemilis: false })}`
-            }
-          }
-        }(user.infoBarang)}`
-      } else if (user.config.notHaveCache) await getCart(ctx)
-
       await replaceMessage(ctx, user.config.message, msg)
       // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
       await sleep(1000 - (Date.now() - user.config.start))
 
-    } while (!user.config.skiptimer)
+    } while (!user.config.skip)
 
-    await getInfoPengiriman(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      user.infoPengiriman = typeof body == 'string' ? JSON.parse(body) : body;
-      curl.close()
-    }).catch((err) => sendReportToDev(ctx, new Error(err)));
+    await user.browser.close()
 
     if (!user.config.modelid) {
       User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
@@ -177,28 +175,15 @@ module.exports = async function (ctx) {
       return replaceMessage(ctx, user.config.message, `Semua Stok Barang Sudah Habis`)
     }
 
-    if (user.config.cache && user.infoBarang.item.stock > 0) await getCart(ctx)
-
     if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
       return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
     }
-
-    const browser = await puppeteer.launch({
-      headless: true,
-      defaultViewport: null,
-      args: ['--start-maximized']
-    })
-
-    const page = await browser.newPage();
-    await page.setUserAgent(process.env.USER_AGENT)
 
     await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
 
     while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
-    let info = await getCart(ctx, page)
-
-    await browser.close()
+    let info = await getCart(ctx)
 
     if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
 
@@ -211,11 +196,9 @@ module.exports = async function (ctx) {
     }, {
       status: user.config.success,
       buyBody: user.postBuyBody,
-      buyBodyLong: user.postBuyBodyLong,
-      infoPengiriman: user.infoPengiriman,
       infoKeranjang: user.infoKeranjang,
       updateKeranjang: user.updateKeranjang,
-      infoCheckoutLong: user.infoCheckoutLong,
+      infoCheckout: user.infoCheckout,
       payment: user.payment,
       selectedShop: user.selectedShop,
       selectedItem: user.selectedItem

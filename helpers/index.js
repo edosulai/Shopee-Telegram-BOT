@@ -361,10 +361,10 @@ const paymentMethod = function (user, channels, checkEnable = false) {
             if (!checkEnable) {
               return {
                 method: {
-                  channel_id: channel.channel_id,
-                  channel_item_option_info: { option_info: bank.option_info },
                   version: channel.version,
                   option_info: "",
+                  channel_id: channel.channel_id,
+                  channel_item_option_info: { option_info: bank.option_info },
                   text_info: {}
                 },
                 msg: `Transfer ${bank.bank_name}`,

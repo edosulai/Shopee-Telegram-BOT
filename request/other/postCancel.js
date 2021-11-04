@@ -1,6 +1,8 @@
 const FormData = require('form-data')
 
-module.exports = async function (user) {
+module.exports = async function (ctx) {
+  let user = ctx.session;
+
   let curl = new user.Curl()
 
   if (user.payment.method.payment_channelid) {

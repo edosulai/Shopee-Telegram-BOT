@@ -45,7 +45,7 @@ module.exports = function (ctx) {
 
     if (!checkAccount(ctx)) return;
 
-    await getLogin(user).then(({ statusCode, body, headers, curlInstance, curl }) => {
+    await getLogin(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
       curl.close()
       setNewCookie(user.userCookie, headers['set-cookie'])
     }).catch((err) => sendReportToDev(ctx, new Error(err)));
