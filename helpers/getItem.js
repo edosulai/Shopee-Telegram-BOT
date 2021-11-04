@@ -50,7 +50,6 @@ module.exports = async function (ctx) {
   }
 
   if (user.commands['-vip'] ? ensureRole(ctx, true, [1, 2]) : false) {
-    user.config.cache = true;
     let event = await Event.findOne({ teleBotId: process.env.BOT_ID, itemid: user.config.itemid, shopid: user.config.shopid })
     if (event) {
       user.config.predictPrice = parseInt(event.price) * 100000
@@ -58,22 +57,20 @@ module.exports = async function (ctx) {
     }
   }
 
-  if (user.config.cache) {
-    await Log.findOne({
-      teleBotId: process.env.BOT_ID,
-      teleChatId: ctx.message.chat.id,
-      itemid: user.config.itemid,
-      shopid: user.config.shopid,
-      status: true
-    }, async function (err, log) {
-      if (err || !log) return ensureRole(ctx, true) ? replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!') : null
-      log = JSON.parse(JSON.stringify(log))
-      for (const key in log) {
-        if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
-      }
-    })
-  }
-
+  await Log.findOne({
+    teleBotId: process.env.BOT_ID,
+    teleChatId: ctx.message.chat.id,
+    itemid: user.config.itemid,
+    shopid: user.config.shopid,
+    status: true
+  }, async function (err, log) {
+    if (err || !log) return ensureRole(ctx, true) ? replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!') : null
+    log = JSON.parse(JSON.stringify(log))
+    for (const key in log) {
+      if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
+    }
+  })
+  
   user.payment = paymentMethod(user, user.metaPayment.channels)
 
   return getAddress(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -87,8 +84,9 @@ module.exports = async function (ctx) {
       }
     }(user.address.addresses)
 
-    user.browser = await puppeteer.launch({
-      headless: true,
+    const browser = await puppeteer.launch({
+      headless: false,
+      ignoreHTTPSErrors: true,
       defaultViewport: null,
       args: ['--start-maximized']
     })
@@ -140,10 +138,9 @@ module.exports = async function (ctx) {
         return null
       }(user.infoBarang)
 
-      // if (user.infoBarang.item.stock > 1 && Math.floor(Date.now() / 1000) % 10 == 0) {
-      if (user.infoBarang.item.stock > 1) {
-        // const [page] = await user.browser.pages();
-        const page = await user.browser.newPage();
+      if (user.infoBarang.item.stock > 1 && (user.config.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
+        // const [page] = await browser.pages();
+        const page = await browser.newPage();
         await page.setUserAgent(process.env.USER_AGENT)
         await getCart(ctx, page)
       }
@@ -157,7 +154,7 @@ module.exports = async function (ctx) {
         user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
       }
 
-      if (user.config.end < Date.now() + 5000) break;
+      if (user.config.end < Date.now() + 10000) break;
 
       await replaceMessage(ctx, user.config.message, msg)
       // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
@@ -165,7 +162,7 @@ module.exports = async function (ctx) {
 
     } while (!user.config.skip)
 
-    await user.browser.close()
+    await browser.close()
 
     if (!user.config.modelid) {
       User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {

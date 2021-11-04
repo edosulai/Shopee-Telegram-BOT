@@ -53,7 +53,7 @@ module.exports = async function (ctx) {
       headers: {},
       client_id: user.infoCheckout.client_id,
       cart_type: user.infoCheckout.cart_type,
-      timestamp: Math.floor(user.config.timestamp / 1000),
+      timestamp: Math.floor(user.config.start / 1000),
       checkout_price_data: {
         merchandise_subtotal: user.price * user.config.quantity,
         total_payable: shipping_orders.shipping_fee + (user.price * user.config.quantity) + tax.value,

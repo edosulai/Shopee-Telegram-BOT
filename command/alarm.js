@@ -142,15 +142,15 @@ module.exports = async function alarmFlashSale(ctx) {
       ) {
         user.config.beginMax[index] = user.config.max[index]
 
-        // let newCtx = function (theCtx) {
-        //   let newCtx = theCtx
-        //   return newCtx
-        // }(ctx)
+        let newCtx = function (theCtx) {
+          let newCtx = theCtx
+          return newCtx
+        }(ctx)
 
-        // newCtx.session.commands = {
-        //   url: user.config.max[index].url,
-        //   '-vip': true
-        // }
+        newCtx.session.commands = {
+          url: user.config.max[index].url,
+          '-vip': true
+        }
 
         await sendMessage(ctx, `Memuat... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
           newCtx.session.config.message = {

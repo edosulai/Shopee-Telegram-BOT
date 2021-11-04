@@ -15,7 +15,6 @@ const { setNewCookie, paymentMethod, sendReportToDev } = require('./index')
 module.exports = async function (ctx, page) {
   let user = ctx.session
   user.config.start = Date.now();
-  user.config.timestamp = Date.now();
 
   await postKeranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
@@ -24,7 +23,7 @@ module.exports = async function (ctx, page) {
 
   if (page) {
 
-    let listRequest = [
+    const listRequest = [
       {
         name: 'infoKeranjang',
         url: 'https://shopee.co.id/api/v4/cart/get'
@@ -47,13 +46,20 @@ module.exports = async function (ctx, page) {
 
     page.on('requestfinished', async (request) => {
       try {
-        console.log(request.url());
         if (!listRequest.map(e => e.url).includes(request.url())) return;
+
+        const response = await request.response();
+
+        let responseBody;
         if (request.redirectChain().length === 0) {
-          user[listRequest.find(e => e.url == request.url()).name] = await request.response().buffer().toString('utf8');
+          const buffer = await response.buffer();
+          responseBody = buffer.toString('utf8');
         }
+
+        user[listRequest.find(e => e.url == request.url()).name] = JSON.parse(responseBody)
+
       } catch (err) {
-        sendReportToDev(ctx, err.message)
+        await sendReportToDev(ctx, err.message)
       }
     });
 
@@ -64,6 +70,39 @@ module.exports = async function (ctx, page) {
     }
 
     await page.close();
+
+    user.selectedShop = function (shops) {
+      for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
+    }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
+
+    user.selectedItem = function (items) {
+      for (const item of items) {
+        if (item.modelid == user.config.modelid) return item
+        if (item.models) {
+          for (const model of item.models) {
+            if (
+              model.itemid == user.config.itemid &&
+              model.shop_id == user.config.shopid &&
+              model.modelid == user.config.modelid
+            ) return item
+          }
+        }
+      }
+    }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
+
+    user.price = user.config.predictPrice || function (item) {
+      if (item.models) {
+        for (const model of item.models) {
+          if (
+            model.itemid == user.config.itemid &&
+            model.shop_id == user.config.shopid &&
+            model.modelid == user.config.modelid &&
+            model.promotionid == user.config.promotionid
+          ) return model.price
+        }
+      }
+      return item.origin_cart_item_price
+    }(user.selectedItem) || user.price
 
     await postInfoCheckout(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
@@ -98,64 +137,7 @@ module.exports = async function (ctx, page) {
 
   }
 
-  // await postInfoKeranjang(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-  //   setNewCookie(user.userCookie, headers['set-cookie'])
-  //   let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-  //   if (chunk.data.shop_orders.length > 0) {
-  //     user.infoKeranjang = chunk
-
-  //     user.selectedShop = function (shops) {
-  //       for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
-  //     }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
-
-  //     user.selectedItem = function (items) {
-  //       for (const item of items) {
-  //         if (item.modelid == user.config.modelid) return item
-  //         if (item.models) {
-  //           for (const model of item.models) {
-  //             if (
-  //               model.itemid == user.config.itemid &&
-  //               model.shop_id == user.config.shopid &&
-  //               model.modelid == user.config.modelid
-  //             ) return item
-  //           }
-  //         }
-  //       }
-  //     }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
-
-  //     user.price = user.config.predictPrice || function (item) {
-  //       if (item.models) {
-  //         for (const model of item.models) {
-  //           if (
-  //             model.itemid == user.config.itemid &&
-  //             model.shop_id == user.config.shopid &&
-  //             model.modelid == user.config.modelid &&
-  //             model.promotionid == user.config.promotionid
-  //           ) return model.price
-  //         }
-  //       }
-  //       return item.origin_cart_item_price
-  //     }(user.selectedItem) || user.price
-
-  //   }
-  //   curl.close()
-  // }).catch((err) => err)
-
-  // postUpdateKeranjang(ctx, 4).then(({ statusCode, body, headers, curlInstance, curl }) => {
-  //   setNewCookie(user.userCookie, headers['set-cookie'])
-  //   let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-  //   if (chunk.data && chunk.error == 0) user.updateKeranjang = chunk
-  //   curl.close()
-  // }).catch((err) => err)
-
-  // await postCheckout(user).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-  //   setNewCookie(user.userCookie, headers['set-cookie'])
-  //   let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-  //   if (chunk.data && chunk.error == 0) user.checkout = chunk
-  //   curl.close()
-  // }).catch((err) => err)
-
-  // if (user.userCookie.shopee_webUnique_ccd) return buyItem(ctx)
+  if (user.userCookie.shopee_webUnique_ccd) return buyItem(ctx)
 
   return sendReportToDev(ctx, new Error('cookie shopee_webUnique_ccd tidak di temukan'))
 
