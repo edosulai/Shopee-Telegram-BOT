@@ -85,7 +85,7 @@ module.exports = async function (ctx) {
     }(user.address.addresses)
 
     const browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       // ignoreHTTPSErrors: true,
       defaultViewport: null,
       args: ['--start-maximized']
@@ -145,6 +145,7 @@ module.exports = async function (ctx) {
         await getCart(ctx, page)
 
         // console.log(user.infoCheckout);
+        await browser.close()
         return
       }
 

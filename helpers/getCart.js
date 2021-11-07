@@ -74,7 +74,7 @@ module.exports = async function (ctx, page) {
       waitUntil: 'networkidle0',
     })
 
-    await page.click('._2jol0L .W2HjBQ button span')
+    // await page.click('._2jol0L .W2HjBQ button span')
 
     for (const cookie of await page.cookies('https://shopee.co.id/cart')) {
       user.userCookie[cookie.name] = cookie.value
@@ -117,11 +117,10 @@ module.exports = async function (ctx, page) {
       return item.origin_cart_item_price
     }(user.selectedItem) || user.price
 
-    console.log(user.infoCheckout)
-
     await postUpdateKeranjang(ctx, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      console.log(chunk)
       curl.close()
     }).catch((err) => err)
 
@@ -151,4 +150,3 @@ module.exports = async function (ctx, page) {
   return sendReportToDev(ctx, new Error('cookie shopee_webUnique_ccd tidak di temukan'))
 
 }
-
