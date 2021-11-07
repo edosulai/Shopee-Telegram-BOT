@@ -1,4 +1,5 @@
 const cookie = require('cookie');
+const chalk = require('chalk');
 
 const postKeranjang = require('../request/buy/postKeranjang');
 const postInfoKeranjang = require('../request/buy/postInfoKeranjang');
@@ -19,7 +20,7 @@ module.exports = async function (ctx, page) {
   await postKeranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
     curl.close()
-  }).catch((err) => err)
+  }).catch((err) => console.error(chalk.red(err)))
 
   if (page) {
 
@@ -47,8 +48,8 @@ module.exports = async function (ctx, page) {
     })
 
     await page.setCookie(...theCookies)
-
     await page.setRequestInterception(true)
+    await page.setDefaultNavigationTimeout(0)
 
     page.on('request', request => request.continue())
 
@@ -70,14 +71,14 @@ module.exports = async function (ctx, page) {
       }
     });
 
-    await page.goto('https://shopee.co.id/cart', {
-      waitUntil: 'networkidle0',
-    })
+    await page.goto('https://shopee.co.id/cart', { waitUntil: 'networkidle0' })
+
+    // await page.waitForNavigation()
 
     // await page.click('._2jol0L .W2HjBQ button span')
 
-    for (const cookie of await page.cookies('https://shopee.co.id/cart')) {
-      user.userCookie[cookie.name] = cookie.value
+    for (const cookie of await page.cookies('https://shopee.co.id')) {
+      if (cookie.value) user.userCookie[cookie.name] = cookie.value
     }
 
     await page.close();
@@ -117,12 +118,19 @@ module.exports = async function (ctx, page) {
       return item.origin_cart_item_price
     }(user.selectedItem) || user.price
 
+    await postInfoCheckout(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.shoporders) user.infoCheckout = chunk
+      curl.close()
+    }).catch((err) => console.error(chalk.red(err)))
+
     await postUpdateKeranjang(ctx, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      console.log(chunk)
+      if (chunk.error != 0) sendReportToDev(ctx, new Error(JSON.stringify(chunk, null, 2)))
       curl.close()
-    }).catch((err) => err)
+    }).catch((err) => console.error(chalk.red(err)))
 
     if (user.infoCheckout) user.payment = paymentMethod(user, user.infoCheckout.payment_channel_info.channels, true)
 

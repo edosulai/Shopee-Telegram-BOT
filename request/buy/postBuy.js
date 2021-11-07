@@ -206,7 +206,7 @@ module.exports = async function (ctx) {
 
   let curl = new user.Curl()
 
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
+  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
     .setOtherOpt(function (curl) {
       user.config.end = Date.now();
       user.config.checkout = user.config.checkout || user.config.end

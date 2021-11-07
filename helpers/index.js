@@ -235,7 +235,7 @@ const setNewCookie = function (oldCookies, ...newCookies) {
       let cookieName = Object.keys(parseCookie)[0]
 
       oldCookies[cookieName] = {
-        value: Object.values(parseCookie)[0]
+        value: Object.values(parseCookie)[0] || oldCookies[cookieName].value
       }
 
       delete parseCookie[cookieName]

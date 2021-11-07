@@ -3,7 +3,9 @@ const { serializeCookie } = require('../../helpers')
 module.exports = async function (ctx, action) {
   let user = ctx.session;
 
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, false).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
+  let curl = new user.Curl()
+
+  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
     .setHeaders([
       'authority: shopee.co.id',
       'sec-ch-ua: "Google Chrome";v="95", "Chromium";v="95", ";Not A Brand";v="99"',
@@ -36,9 +38,9 @@ module.exports = async function (ctx, action) {
           "item_group_id": user.selectedItem.item_group_id,
           "add_on_deal_id": user.selectedItem.add_on_deal_id,
           "is_add_on_sub_item": user.selectedItem.is_add_on_sub_item,
-          "quantity": user.config.quantity,
+          "quantity": user.selectedItem.quantity,
           "old_modelid": null,
-          "old_quantity": user.config.quantity,
+          "old_quantity": user.selectedItem.quantity,
           "checkout": false,
           "applied_promotion_id": user.config.promotionid,
           "price": user.price
@@ -46,21 +48,21 @@ module.exports = async function (ctx, action) {
       }],
       "selected_shop_order_ids": [{
         "shopid": user.config.shopid,
-        "item_briefs": [{
+        "item_briefs": action == 2 ? [] : [{
           "itemid": user.config.itemid,
           "modelid": user.config.modelid,
           "item_group_id": user.selectedItem.item_group_id,
           "applied_promotion_id": user.config.promotionid,
           "offerid": user.selectedItem.offerid,
           "price": user.price,
-          "quantity": user.config.quantity,
+          "quantity": user.selectedItem.quantity,
           "is_add_on_sub_item": user.selectedItem.is_add_on_sub_item,
           "add_on_deal_id": user.selectedItem.add_on_deal_id,
           "status": user.selectedItem.status,
           "cart_item_change_time": user.selectedItem.cart_item_change_time,
           "membership_offer_id": user.selectedItem.membership_offer_id
         }],
-        "addin_time": Math.floor(Date.now() / 1000),
+        "addin_time": user.selectedItem.addin_time,
         "auto_apply": true,
         "shop_vouchers": []
       }],

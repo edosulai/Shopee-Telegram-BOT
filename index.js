@@ -4,6 +4,8 @@ const { Telegraf, session } = require('telegraf');
 const mongoose = require('mongoose');
 const chalk = require('chalk');
 const path = require('path');
+const fs = require('fs');
+const tls = require('tls');
 
 const getFlashSaleSession = require('./request/other/getFlashSaleSession');
 const getAddress = require('./request/other/getAddress');
@@ -29,8 +31,9 @@ bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
   process.env.BOT_ID = parseInt(botInfo.id)
+  process.env.CERT_PATH = path.join(__dirname, 'cert.pem')
 
-  await sendReportToDev(bot, botInfo.first_name, `Starting`)
+  fs.writeFileSync(process.env.CERT_PATH, tls.rootCertificates.join('\n'))
 
   await User.updateMany({ teleBotId: process.env.BOT_ID }, {
     queue: false,
@@ -101,6 +104,8 @@ bot.telegram.getMe().then(async (botInfo) => {
       curl.close()
     }).catch((err) => console.error(chalk.red(err)));
 
+    await sendReportToDev(bot, botInfo.first_name, `Starting`)
+
     setTimeout(await tryGetFlashSale.bind(null, 0), (timeout * 1000) - Date.now());
   }(0)
 
@@ -108,6 +113,11 @@ bot.telegram.getMe().then(async (botInfo) => {
 
 bot.use((ctx, next) => {
   if (!ctx.message.chat) return;
+
+  const certFilePath = path.join(__dirname, 'cert.pem')
+  const tlsData = tls.rootCertificates.join('\n')
+  fs.writeFileSync(certFilePath, tlsData)
+
   return User.findOrCreate({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
     teleChatData: {
       id: ctx.message.chat.id,
@@ -118,7 +128,7 @@ bot.use((ctx, next) => {
     userLoginInfo: { email: null },
     userCookie: {
       csrftoken: {
-        value : generateString(32),
+        value: generateString(32),
         Domain: 'shopee.co.id',
         Path: '/',
         expires: -1
@@ -132,6 +142,8 @@ bot.use((ctx, next) => {
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
     ctx.session.Curl = Curl
+    ctx.session.certFilePath = certFilePath
+    ctx.session.tlsData = tlsData
     ctx.session.metaPayment = { channels: [{ name_label: "label_shopee_wallet_v2", version: 2, spm_channel_id: 8001400, be_channel_id: 80030, name: "ShopeePay", enabled: !0, channel_id: 8001400 }, { name_label: "label_offline_bank_transfer", version: 2, spm_channel_id: 8005200, be_channel_id: 80060, name: "Transfer Bank", enabled: !0, channel_id: 8005200, banks: [{ bank_name: "Bank BCA (Dicek Otomatis)", option_info: "89052001", be_channel_id: 80061, enabled: !0 }, { bank_name: "Bank Mandiri(Dicek Otomatis)", option_info: "89052002", enabled: !0, be_channel_id: 80062 }, { bank_name: "Bank BNI (Dicek Otomatis)", option_info: "89052003", enabled: !0, be_channel_id: 80063 }, { bank_name: "Bank BRI (Dicek Otomatis)", option_info: "89052004", be_channel_id: 80064, enabled: !0 }, { bank_name: "Bank Syariah Indonesia (BSI) (Dicek Otomatis)", option_info: "89052005", be_channel_id: 80065, enabled: !0 }, { bank_name: "Bank Permata (Dicek Otomatis)", be_channel_id: 80066, enabled: !0, option_info: "89052006" }] }, { channelid: 89e3, name_label: "label_cod", version: 1, spm_channel_id: 0, be_channel_id: 89e3, name: "COD (Bayar di Tempat)", enabled: !0 }] }
     if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
       return ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => sendReportToDev(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
