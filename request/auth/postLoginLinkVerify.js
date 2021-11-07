@@ -1,3 +1,5 @@
+const { serializeCookie } = require('../../helpers')
+
 module.exports = async function (ctx) {
   let user = ctx.session;
 
@@ -15,14 +17,14 @@ module.exports = async function (ctx) {
       'x-requested-with: XMLHttpRequest',
       'if-none-match-: 55b03-110b0bbaf36f20781fd87d3c35df9d30',
       'content-type: application/json',
-      `x-csrftoken: ${user.userCookie.csrftoken}`,
+      `x-csrftoken: ${user.userCookie.csrftoken.value}`,
       'origin: https://shopee.co.id',
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
       'referer: https://shopee.co.id/verify/link',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-      `cookie: ${curl.serializeCookie(user.userCookie)}`
+      `cookie: ${serializeCookie(user.userCookie)}`
     ]).setBody(JSON.stringify({
       v_token: user.loginMethod.data[0].v_token,
       request_id: user.login.data.ivs_token

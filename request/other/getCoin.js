@@ -1,3 +1,5 @@
+const { serializeCookie } = require('../../helpers')
+
 module.exports = async function (user) {
   let curl = new user.Curl()
 
@@ -17,6 +19,6 @@ module.exports = async function (user) {
       'sec-fetch-dest: empty',
       'referer: https://shopee.co.id/user/coin/',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-      `cookie: ${curl.serializeCookie(user.userCookie)}`
+      `cookie: ${serializeCookie(user.userCookie)}`
     ]).get(`https://shopee.co.id/api/v0/coins/api/summary/`)
 }

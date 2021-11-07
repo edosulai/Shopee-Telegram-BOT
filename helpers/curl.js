@@ -22,14 +22,6 @@ module.exports = function () {
     return this
   }
 
-  this.serializeCookie = (cookies) => {
-    let temp = [];
-    for (const cook in cookies) {
-      temp.push(`${cook}=${cookies[cook]}`)
-    }
-    return temp.join("; ")
-  }
-
   this.newTorIdentity = () => {
     let client = new Net.Socket();
     client.connect(this['default'].torControlPort, this['default'].torControlHost, () => {

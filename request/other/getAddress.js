@@ -1,3 +1,5 @@
+const { serializeCookie } = require('../../helpers')
+
 module.exports = async function (ctx) {
   let user = ctx.session;
 
@@ -20,6 +22,6 @@ module.exports = async function (ctx) {
       'sec-fetch-dest: empty',
       'referer: https://shopee.co.id/checkout',
       'accept-language: en-US,en;q=0.9',
-      `cookie: ${curl.serializeCookie(user.userCookie)}`
+      `cookie: ${serializeCookie(user.userCookie)}`
     ]).get(`https://shopee.co.id/api/v1/addresses/`)
 }

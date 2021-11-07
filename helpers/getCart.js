@@ -23,22 +23,30 @@ module.exports = async function (ctx, page) {
 
   if (page) {
 
-    const listRequest = [
-      {
-        name: 'infoKeranjang',
-        url: 'https://shopee.co.id/api/v4/cart/get'
-      },
-      {
-        name: 'updateKeranjang',
-        url: 'https://shopee.co.id/api/v4/cart/update'
-      }
-    ]
+    const listRequest = [{
+      name: 'infoKeranjang',
+      url: 'https://shopee.co.id/api/v4/cart/get'
+    }, {
+      name: 'updateKeranjang',
+      url: 'https://shopee.co.id/api/v4/cart/update'
+    }, {
+      name: 'checkout',
+      url: 'https://shopee.co.id/api/v4/cart/checkout'
+    }, {
+      name: 'infoCheckout',
+      url: 'https://shopee.co.id/api/v4/checkout/get'
+    }]
 
-    await page.setCookie(...Object.keys(user.userCookie).map((key) => ({
-      name: key,
-      value: user.userCookie[key],
-      domain: 'shopee.co.id'
-    })))
+    const theCookies = Object.keys(user.userCookie).map((key) => {
+      return {
+        name: key,
+        value: user.userCookie[key].value,
+        url: 'https://shopee.co.id/',
+        domain: user.userCookie[key].Domain || 'shopee.co.id',
+      }
+    })
+
+    await page.setCookie(...theCookies)
 
     await page.setRequestInterception(true)
 
@@ -57,19 +65,24 @@ module.exports = async function (ctx, page) {
         }
 
         user[listRequest.find(e => e.url == request.url()).name] = JSON.parse(responseBody)
-
       } catch (err) {
         await sendReportToDev(ctx, err.message)
       }
     });
 
-    await page.goto('https://shopee.co.id/cart')
+    await page.goto('https://shopee.co.id/cart', {
+      waitUntil: 'networkidle0',
+    })
+
+    await page.click('._2jol0L .W2HjBQ button span')
 
     for (const cookie of await page.cookies('https://shopee.co.id/cart')) {
       user.userCookie[cookie.name] = cookie.value
     }
 
     await page.close();
+
+    if (!user.infoKeranjang || !user.updateKeranjang) return
 
     user.selectedShop = function (shops) {
       for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
@@ -104,17 +117,13 @@ module.exports = async function (ctx, page) {
       return item.origin_cart_item_price
     }(user.selectedItem) || user.price
 
-    await postInfoCheckout(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      if (chunk.shoporders) user.infoCheckout = chunk
-      curl.close()
-    }).catch((err) => err)
+    console.log(user.infoCheckout)
 
     await postUpdateKeranjang(ctx, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      curl.close()
       setNewCookie(user.userCookie, headers['set-cookie'])
-    }).catch((err) => err);
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      curl.close()
+    }).catch((err) => err)
 
     if (user.infoCheckout) user.payment = paymentMethod(user, user.infoCheckout.payment_channel_info.channels, true)
 
@@ -142,3 +151,4 @@ module.exports = async function (ctx, page) {
   return sendReportToDev(ctx, new Error('cookie shopee_webUnique_ccd tidak di temukan'))
 
 }
+

@@ -1,6 +1,6 @@
 const cookie = require('cookie');
 
-const { sendReportToDev, addDots } = require('../../helpers')
+const { sendReportToDev, addDots, serializeCookie } = require('../../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;
@@ -199,7 +199,7 @@ module.exports = async function (ctx) {
       disabled_checkout_info: user.infoCheckout.disabled_checkout_info,
       can_checkout: true,
       _cft: [11],
-      device_info: cookie.parse(`device_sz_fingerprint=${user.userCookie.shopee_webUnique_ccd}`),
+      device_info: cookie.parse(`device_sz_fingerprint=${user.userCookie.shopee_webUnique_ccd.value}`),
       captcha_version: 1
     }
   }(user)
@@ -223,14 +223,14 @@ module.exports = async function (ctx) {
       'x-requested-with: XMLHttpRequest',
       'if-none-match-: 55b03-8e6117c82a707ccb01b22fc18e91caff',
       'x-api-source: pc',
-      `x-csrftoken: ${user.userCookie.csrftoken}`,
+      `x-csrftoken: ${user.userCookie.csrftoken.value}`,
       'origin: https://shopee.co.id',
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
       'referer: https://shopee.co.id/checkout',
       'accept-language: en-US,en;q=0.9',
-      `cookie: ${curl.serializeCookie(user.userCookie)}`,
+      `cookie: ${serializeCookie(user.userCookie)}`,
     ]).setBody(JSON.stringify(user.postBuyBody)).post(`https://shopee.co.id/api/v2/checkout/place_order`)
 
 }

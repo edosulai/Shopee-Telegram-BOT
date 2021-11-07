@@ -1,5 +1,7 @@
 const querystring = require('querystring')
 
+const { serializeCookie } = require('../../helpers')
+
 module.exports = async function (ctx) {
   let user = ctx.session;
 
@@ -21,6 +23,6 @@ module.exports = async function (ctx) {
       'referer: https://shopee.co.id/product/206338277/4910439682',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       'if-none-match: 9d55f0614ad43cbf71e15642d1989d6b',
-      `cookie: ${curl.serializeCookie(user.userCookie)}`
+      `cookie: ${serializeCookie(user.userCookie)}`
     ]).get(`https://shopee.co.id/api/v0/shop/${user.config.shopid}/item/${user.config.itemid}/shipping_info_to_address/?${querystring.stringify({ city: user.address.city, district: user.address.district, state: user.address.state })}`)
 }

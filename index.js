@@ -116,7 +116,14 @@ bot.use((ctx, next) => {
       username: ctx.message.chat.username
     },
     userLoginInfo: { email: null },
-    userCookie: { csrftoken: generateString(32) },
+    userCookie: {
+      csrftoken: {
+        value : generateString(32),
+        Domain: 'shopee.co.id',
+        Path: '/',
+        expires: -1
+      }
+    },
     userRole: 4,
     queue: false,
     alarm: false
@@ -144,7 +151,6 @@ bot.command('user', require('./command/user'))
 bot.command('login', require('./command/login'))
 bot.command('event', require('./command/event'))
 bot.command('beli', require('./command/beli'))
-bot.command('restart', require('./command/restart'))
 bot.command('quit', require('./command/quit'))
 
 bot.catch((err, ctx) => sendReportToDev(ctx, new Error(err)))

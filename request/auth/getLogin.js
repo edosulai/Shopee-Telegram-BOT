@@ -12,7 +12,7 @@ module.exports = async function (ctx) {
       'x-shopee-language: id',
       'x-requested-with: XMLHttpRequest',
       'content-type: application/json',
-      `x-csrftoken: ${user.userCookie.csrftoken}`,
+      `x-csrftoken: ${user.userCookie.csrftoken.value}`,
       'origin: https://shopee.co.id',
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',

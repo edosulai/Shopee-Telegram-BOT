@@ -220,12 +220,29 @@ const sendReportToDev = async function (ctx, msg, type = '') {
   }
 }
 
-const setNewCookie = function (oldcookies, ...newcookies) {
-  for (const cookies of newcookies) {
+const serializeCookie = (cookies) => {
+  let temp = [];
+  for (const cook in cookies) {
+    temp.push(`${cook}=${cookies[cook].value}`)
+  }
+  return temp.join("; ")
+}
+
+const setNewCookie = function (oldCookies, ...newCookies) {
+  for (const cookies of newCookies) {
     for (const cook of cookies) {
       let parseCookie = cookie.parse(cook);
       let cookieName = Object.keys(parseCookie)[0]
-      oldcookies[cookieName] = parseCookie[cookieName]
+
+      oldCookies[cookieName] = {
+        value: Object.values(parseCookie)[0]
+      }
+
+      delete parseCookie[cookieName]
+
+      oldCookies[cookieName] = {
+        ...oldCookies[cookieName], ...parseCookie
+      }
     }
   }
 }
@@ -421,6 +438,7 @@ module.exports = {
   sendMessage,
   replaceMessage,
   sendReportToDev,
+  serializeCookie,
   setNewCookie,
   objectSize,
   numTocurrency,

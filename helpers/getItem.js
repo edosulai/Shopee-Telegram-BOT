@@ -85,8 +85,8 @@ module.exports = async function (ctx) {
     }(user.address.addresses)
 
     const browser = await puppeteer.launch({
-      headless: false,
-      ignoreHTTPSErrors: true,
+      headless: true,
+      // ignoreHTTPSErrors: true,
       defaultViewport: null,
       args: ['--start-maximized']
     })
@@ -143,14 +143,17 @@ module.exports = async function (ctx) {
         const page = await browser.newPage();
         await page.setUserAgent(process.env.USER_AGENT)
         await getCart(ctx, page)
+
+        // console.log(user.infoCheckout);
+        return
       }
 
       let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
       msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")} - ${user.payment.msg}`
 
-      if (!user.infoBarang.item.upcoming_flash_sale || user.config.skip) break;
+      if ((!user.infoBarang.item.upcoming_flash_sale || user.config.skip) && user.infoCheckout) break;
 
-      if (!user.config.end) {
+      if (!user.config.end && user.infoBarang.item.upcoming_flash_sale) {
         user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
       }
 
@@ -206,5 +209,5 @@ module.exports = async function (ctx) {
       queue: false
     }).exec()
 
-  }).catch((err) => sendReportToDev(ctx, new Error(err)));
+  }).catch((err) => sendReportToDev(ctx, err));
 }
