@@ -70,7 +70,7 @@ module.exports = async function (ctx) {
       if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
     }
   })
-  
+
   user.payment = paymentMethod(user, user.metaPayment.channels)
 
   return getAddress(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
@@ -85,8 +85,8 @@ module.exports = async function (ctx) {
     }(user.address.addresses)
 
     const browser = await puppeteer.launch({
-      headless: false,
-      // ignoreHTTPSErrors: true,
+      headless: true,
+      ignoreHTTPSErrors: true,
       defaultViewport: null,
       args: ['--start-maximized']
     })
@@ -143,10 +143,6 @@ module.exports = async function (ctx) {
         const page = await browser.newPage();
         await page.setUserAgent(process.env.USER_AGENT)
         await getCart(ctx, page)
-
-        // console.log(user.infoCheckout);
-        await browser.close()
-        return
       }
 
       let msg = timeConverter(Date.now() - user.config.end, { countdown: true })
@@ -160,7 +156,7 @@ module.exports = async function (ctx) {
 
       if (user.config.end < Date.now() + 10000) break;
 
-      await replaceMessage(ctx, user.config.message, msg)
+      if (user.config.end) await replaceMessage(ctx, user.config.message, msg)
       // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
       await sleep(1000 - (Date.now() - user.config.start))
 

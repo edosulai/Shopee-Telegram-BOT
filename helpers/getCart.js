@@ -1,4 +1,3 @@
-const cookie = require('cookie');
 const chalk = require('chalk');
 
 const postKeranjang = require('../request/buy/postKeranjang');
@@ -11,7 +10,7 @@ const Log = require('../models/Log');
 
 const buyItem = require('./buyItem');
 
-const { setNewCookie, paymentMethod, sendReportToDev } = require('./index')
+const { setNewCookie, paymentMethod, sendReportToDev, serializeCookie } = require('./index')
 
 module.exports = async function (ctx, page) {
   let user = ctx.session
@@ -78,7 +77,19 @@ module.exports = async function (ctx, page) {
     // await page.click('._2jol0L .W2HjBQ button span')
 
     for (const cookie of await page.cookies('https://shopee.co.id')) {
-      if (cookie.value) user.userCookie[cookie.name] = cookie.value
+      user.userCookie[cookie.name] = {
+        value: cookie.value,
+        Domain: cookie.domain,
+        Path: cookie.path,
+        expires: cookie.expires,
+        size: cookie.size,
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure,
+        session: cookie.session,
+        sameParty: cookie.sameParty,
+        sourceScheme: cookie.sourceScheme,
+        sourcePort: cookie.sourcePort
+      }
     }
 
     await page.close();

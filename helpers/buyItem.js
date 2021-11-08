@@ -34,7 +34,7 @@ module.exports = function buyItem(ctx) {
         curl.close()
         setNewCookie(user.userCookie, headers['set-cookie'])
         user.info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-      }).catch((err) => sendReportToDev(ctx, new Error(err)));
+      }).catch((err) => err);
 
     } else {
       user.config.success = true
@@ -45,10 +45,10 @@ module.exports = function buyItem(ctx) {
           curl.close()
           setNewCookie(user.userCookie, headers['set-cookie'])
           user.info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
-        }).catch((err) => sendReportToDev(ctx, new Error(err)));
+        }).catch((err) => err);
       }
     }
 
     return user.info
-  }).catch((err) => sendReportToDev(ctx, new Error(err)));
+  }).catch((err) => sendReportToDev(ctx, err));
 }
