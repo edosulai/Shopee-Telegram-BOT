@@ -42,7 +42,6 @@ module.exports = async function (ctx) {
       },
       skip: user.commands['-skip'] || false,
       cancel: user.commands['-cancel'] || false,
-      cache: user.commands['-cache'] ? ensureRole(ctx, false) : false,
       predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
       success: false,
       fail: 0
@@ -64,10 +63,11 @@ module.exports = async function (ctx) {
     shopid: user.config.shopid,
     status: true
   }, async function (err, log) {
-    if (err || !log) return ensureRole(ctx, true) ? replaceMessage(ctx, user.config.message, 'Cache Untuk Produk Ini Tidak Tersedia!!') : null
-    log = JSON.parse(JSON.stringify(log))
-    for (const key in log) {
-      if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
+    if (log) {
+      log = JSON.parse(JSON.stringify(log))
+      for (const key in log) {
+        if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
+      }
     }
   })
 
@@ -139,7 +139,6 @@ module.exports = async function (ctx) {
       }(user.infoBarang)
 
       if (user.infoBarang.item.stock > 1 && (user.config.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
-        // const [page] = await browser.pages();
         const page = await browser.newPage();
         await page.setUserAgent(process.env.USER_AGENT)
         await getCart(ctx, page)
@@ -157,7 +156,7 @@ module.exports = async function (ctx) {
       if (user.config.end < Date.now() + 10000) break;
 
       if (user.config.end) await replaceMessage(ctx, user.config.message, msg)
-      // await sleep(ensureRole(ctx, true) ? 0 : (200 * (await User.find({ teleBotId: process.env.BOT_ID, queue: true })).length) - (Date.now() - user.config.start))
+
       await sleep(1000 - (Date.now() - user.config.start))
 
     } while (!user.config.skip)

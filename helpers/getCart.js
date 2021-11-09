@@ -21,7 +21,7 @@ module.exports = async function (ctx, page) {
     curl.close()
   }).catch((err) => console.error(chalk.red(err)))
 
-  if (page) {
+  if (page || !user.infoCheckout) {
 
     const listRequest = [{
       name: 'infoKeranjang',
@@ -70,7 +70,7 @@ module.exports = async function (ctx, page) {
       }
     });
 
-    await page.goto('https://shopee.co.id/cart', { waitUntil: 'networkidle0' })
+    await page.goto(`https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`, { waitUntil: 'networkidle0' })
 
     // await page.waitForNavigation()
 
@@ -136,14 +136,18 @@ module.exports = async function (ctx, page) {
       curl.close()
     }).catch((err) => console.error(chalk.red(err)))
 
+    if (user.infoCheckout) user.payment = paymentMethod(user, user.infoCheckout.payment_channel_info.channels, true)
+
+  }
+
+  if (page) {
+
     await postUpdateKeranjang(ctx, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
       setNewCookie(user.userCookie, headers['set-cookie'])
       let chunk = typeof body == 'string' ? JSON.parse(body) : body;
       if (chunk.error != 0) sendReportToDev(ctx, new Error(JSON.stringify(chunk, null, 2)))
       curl.close()
     }).catch((err) => console.error(chalk.red(err)))
-
-    if (user.infoCheckout) user.payment = paymentMethod(user, user.infoCheckout.payment_channel_info.channels, true)
 
     return Log.updateOne({
       teleBotId: process.env.BOT_ID,
@@ -161,7 +165,6 @@ module.exports = async function (ctx, page) {
       selectedShop: user.selectedShop,
       selectedItem: user.selectedItem
     }, { upsert: true }).exec()
-
   }
 
   if (user.userCookie.shopee_webUnique_ccd) return buyItem(ctx)

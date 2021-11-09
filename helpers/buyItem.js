@@ -24,16 +24,16 @@ module.exports = function buyItem(ctx) {
 
     if (user.order.error) {
       user.config.fail = user.config.fail + 1
-      user.info += `\n\n<i>Gagal Melakukan Payment Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
+      user.info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
       if (user.config.fail < 3 && ['error_fulfillment_info_changed_mwh', 'error_fulfillment_info_changed', 'error_creating_orders_42'].includes(user.order.error)) {
         return buyItem(ctx)
       }
 
       await postUpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
         setNewCookie(user.userCookie, headers['set-cookie'])
         user.info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
+        curl.close()
       }).catch((err) => err);
 
     } else {
@@ -42,9 +42,9 @@ module.exports = function buyItem(ctx) {
 
       if (user.config.cancel) {
         await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-          curl.close()
           setNewCookie(user.userCookie, headers['set-cookie'])
           user.info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
+          curl.close()
         }).catch((err) => err);
       }
     }

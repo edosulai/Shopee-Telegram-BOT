@@ -38,11 +38,7 @@ module.exports = async function (ctx) {
       "itemid": user.config.itemid,
       "modelid": user.config.modelid,
       ...function (item) {
-        if (item.add_on_deal_info != null) {
-          return {
-            "add_on_deal_id": item.add_on_deal_id
-          }
-        }
+        if (item.add_on_deal_info != null) return { "add_on_deal_id": item.add_on_deal_id }
       }(user.infoBarang.item)
     })).post(`https://shopee.co.id/api/v4/cart/add_to_cart`)
 }
