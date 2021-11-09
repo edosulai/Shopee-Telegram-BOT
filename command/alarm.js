@@ -5,7 +5,7 @@ const User = require('../models/User');
 const FlashSale = require('../models/FlashSale');
 const Event = require('../models/Event');
 
-const getItem = require('../helpers/getItem');
+// const getItem = require('../helpers/getItem');
 
 const { sendReportToDev, ensureRole, getCommands, numTocurrency, sendMessage, replaceMessage, sleep, setNewCookie } = require('../helpers')
 

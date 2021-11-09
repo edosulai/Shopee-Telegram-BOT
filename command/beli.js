@@ -10,9 +10,7 @@ const postCancel = require('../request/other/postCancel');
 const User = require('../models/User');
 const FlashSale = require('../models/FlashSale');
 
-const getItem = require('../helpers/getItem');
-
-const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, ensureRole, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain } = require('../helpers')
+const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain } = require('../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -81,7 +79,7 @@ module.exports = async function (ctx) {
     if (user.address.error) return replaceMessage(ctx, user.config.message, 'Sesi Anda Sudah Habis Silahkan Login Kembali')
 
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       ignoreHTTPSErrors: true,
       defaultViewport: null,
       args: ['--start-maximized']
@@ -150,99 +148,18 @@ module.exports = async function (ctx) {
           return ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
         }
 
-        await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
-
         const [page] = await browser.pages();
         await page.setUserAgent(process.env.USER_AGENT)
 
+        await getCart(ctx, page, true)
+
+        await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
+
         while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
-        user.config.start = Date.now();
+        let info = await getCart(ctx, page)
 
-        await postKeranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-          setNewCookie(user.userCookie, headers['set-cookie'])
-          curl.close()
-        }).catch((err) => sendReportToDev(ctx, err))
-
-        const listRequest = [{
-          name: 'infoKeranjang',
-          url: 'https://shopee.co.id/api/v4/cart/get'
-        }, {
-          name: 'updateKeranjang',
-          url: 'https://shopee.co.id/api/v4/cart/update'
-        }, {
-          name: 'checkout',
-          url: 'https://shopee.co.id/api/v4/cart/checkout'
-        }, {
-          name: 'infoCheckout',
-          url: 'https://shopee.co.id/api/v4/checkout/get'
-        }, {
-          name: 'order',
-          url: 'https://shopee.co.id/api/v4/checkout/place_order'
-        }]
-
-        await page.setCookie(...Object.keys(user.userCookie).map((key) => {
-          return {
-            name: key,
-            value: user.userCookie[key].value,
-            url: 'https://shopee.co.id/',
-            domain: user.userCookie[key].Domain || 'shopee.co.id',
-          }
-        }))
-
-        await page.setRequestInterception(true)
-        await page.setDefaultNavigationTimeout(0)
-
-        page.on('request', request => request.continue())
-
-        page.on('requestfinished', async (request) => {
-          try {
-            if (!listRequest.map(e => e.url).includes(request.url())) return;
-            const response = await request.response();
-            let responseBody;
-            if (request.redirectChain().length === 0) {
-              const buffer = await response.buffer();
-              responseBody = buffer.toString('utf8');
-            }
-            user[listRequest.find(e => e.url == request.url()).name] = JSON.parse(responseBody)
-          } catch (err) {
-            await sendReportToDev(ctx, err.message)
-          }
-        });
-
-        await page.goto(`https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`)
-        await page.waitForSelector('._2jol0L .W2HjBQ button span')
-        await page.click('._2jol0L .W2HjBQ button span')
-        await page.waitForSelector('.bank-transfer-category__body')
-        await page.click('._1WlhIE .PC1-mc button')
-        user.config.end = Date.now();
-        await page.waitForSelector('.payment-safe-page')
-
-        let info = `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-        info += `\nBot End : <b>${timeConverter(user.config.end, { usemilis: true })}</b>`
-
-        if (user.order.error) {
-          info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
-
-          await postUpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-            setNewCookie(user.userCookie, headers['set-cookie'])
-            info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-            curl.close()
-          }).catch((err) => err);
-
-        } else {
-          info += `\n\n<i>Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-
-          if (user.config.cancel) {
-            await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-              setNewCookie(user.userCookie, headers['set-cookie'])
-              info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
-              curl.close()
-            }).catch((err) => err);
-          }
-        }
-
-        await replaceMessage(ctx, user.config.message, info, false)
+        if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
 
         await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
           userCookie: user.userCookie,
@@ -259,4 +176,154 @@ module.exports = async function (ctx) {
     await browser.close()
 
   }).catch((err) => sendReportToDev(ctx, err));
+}
+
+const getCart = async function (ctx, page, cache) {
+  let user = ctx.session
+  user.config.start = Date.now();
+
+  await postKeranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+    setNewCookie(user.userCookie, headers['set-cookie'])
+    curl.close()
+  }).catch((err) => sendReportToDev(ctx, err))
+
+  const listRequest = [{
+    name: 'infoKeranjang',
+    url: 'https://shopee.co.id/api/v4/cart/get'
+  }, {
+    name: 'updateKeranjang',
+    url: 'https://shopee.co.id/api/v4/cart/update'
+  }, {
+    name: 'checkout',
+    url: 'https://shopee.co.id/api/v4/cart/checkout'
+  }, {
+    name: 'infoCheckout',
+    url: 'https://shopee.co.id/api/v4/checkout/get'
+  }, {
+    name: 'order',
+    url: 'https://shopee.co.id/api/v4/checkout/place_order'
+  }]
+
+  await page.setCookie(...Object.keys(user.userCookie).map((key) => {
+    return {
+      name: key,
+      value: user.userCookie[key].value,
+      url: 'https://shopee.co.id/',
+      domain: user.userCookie[key].Domain || 'shopee.co.id',
+    }
+  }))
+
+  await page.setRequestInterception(true)
+  await page.setDefaultNavigationTimeout(0)
+
+  page.on('request', request => request.continue())
+
+  page.on('requestfinished', async (request) => {
+    try {
+      if (!listRequest.map(e => e.url).includes(request.url())) return;
+      const response = await request.response();
+      let responseBody;
+      if (request.redirectChain().length === 0) {
+        const buffer = await response.buffer();
+        responseBody = buffer.toString('utf8');
+      }
+      user[listRequest.find(e => e.url == request.url()).name] = JSON.parse(responseBody)
+    } catch (err) {
+      await sendReportToDev(ctx, err.message)
+    }
+  });
+
+  await page.goto(`https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`)
+  await page.waitForSelector('._2jol0L .W2HjBQ button span')
+  await page.click('._2jol0L .W2HjBQ button span')
+  await page.waitForSelector('.bank-transfer-category__body')
+
+  if (cache) {
+    user.selectedShop = function (shops) {
+      for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
+    }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
+
+    user.selectedItem = function (items) {
+      for (const item of items) {
+        if (item.modelid == user.config.modelid) return item
+        if (item.models) {
+          for (const model of item.models) {
+            if (
+              model.itemid == user.config.itemid &&
+              model.shop_id == user.config.shopid &&
+              model.modelid == user.config.modelid
+            ) return item
+          }
+        }
+      }
+    }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
+
+    user.price = user.config.predictPrice || function (item) {
+      if (item.models) {
+        for (const model of item.models) {
+          if (
+            model.itemid == user.config.itemid &&
+            model.shop_id == user.config.shopid &&
+            model.modelid == user.config.modelid &&
+            model.promotionid == user.config.promotionid
+          ) return model.price
+        }
+      }
+      return item.origin_cart_item_price
+    }(user.selectedItem) || user.price
+
+    for (const cookie of await page.cookies('https://shopee.co.id')) {
+      user.userCookie[cookie.name] = {
+        value: cookie.value,
+        Domain: cookie.domain,
+        Path: cookie.path,
+        expires: cookie.expires,
+        size: cookie.size,
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure,
+        session: cookie.session,
+        sameParty: cookie.sameParty,
+        sourceScheme: cookie.sourceScheme,
+        sourcePort: cookie.sourcePort
+      }
+    }
+
+    return postUpdateKeranjang(ctx, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+      if (chunk.error != 0) sendReportToDev(ctx, new Error(JSON.stringify(chunk, null, 2)))
+      curl.close()
+    }).catch((err) => console.error(chalk.red(err)))
+  }
+
+  await page.click('._1WlhIE .PC1-mc button')
+  user.config.end = Date.now();
+  await page.waitForSelector('.payment-safe-page')
+
+  let info = `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
+  info += `\nBot End : <b>${timeConverter(user.config.end, { usemilis: true })}</b>`
+
+  if (user.order.error) {
+    info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
+
+    await postUpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      setNewCookie(user.userCookie, headers['set-cookie'])
+      info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
+      curl.close()
+    }).catch((err) => err);
+
+  } else {
+    info += `\n\n<i>Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+
+    if (user.config.cancel) {
+      await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+        setNewCookie(user.userCookie, headers['set-cookie'])
+        info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
+        curl.close()
+      }).catch((err) => err);
+    }
+  }
+
+  return info
+
 }
