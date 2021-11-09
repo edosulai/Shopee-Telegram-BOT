@@ -5,6 +5,7 @@ const getAddress = require('../request/other/getAddress');
 const getInfoBarang = require('../request/buy/getInfoBarang');
 const postKeranjang = require('../request/buy/postKeranjang');
 const postUpdateKeranjang = require('../request/buy/postUpdateKeranjang');
+const postCancel = require('../request/other/postCancel');
 
 const User = require('../models/User');
 const FlashSale = require('../models/FlashSale');
@@ -151,7 +152,7 @@ module.exports = async function (ctx) {
 
         await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
 
-        const page = await browser.newPage();
+        const [page] = await browser.pages();
         await page.setUserAgent(process.env.USER_AGENT)
 
         while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
@@ -197,15 +198,12 @@ module.exports = async function (ctx) {
         page.on('requestfinished', async (request) => {
           try {
             if (!listRequest.map(e => e.url).includes(request.url())) return;
-
             const response = await request.response();
-
             let responseBody;
             if (request.redirectChain().length === 0) {
               const buffer = await response.buffer();
               responseBody = buffer.toString('utf8');
             }
-
             user[listRequest.find(e => e.url == request.url()).name] = JSON.parse(responseBody)
           } catch (err) {
             await sendReportToDev(ctx, err.message)
@@ -215,12 +213,13 @@ module.exports = async function (ctx) {
         await page.goto(`https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`)
         await page.waitForSelector('._2jol0L .W2HjBQ button span')
         await page.click('._2jol0L .W2HjBQ button span')
-        await page.waitForSelector('._1WlhIE .PC1-mc button')
+        await page.waitForSelector('.bank-transfer-category__body')
         await page.click('._1WlhIE .PC1-mc button')
-        await page.waitFor(2000)
+        user.config.end = Date.now();
+        await page.waitForSelector('.payment-safe-page')
 
         let info = `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-        info += `\nBot End : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
+        info += `\nBot End : <b>${timeConverter(user.config.end, { usemilis: true })}</b>`
 
         if (user.order.error) {
           info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
