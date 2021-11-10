@@ -6,12 +6,10 @@ module.exports = mongoose.model('Logs', {
   itemid: Number,
   shopid: Number,
   modelid: Number,
-  status: Boolean,
-  buyBody: Object,
   infoKeranjang: Object,
   updateKeranjang: Object,
+  checkout: Object,
   infoCheckout: Object,
-  payment: Object,
   selectedShop: Object,
   selectedItem: Object,
   updatedAt: {

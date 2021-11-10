@@ -8,6 +8,7 @@ const postUpdateKeranjang = require('../request/buy/postUpdateKeranjang');
 const postCancel = require('../request/other/postCancel');
 
 const User = require('../models/User');
+const Log = require('../models/Log');
 const FlashSale = require('../models/FlashSale');
 
 const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain, addDots } = require('../helpers')
@@ -38,23 +39,34 @@ module.exports = async function (ctx) {
     return replaceMessage(ctx, user.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
-  let { itemid, shopid, err } = parseShopeeUrl(user.commands.url)
-  if (err) return sendMessage(ctx, err)
-  user.itemid = itemid
-  user.shopid = shopid
-
-  if (user.queue.length > 0) return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
-
   user.flashsale = await FlashSale.find({ teleBotId: process.env.BOT_ID })
 
+  let { itemid, shopid, err } = parseShopeeUrl(user.commands.url)
+  if (err) return sendMessage(ctx, err)
+
+  user.itemid = itemid
+  user.shopid = shopid
   user.quantity = parseInt(user.commands.qty) || 1
   user.url = user.commands.url
   user.skip = user.commands['-skip'] || false
   user.cancel = user.commands['-cancel'] || false
   user.price = user.commands.price ? parseInt(user.commands.price) * 100000 : false
 
+  await Log.findOne({
+    teleBotId: process.env.BOT_ID,
+    teleChatId: ctx.message.chat.id,
+    itemid: user.itemid,
+    shopid: user.shopid,
+  }, async function (err, log) {
+    if (err || !log) return replaceMessage(ctx, user.message, 'Cache Untuk Produk Ini Tidak Tersedia!!')
+    log = JSON.parse(JSON.stringify(log))
+    for (const key in log) {
+      if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
+    }
+  })
+
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     ignoreHTTPSErrors: true,
     defaultViewport: null,
     args: ['--start-maximized']
@@ -74,9 +86,7 @@ module.exports = async function (ctx) {
     do {
       user.start = Date.now()
 
-      if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
-        return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
-      }
+      if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
 
       await getInfoBarang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
@@ -101,36 +111,49 @@ module.exports = async function (ctx) {
             if (user.flashsale[0].promotionid == stock.promotion_id) return stock.model_id
           }
         }
-
         for (const model of barang.item.models) {
           if (model.stock < 1 || model.price_stocks.length < 1) continue
           return model.price_stocks[0].model_id
         }
-
         for (const model of barang.item.models) {
           if (model.stock < 1) continue
           return model.modelid
         }
-
         return null
       }(user.infoBarang)
 
       if (user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
         await getHope(ctx, page, true)
+
+        await Log.updateOne({
+          teleBotId: process.env.BOT_ID,
+          teleChatId: ctx.message.chat.id,
+          itemid: user.itemid,
+          modelid: user.modelid,
+          shopid: user.shopid
+        }, {
+          infoKeranjang: user.infoKeranjang,
+          updateKeranjang: user.updateKeranjang,
+          checkout: user.checkout,
+          infoCheckout: user.infoCheckout,
+          selectedShop: user.selectedShop,
+          selectedItem: user.selectedItem
+        }, { upsert: true }).exec()
       }
 
-      if (!user.infoBarang.item.upcoming_flash_sale || user.skip) break;
+      if (!user.infoBarang.item.upcoming_flash_sale && !user.end) break;
 
-      if (!user.end) {
-        user.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
-      }
+      if (!user.end) user.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
 
-      let msg = timeConverter(Date.now() - user.end, { countdown: true })
-      msg += ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`
+      if (user.end < Date.now() + 60000) break;
 
-      if (user.end < Date.now() + 10000) break;
-
-      await replaceMessage(ctx, user.message, msg)
+      await replaceMessage(ctx, user.message,
+        `${timeConverter(Date.now() - user.end, { countdown: true })} - <i><b>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</b></i>` +
+        `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
+        `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
+        `\ncheckout         = ${typeof user.checkout}` +
+        `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
+      )
 
       await sleep(1000 - (Date.now() - user.start))
 
@@ -141,11 +164,15 @@ module.exports = async function (ctx) {
       return replaceMessage(ctx, user.message, `Semua Stok Barang Sudah Habis`)
     }
 
-    if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) {
-      return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
-    }
+    if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
 
-    await replaceMessage(ctx, user.message, `Mulai Membeli Barang <code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>`, false)
+    await replaceMessage(ctx, user.message,
+      `Mulai Membeli - <i><b>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</b></i>` +
+      `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
+      `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
+      `\ncheckout         = ${typeof user.checkout}` +
+      `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
+    )
 
     while ((user.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
@@ -198,6 +225,8 @@ const getHope = async function (ctx, page, cache) {
     if (!listRequest.map(e => e.url).includes(request.url()) || cache) return request.continue()
 
     const requestName = listRequest.find(e => e.url == request.url()).name;
+
+    if (!user[requestName]) return request.continue()
 
     if (requestName == 'infoKeranjang') {
 
@@ -310,10 +339,14 @@ const getHope = async function (ctx, page, cache) {
     }
   });
 
-  await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`, { timeout: 0 })
-  await page.waitForSelector('._2jol0L .W2HjBQ button span')
-  await page.click('._2jol0L .W2HjBQ button span')
-  await page.waitForSelector('.bank-transfer-category__body')
+  try {
+    await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`, { timeout: 0 })
+    await page.waitForSelector(process.env.CHECKOUT_BUTTON)
+    await page.click(process.env.CHECKOUT_BUTTON)
+    await page.waitForSelector(process.env.PAYMENT_BUTTON)
+  } catch (err) {
+    return sendReportToDev(ctx, err)
+  }
 
   if (cache) {
     user.selectedShop = function (shops) {
@@ -374,13 +407,19 @@ const getHope = async function (ctx, page, cache) {
 
   }
 
-  await page.click('._1WlhIE .PC1-mc button')
   user.end = Date.now();
-  // await page.waitForSelector('.payment-safe-page')
-  await page.waitFor(5000)
 
-  let info = `\n\nBot Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
-  info += `\nBot End : <b>${timeConverter(user.end, { usemilis: true })}</b>`
+  try {
+    await page.click(process.env.PAYMENT_BUTTON)
+    await page.waitForSelector(process.env.BUY_SUCCESS)
+  } catch (err) {
+    return sendReportToDev(ctx, err)
+  }
+
+  console.log(user.end);
+
+  let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
+  info += `\nEnd   : <b>${timeConverter(user.end, { usemilis: true })}</b></code>`
 
   if (user.order.error) {
     info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
@@ -392,12 +431,12 @@ const getHope = async function (ctx, page, cache) {
     }).catch((err) => sendReportToDev(ctx, err));
 
   } else {
-    info += `\n\n<i>Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+    info += `\n\n<i><b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
 
     if (user.cancel) {
       await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
-        info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
+        info += `\n\nAuto Cancel Berhasil`
         curl.close()
       }).catch((err) => sendReportToDev(ctx, err));
     }
