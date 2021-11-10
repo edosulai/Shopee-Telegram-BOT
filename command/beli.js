@@ -160,7 +160,6 @@ module.exports = async function (ctx) {
     } while (!user.skip)
 
     if (!user.modelid) {
-      await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
       return replaceMessage(ctx, user.message, `Semua Stok Barang Sudah Habis`)
     }
 
@@ -180,6 +179,8 @@ module.exports = async function (ctx) {
 
   }).catch((err) => sendReportToDev(ctx, err));
 
+  await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
+  
   return browser.close()
 }
 
