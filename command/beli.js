@@ -53,22 +53,9 @@ module.exports = async function (ctx) {
     ...user.config, ...{
       quantity: parseInt(user.commands.qty) || 1,
       url: user.commands.url,
-      payment: {
-        cod: user.commands['-cod'] || false,
-        shopeePay: user.commands['-shopeepay'] || false,
-        transferBank: function (tansferPrioritys) {
-          if (tansferPrioritys.includes(user.commands.transfer)) {
-            return tansferPrioritys.sort((index, transfer) => index == user.commands.transfer ? -1 : transfer == user.commands.transfer ? 1 : 0)
-          } else {
-            return tansferPrioritys
-          }
-        }(['bni', 'bri', 'bca', 'mandiri', 'bsi', 'permata'])
-      },
       skip: user.commands['-skip'] || false,
       cancel: user.commands['-cancel'] || false,
-      predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false,
-      success: false,
-      fail: 0
+      predictPrice: user.commands.price ? parseInt(user.commands.price) * 100000 : false
     }
   }
 
@@ -127,15 +114,15 @@ module.exports = async function (ctx) {
 
           if (!user.infoBarang.item.upcoming_flash_sale || user.config.skip) break;
 
-          if (!user.config.end) {
-            user.config.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
+          if (!user.end) {
+            user.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
           }
 
-          if (user.config.end < Date.now() + 10000) break;
+          if (user.end < Date.now() + 10000) break;
 
-          await replaceMessage(ctx, user.config.message, timeConverter(Date.now() - user.config.end, { countdown: true }) + ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`)
+          await replaceMessage(ctx, user.config.message, timeConverter(Date.now() - user.end, { countdown: true }) + ` - ${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}`)
 
-          await sleep(1000 - (Date.now() - user.config.start))
+          await sleep(1000 - (Date.now() - user.start))
 
         } while (!user.config.skip)
 
@@ -151,23 +138,15 @@ module.exports = async function (ctx) {
         const [page] = await browser.pages();
         await page.setUserAgent(process.env.USER_AGENT)
 
-        await getCart(ctx, page, true)
+        await getHope(ctx, page, true)
 
-        await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang ${user.infoBarang ? `<code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>` : ''}`, false)
+        await replaceMessage(ctx, user.config.message, `Mulai Membeli Barang <code>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</code>`, false)
 
-        while ((user.config.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
+        while ((user.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
 
-        let info = await getCart(ctx, page)
-
-        if (typeof info == 'string') await replaceMessage(ctx, user.config.message, info, false)
-
-        await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
-          userCookie: user.userCookie,
-          queue: false
-        }).exec()
+        await getHope(ctx, page)
 
         await page.close();
-
       }
 
       curl.close();
@@ -178,9 +157,9 @@ module.exports = async function (ctx) {
   }).catch((err) => sendReportToDev(ctx, err));
 }
 
-const getCart = async function (ctx, page, cache) {
+const getHope = async function (ctx, page, cache) {
   let user = ctx.session
-  user.config.start = Date.now();
+  user.start = Date.now();
 
   await postKeranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
@@ -216,24 +195,44 @@ const getCart = async function (ctx, page, cache) {
   await page.setRequestInterception(true)
   await page.setDefaultNavigationTimeout(0)
 
-  page.on('request', request => request.continue())
+  page.on('request', async (request) => {
+    if (!listRequest.map(e => e.url).includes(request.url()) || cache) return request.continue()
+
+    const requestName = listRequest.find(e => e.url == request.url()).name;
+
+    return request.respond({ 
+      status: user[requestName].responseStatus, 
+      headers: user[requestName].responseHeaders,
+      body: JSON.stringify(user[requestName].responseBody)
+    });
+  })
 
   page.on('requestfinished', async (request) => {
     try {
       if (!listRequest.map(e => e.url).includes(request.url())) return;
+
       const response = await request.response();
+
       let responseBody;
+
       if (request.redirectChain().length === 0) {
         const buffer = await response.buffer();
         responseBody = buffer.toString('utf8');
       }
-      user[listRequest.find(e => e.url == request.url()).name] = JSON.parse(responseBody)
+
+      user[listRequest.find(e => e.url == request.url()).name] = {
+        url: request.url(),
+        responseStatus: response.status(),
+        responseHeaders: response.headers(),
+        responseBody: JSON.parse(responseBody),
+      }
+
     } catch (err) {
       await sendReportToDev(ctx, err.message)
     }
   });
 
-  await page.goto(`https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`)
+  await page.goto(`https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`, { waitUntil: 'load' })
   await page.waitForSelector('._2jol0L .W2HjBQ button span')
   await page.click('._2jol0L .W2HjBQ button span')
   await page.waitForSelector('.bank-transfer-category__body')
@@ -241,7 +240,7 @@ const getCart = async function (ctx, page, cache) {
   if (cache) {
     user.selectedShop = function (shops) {
       for (const shop of shops) if (shop.shop.shopid == user.config.shopid) return shop
-    }(user.infoKeranjang.data.shop_orders) || user.selectedShop || user.infoKeranjang.data.shop_orders[0]
+    }(user.infoKeranjang.responseBody.data.shop_orders) || user.selectedShop || user.infoKeranjang.responseBody.data.shop_orders[0]
 
     user.selectedItem = function (items) {
       for (const item of items) {
@@ -294,36 +293,41 @@ const getCart = async function (ctx, page, cache) {
       if (chunk.error != 0) sendReportToDev(ctx, new Error(JSON.stringify(chunk, null, 2)))
       curl.close()
     }).catch((err) => console.error(chalk.red(err)))
+
   }
 
   await page.click('._1WlhIE .PC1-mc button')
-  user.config.end = Date.now();
+  user.end = Date.now();
   await page.waitForSelector('.payment-safe-page')
 
-  let info = `\n\nBot Start : <b>${timeConverter(user.config.start, { usemilis: true })}</b>`
-  info += `\nBot End : <b>${timeConverter(user.config.end, { usemilis: true })}</b>`
+  // let info = `\n\nBot Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
+  // info += `\nBot End : <b>${timeConverter(user.end, { usemilis: true })}</b>`
 
-  if (user.order.error) {
-    info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
+  // if (user.order.error) {
+  //   info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
-    await postUpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-      curl.close()
-    }).catch((err) => err);
+  //   await postUpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
+  //     setNewCookie(user.userCookie, headers['set-cookie'])
+  //     info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
+  //     curl.close()
+  //   }).catch((err) => err);
 
-  } else {
-    info += `\n\n<i>Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+  // } else {
+  //   info += `\n\n<i>Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
 
-    if (user.config.cancel) {
-      await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        setNewCookie(user.userCookie, headers['set-cookie'])
-        info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
-        curl.close()
-      }).catch((err) => err);
-    }
-  }
+  //   if (user.config.cancel) {
+  //     await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+  //       setNewCookie(user.userCookie, headers['set-cookie'])
+  //       info += `\n\nAuto Cancel Barang (${user.infoBarang.item.name}) Berhasil`
+  //       curl.close()
+  //     }).catch((err) => err);
+  //   }
+  // }
 
-  return info
+  // await replaceMessage(ctx, user.config.message, info, false)
 
+  // await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
+  //   userCookie: user.userCookie,
+  //   queue: false
+  // }).exec()
 }

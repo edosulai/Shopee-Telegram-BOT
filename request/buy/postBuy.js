@@ -54,7 +54,7 @@ module.exports = async function (ctx) {
       "headers": {},
       "client_id": user.infoCheckout.client_id,
       "cart_type": user.infoCheckout.cart_type,
-      "timestamp": Math.floor(user.config.start / 1000),
+      "timestamp": Math.floor(user.start / 1000),
       "checkout_price_data": {
         "merchandise_subtotal": user.price * user.config.quantity,
         "total_payable": shipping_orders.shipping_fee + (user.price * user.config.quantity) + tax.value,
@@ -188,8 +188,8 @@ module.exports = async function (ctx) {
 
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
     .setOtherOpt(function (curl) {
-      user.config.end = Date.now();
-      user.config.checkout = user.config.checkout || user.config.end
+      user.end = Date.now();
+      user.config.checkout = user.config.checkout || user.end
     }).setHeaders([
       'authority: shopee.co.id',
       'pragma: no-cache',
@@ -201,7 +201,7 @@ module.exports = async function (ctx) {
       'x-sap-access-f: 3.2.95.2.0|113|1.0.0_0.4.7_2_4017|556098ee8a2b40c0baf2e48eee6f9ed0328223c3af9144|10101|100',
       'x-shopee-language: id',
       'x-requested-with: XMLHttpRequest',
-      `x-sap-access-t: ${Math.floor(user.config.start / 1000)}`,
+      `x-sap-access-t: ${Math.floor(user.start / 1000)}`,
       'if-none-match-: 55b03-643650f4f1bf59e32118d776cc88a1f3',
       // 'x-sap-access-s: j1Y0gVYoi6KyWMf12eySGFcl2rDn_11YEBjRZ5Ebxt4=',
       'x-sap-access-s: kBD8PtODnVrbDfMzJb8u1qcsxwF-vl8YSugKaAkoI1M=',
@@ -400,8 +400,8 @@ module.exports = async function (ctx) {
 
   // return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
   //   .setOtherOpt(function (curl) {
-  //     user.config.end = Date.now();
-  //     user.config.checkout = user.config.checkout || user.config.end
+  //     user.end = Date.now();
+  //     user.config.checkout = user.config.checkout || user.end
   //   }).setHeaders([
   //     'authority: shopee.co.id',
   //     'pragma: no-cache',
