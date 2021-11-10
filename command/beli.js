@@ -180,7 +180,7 @@ module.exports = async function (ctx) {
   }).catch((err) => sendReportToDev(ctx, err));
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
-  
+
   return browser.close()
 }
 
@@ -344,7 +344,7 @@ const getHope = async function (ctx, page, cache) {
     await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`, { timeout: 0 })
     await page.waitForSelector(process.env.CHECKOUT_BUTTON)
     await page.click(process.env.CHECKOUT_BUTTON)
-    await page.waitForSelector(process.env.PAYMENT_BUTTON)
+    await page.waitForSelector(process.env.TRANSFER_BANK)
   } catch (err) {
     return sendReportToDev(ctx, err)
   }
@@ -411,7 +411,11 @@ const getHope = async function (ctx, page, cache) {
   user.end = Date.now();
 
   try {
-    await page.click(process.env.PAYMENT_BUTTON)
+    await page.click(process.env.TRANSFER_BANK)
+    await page.waitForSelector(process.env.BSI_CEK_OTOMATIS)
+    await page.click(process.env.BSI_CEK_OTOMATIS)
+    await page.waitForSelector(process.env.ORDER_BUTTON)
+    await page.click(process.env.ORDER_BUTTON)
     await page.waitForSelector(process.env.BUY_SUCCESS)
   } catch (err) {
     return sendReportToDev(ctx, err)
