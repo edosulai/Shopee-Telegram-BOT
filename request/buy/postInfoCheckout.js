@@ -33,11 +33,11 @@ module.exports = async function (ctx) {
     ]).setBody(JSON.stringify({
       "_cft": [11],
       "shoporders": [{
-        "shop": { "shopid": user.config.shopid },
+        "shop": { "shopid": user.shopid },
         "items": [{
-          "itemid": user.config.itemid,
-          "modelid": user.config.modelid,
-          "quantity": user.config.quantity,
+          "itemid": user.itemid,
+          "modelid": user.modelid,
+          "quantity": user.quantity,
           "add_on_deal_id": user.selectedItem.add_on_deal_id,
           "is_add_on_sub_item": user.selectedItem.is_add_on_sub_item,
           "item_group_id": user.selectedItem.item_group_id,
@@ -89,14 +89,14 @@ module.exports = async function (ctx) {
   //     `cookie: ${serializeCookie(user.userCookie)}`
   //   ]).setBody(JSON.stringify({
   //     "shoporders": [{
-  //       "shop": { "shopid": user.config.shopid },
+  //       "shop": { "shopid": user.shopid },
   //       "items": [{
-  //         "itemid": user.config.itemid,
-  //         "modelid": user.config.modelid,
+  //         "itemid": user.itemid,
+  //         "modelid": user.modelid,
   //         "add_on_deal_id": user.selectedItem.add_on_deal_id,
   //         "is_add_on_sub_item": user.selectedItem.is_add_on_sub_item,
   //         "item_group_id": user.selectedItem.item_group_id,
-  //         "quantity": user.config.quantity
+  //         "quantity": user.quantity
   //       }],
   //       "logistics": { "recommended_channelids": null },
   //       "buyer_address_data": {},

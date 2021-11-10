@@ -30,11 +30,11 @@ module.exports = async function (ctx, action) {
     ]).setBody(JSON.stringify({
       "action_type": action,
       "updated_shop_order_ids": [{
-        "shopid": user.config.shopid,
+        "shopid": user.shopid,
         "item_briefs": [{
-          "shopid": user.config.shopid,
-          "itemid": user.config.itemid,
-          "modelid": user.config.modelid,
+          "shopid": user.shopid,
+          "itemid": user.itemid,
+          "modelid": user.modelid,
           "item_group_id": user.selectedItem.item_group_id,
           "add_on_deal_id": user.selectedItem.add_on_deal_id,
           "is_add_on_sub_item": user.selectedItem.is_add_on_sub_item,
@@ -42,17 +42,17 @@ module.exports = async function (ctx, action) {
           "old_modelid": null,
           "old_quantity": user.selectedItem.quantity,
           "checkout": false,
-          "applied_promotion_id": user.config.promotionid,
+          "applied_promotion_id": user.promotionid,
           "price": user.price
         }]
       }],
       "selected_shop_order_ids": [{
-        "shopid": user.config.shopid,
+        "shopid": user.shopid,
         "item_briefs": action == 2 ? [] : [{
-          "itemid": user.config.itemid,
-          "modelid": user.config.modelid,
+          "itemid": user.itemid,
+          "modelid": user.modelid,
           "item_group_id": user.selectedItem.item_group_id,
-          "applied_promotion_id": user.config.promotionid,
+          "applied_promotion_id": user.promotionid,
           "offerid": user.selectedItem.offerid,
           "price": user.price,
           "quantity": user.selectedItem.quantity,

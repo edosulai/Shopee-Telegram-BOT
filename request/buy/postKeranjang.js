@@ -24,19 +24,19 @@ module.exports = async function (ctx) {
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      `referer: ${user.config.url}`,
+      `referer: ${user.url}`,
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       `cookie: ${serializeCookie(user.userCookie)}`
     ]).setBody(JSON.stringify({
-      "quantity": user.config.quantity,
+      "quantity": user.quantity,
       "checkout": true,
       "update_checkout_only": false,
       "donot_add_quantity": false,
       "source": "{\"refer_urls\":[]}",
       "client_source": 1,
-      "shopid": user.config.shopid,
-      "itemid": user.config.itemid,
-      "modelid": user.config.modelid,
+      "shopid": user.shopid,
+      "itemid": user.itemid,
+      "modelid": user.modelid,
       ...function (item) {
         if (item.add_on_deal_info != null) return { "add_on_deal_id": item.add_on_deal_id }
       }(user.infoBarang.item)

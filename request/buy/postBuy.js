@@ -56,8 +56,8 @@ module.exports = async function (ctx) {
       "cart_type": user.infoCheckout.cart_type,
       "timestamp": Math.floor(user.start / 1000),
       "checkout_price_data": {
-        "merchandise_subtotal": user.price * user.config.quantity,
-        "total_payable": shipping_orders.shipping_fee + (user.price * user.config.quantity) + tax.value,
+        "merchandise_subtotal": user.price * user.quantity,
+        "total_payable": shipping_orders.shipping_fee + (user.price * user.quantity) + tax.value,
         "shipping_subtotal": checkout_price_data.shipping_subtotal,
         "shipping_subtotal_before_discount": checkout_price_data.shipping_subtotal_before_discount,
         "shipping_discount_subtotal": checkout_price_data.shipping_discount_subtotal,
@@ -139,8 +139,8 @@ module.exports = async function (ctx) {
         "shipping_id": shoporders.shipping_id,
         "shipping_fee_discount": shoporders.shipping_fee_discount,
         "shipping_fee": shoporders.shipping_fee,
-        "order_total_without_shipping": user.price * user.config.quantity,
-        "order_total": shoporders.shipping_fee + (user.price * user.config.quantity),
+        "order_total_without_shipping": user.price * user.quantity,
+        "order_total": shoporders.shipping_fee + (user.price * user.quantity),
         "buyer_remark": shoporders.buyer_remark || "",
         "buyer_ic_number": shoporders.buyer_ic_number || "",
         "ext_ad_info_mappings": [],
@@ -159,8 +159,8 @@ module.exports = async function (ctx) {
         "buyer_remark": shipping_orders.buyer_remark || "",
         "buyer_address_data": shipping_orders.buyer_address_data,
         "fulfillment_info": shipping_orders.fulfillment_info,
-        "order_total": shipping_orders.shipping_fee + (user.price * user.config.quantity),
-        "order_total_without_shipping": user.price * user.config.quantity,
+        "order_total": shipping_orders.shipping_fee + (user.price * user.quantity),
+        "order_total_without_shipping": user.price * user.quantity,
         "selected_logistic_channelid_with_warning": shipping_orders.selected_logistic_channelid_with_warning,
         "shipping_fee": shipping_orders.shipping_fee,
         "shipping_fee_discount": shipping_orders.shipping_fee_discount,
@@ -189,7 +189,7 @@ module.exports = async function (ctx) {
   return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
     .setOtherOpt(function (curl) {
       user.end = Date.now();
-      user.config.checkout = user.config.checkout || user.end
+      user.checkout = user.checkout || user.end
     }).setHeaders([
       'authority: shopee.co.id',
       'pragma: no-cache',
@@ -271,7 +271,7 @@ module.exports = async function (ctx) {
   //       {
   //         "selected_logistic_channelid": shipping_orders.selected_logistic_channelid,
   //         "cod_fee": shipping_orders.cod_fee,
-  //         "order_total": shipping_orders.shipping_fee + (user.price * user.config.quantity),
+  //         "order_total": shipping_orders.shipping_fee + (user.price * user.quantity),
   //         "shipping_id": shipping_orders.shipping_id,
   //         "shopee_shipping_discount_id": shipping_orders.shopee_shipping_discount_id,
   //         "selected_logistic_channelid_with_warning": shipping_orders.selected_logistic_channelid_with_warning,
@@ -280,7 +280,7 @@ module.exports = async function (ctx) {
   //         "selected_preferred_delivery_time_option_id": 0,
   //         "buyer_remark": shipping_orders.buyer_remark || "",
   //         "buyer_address_data": shipping_orders.buyer_address_data,
-  //         "order_total_without_shipping": user.price * user.config.quantity,
+  //         "order_total_without_shipping": user.price * user.quantity,
   //         "tax_payable": shipping_orders.tax_payable,
   //         "amount_detail": {
   //           "BASIC_SHIPPING_FEE": shipping_orders.amount_detail.BASIC_SHIPPING_FEE,
@@ -291,7 +291,7 @@ module.exports = async function (ctx) {
   //           "SELLER_ESTIMATED_BASIC_SHIPPING_FEE": shipping_orders.amount_detail.SELLER_ESTIMATED_BASIC_SHIPPING_FEE,
   //           "SHIPPING_DISCOUNT_BY_SHOPEE": shipping_orders.amount_detail.SHIPPING_DISCOUNT_BY_SHOPEE,
   //           "INSURANCE_FEE": shipping_orders.amount_detail.INSURANCE_FEE,
-  //           "ITEM_TOTAL": user.price * user.config.quantity,
+  //           "ITEM_TOTAL": user.price * user.quantity,
   //           "TAX_EXEMPTION": shipping_orders.amount_detail.TAX_EXEMPTION,
   //           "shop_promo_only": shipping_orders.amount_detail.shop_promo_only,
   //           "COD_FEE": shipping_orders.amount_detail.COD_FEE,
@@ -308,20 +308,20 @@ module.exports = async function (ctx) {
   //       }
   //     ],
   //     "disabled_checkout_info": user.infoCheckout.disabled_checkout_info,
-  //     "timestamp": Math.floor(user.config.timestamp / 1000),
+  //     "timestamp": Math.floor(user.timestamp / 1000),
   //     "checkout_price_data": {
   //       "shipping_subtotal": checkout_price_data.shipping_subtotal,
   //       "shipping_discount_subtotal": checkout_price_data.shipping_discount_subtotal,
   //       "shipping_subtotal_before_discount": checkout_price_data.shipping_subtotal_before_discount,
   //       "bundle_deals_discount": checkout_price_data.bundle_deals_discount,
   //       "group_buy_discount": checkout_price_data.group_buy_discount,
-  //       "merchandise_subtotal": user.price * user.config.quantity,
+  //       "merchandise_subtotal": user.price * user.quantity,
   //       "tax_payable": checkout_price_data.tax_payable,
   //       "buyer_txn_fee": checkout_price_data.buyer_txn_fee,
   //       "credit_card_promotion": checkout_price_data.credit_card_promotion,
   //       "promocode_applied": checkout_price_data.promocode_applied,
   //       "shopee_coins_redeemed": checkout_price_data.shopee_coins_redeemed,
-  //       "total_payable": shipping_orders.shipping_fee + (user.price * user.config.quantity) + tax.value,
+  //       "total_payable": shipping_orders.shipping_fee + (user.price * user.quantity) + tax.value,
   //       "tax_exemption": checkout_price_data.tax_exemption
   //     },
   //     "client_id": user.infoCheckout.client_id,
@@ -353,14 +353,14 @@ module.exports = async function (ctx) {
   //         "shop": shoporders.shop,
   //         "buyer_remark": shoporders.buyer_remark || "",
   //         "shipping_fee": shoporders.shipping_fee,
-  //         "order_total": shoporders.shipping_fee + (user.price * user.config.quantity),
+  //         "order_total": shoporders.shipping_fee + (user.price * user.quantity),
   //         "shipping_id": shoporders.shipping_id,
   //         "buyer_ic_number": shoporders.buyer_ic_number || "",
   //         "items": function (items) {
   //           items[0].stock = 0
   //           items[0].price = user.price
-  //           items[0].promotion_id = user.config.promotionid
-  //           items[0].is_flash_sale = user.config.flashSale
+  //           items[0].promotion_id = user.promotionid
+  //           items[0].is_flash_sale = user.flashSale
   //           return items
   //         }(shoporders.items),
   //         "selected_preferred_delivery_time_option_id": 0,
@@ -370,7 +370,7 @@ module.exports = async function (ctx) {
   //         "buyer_address_data": shoporders.buyer_address_data,
   //         "shipping_fee_discount": shoporders.shipping_fee_discount,
   //         "tax_info": shoporders.tax_info,
-  //         "order_total_without_shipping": user.price * user.config.quantity,
+  //         "order_total_without_shipping": user.price * user.quantity,
   //         "tax_exemption": shoporders.tax_exemption,
   //         "amount_detail": {
   //           "BASIC_SHIPPING_FEE": shoporders.amount_detail.BASIC_SHIPPING_FEE,
@@ -381,7 +381,7 @@ module.exports = async function (ctx) {
   //           "SELLER_ESTIMATED_BASIC_SHIPPING_FEE": shoporders.amount_detail.SELLER_ESTIMATED_BASIC_SHIPPING_FEE,
   //           "SHIPPING_DISCOUNT_BY_SHOPEE": shoporders.amount_detail.SHIPPING_DISCOUNT_BY_SHOPEE,
   //           "INSURANCE_FEE": shoporders.amount_detail.INSURANCE_FEE,
-  //           "ITEM_TOTAL": user.price * user.config.quantity,
+  //           "ITEM_TOTAL": user.price * user.quantity,
   //           "TAX_EXEMPTION": shoporders.amount_detail.TAX_EXEMPTION,
   //           "shop_promo_only": shoporders.amount_detail.shop_promo_only,
   //           "COD_FEE": shoporders.amount_detail.COD_FEE,
@@ -401,7 +401,7 @@ module.exports = async function (ctx) {
   // return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
   //   .setOtherOpt(function (curl) {
   //     user.end = Date.now();
-  //     user.config.checkout = user.config.checkout || user.end
+  //     user.checkout = user.checkout || user.end
   //   }).setHeaders([
   //     'authority: shopee.co.id',
   //     'pragma: no-cache',

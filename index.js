@@ -54,18 +54,16 @@ bot.telegram.getMe().then(async (botInfo) => {
         await getAddress({ session: user }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
           setNewCookie(user.userCookie, headers['set-cookie'])
           curl.close()
-        })
+        }).catch((err) => sendReportToDev(bot, err))
 
-        user.config = {
-          itemid: 0,
-          modelid: 0,
-          shopid: 0,
-        }
+        user.itemid = 0
+        user.modelid = 0
+        user.shopid = 0
 
         await postInfoKeranjang({ session: user }).then(({ statusCode, body, headers, curlInstance, curl }) => {
           setNewCookie(user.userCookie, headers['set-cookie'])
           curl.close()
-        }).catch((err) => err)
+        }).catch((err) => sendReportToDev(bot, err))
 
         await User.updateOne({
           teleBotId: user.teleBotId,
@@ -138,7 +136,7 @@ bot.use((ctx, next) => {
     queue: false,
     alarm: false
   }, async function (err, user, created) {
-    if (err) return sendReportToDev(ctx, new Error(err))
+    if (err) return sendReportToDev(ctx, err)
     if (created) sendReportToDev(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
     ctx.session.Curl = Curl
@@ -165,6 +163,6 @@ bot.command('event', require('./command/event'))
 bot.command('beli', require('./command/beli'))
 bot.command('quit', require('./command/quit'))
 
-bot.catch((err, ctx) => sendReportToDev(ctx, new Error(err)))
+bot.catch((err, ctx) => sendReportToDev(ctx, err))
 
 bot.launch()

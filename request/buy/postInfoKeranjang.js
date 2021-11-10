@@ -22,7 +22,7 @@ module.exports = async function (ctx) {
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      `referer: https://shopee.co.id/cart?itemKeys=${user.config.itemid}.${user.config.modelid}.&shopId=${user.config.shopid}`,
+      `referer: https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`,
       'accept-language: en-US,en;q=0.9',
       `cookie: ${serializeCookie(user.userCookie)}`,
     ]).setBody(JSON.stringify({ "pre_selected_item_list": [] })).post(`https://shopee.co.id/api/v4/cart/get`)

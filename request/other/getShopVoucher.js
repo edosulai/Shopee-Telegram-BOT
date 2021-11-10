@@ -17,8 +17,8 @@ module.exports = async function (user) {
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      `referer: ${user.config.url}`,
+      `referer: ${user.url}`,
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       `cookie: ${serializeCookie(user.userCookie)}`
-    ]).get(`https://shopee.co.id/api/v2/voucher_wallet/get_shop_vouchers_by_shopid?itemid=${user.config.itemid}&shopid=${user.config.shopid}&with_claiming_status=true`)
+    ]).get(`https://shopee.co.id/api/v2/voucher_wallet/get_shop_vouchers_by_shopid?itemid=${user.itemid}&shopid=${user.shopid}&with_claiming_status=true`)
 }

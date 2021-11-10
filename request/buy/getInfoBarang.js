@@ -19,8 +19,8 @@ module.exports = async function (ctx) {
       'sec-fetch-site: same-origin',
       'sec-fetch-mode: cors',
       'sec-fetch-dest: empty',
-      `referer: ${user.config.url}`,
+      `referer: ${user.url}`,
       'accept-language: en-US,en;q=0.9',
       `cookie: ${serializeCookie(user.userCookie)}`
-    ]).get(`https://shopee.co.id/api/v2/item/get?itemid=${user.config.itemid}&shopid=${user.config.shopid}`)
+    ]).get(`https://shopee.co.id/api/v2/item/get?itemid=${user.itemid}&shopid=${user.shopid}`)
 }

@@ -302,7 +302,7 @@ const parseShopeeUrl = function (urlShopee) {
 }
 
 const paymentMethod = function (user, channels, checkEnable = false) {
-  let payment = user.config.payment
+  let payment = user.payment
 
   let paymentMethod = {}
   for (const channel of channels) {

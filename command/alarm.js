@@ -23,7 +23,7 @@ module.exports = async function alarmFlashSale(ctx) {
     return sendMessage(ctx, 'Alarm Sudah Berjalan!!')
   }
 
-  user.config = {
+  user = {
     autobuy: user.commands['-autobuy'],
     alarmMessage: [],
     beginMax: [],
@@ -36,15 +36,15 @@ module.exports = async function alarmFlashSale(ctx) {
 
   for await (const [index, session] of user.flashsale.entries()) {
     await sendMessage(ctx, `<code>${session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-      user.config.alarmMessage[index] = {
+      user.alarmMessage[index] = {
         chatId: replyCtx.chat.id,
         msgId: replyCtx.message_id,
         inlineMsgId: replyCtx.inline_message_id,
         text: replyCtx.text
       }
-      user.config.beginMax[index] = { price_before_discount: 0, url: null }
-      user.config.max[index] = { price_before_discount: 0, url: null }
-      user.config.eventLength[index] = 0
+      user.beginMax[index] = { price_before_discount: 0, url: null }
+      user.max[index] = { price_before_discount: 0, url: null }
+      user.eventLength[index] = 0
     })
   }
 
@@ -60,7 +60,7 @@ module.exports = async function alarmFlashSale(ctx) {
 
     for await (const [index, session] of user.flashsale.entries()) {
       if (index == 0 && ((session.end_time - 10) * 1000) - Date.now() < 0) {
-        for (const msg of user.config.alarmMessage) {
+        for (const msg of user.alarmMessage) {
           await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
         }
         await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: false }).exec()
@@ -106,13 +106,13 @@ module.exports = async function alarmFlashSale(ctx) {
       if (!user.start) continue;
 
       let banner = session.name + (session.with_mega_sale_session ? " | MEGA SALE" : "")
-      user.config.max[index] = { price_before_discount: 0, url: null }
+      user.max[index] = { price_before_discount: 0, url: null }
       let eventLength = 0;
 
       for await (const item of user.getFlashSaleSession.data.items) {
         if (predictPrice[item.hidden_price_display] && (item.price_before_discount / minPredict > minPredict)) {
-          if (item.price_before_discount > user.config.max[index].price_before_discount) {
-            user.config.max[index] = {
+          if (item.price_before_discount > user.max[index].price_before_discount) {
+            user.max[index] = {
               price_before_discount: item.price_before_discount,
               url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`
             }
@@ -136,11 +136,11 @@ module.exports = async function alarmFlashSale(ctx) {
 
       if (
         index == 0 &&
-        user.config.beginMax[index].url != user.config.max[index].url &&
-        user.config.beginMax[index].price_before_discount != user.config.max[index].price_before_discount &&
-        user.config.autobuy
+        user.beginMax[index].url != user.max[index].url &&
+        user.beginMax[index].price_before_discount != user.max[index].price_before_discount &&
+        user.autobuy
       ) {
-        user.config.beginMax[index] = user.config.max[index]
+        user.beginMax[index] = user.max[index]
 
         let newCtx = function (theCtx) {
           let newCtx = theCtx
@@ -148,11 +148,11 @@ module.exports = async function alarmFlashSale(ctx) {
         }(ctx)
 
         newCtx.session.commands = {
-          url: user.config.max[index].url,
+          url: user.max[index].url,
           '-vip': true
         }
 
-        await sendMessage(ctx, `Memuat... <code>${user.config.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
+        await sendMessage(ctx, `Memuat... <code>${user.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
           newCtx.session.config.message = {
             chatId: replyCtx.chat.id,
             msgId: replyCtx.message_id,
@@ -162,12 +162,12 @@ module.exports = async function alarmFlashSale(ctx) {
         })
 
         // await getItem(newCtx)
-        // await ctx.telegram.deleteMessage(user.config.message.chatId, user.config.message.msgId)
+        // await ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
       }
 
-      if (eventLength != user.config.eventLength[index]) {
-        user.config.eventLength[index] = eventLength;
-        await replaceMessage(ctx, user.config.alarmMessage[index], banner)
+      if (eventLength != user.eventLength[index]) {
+        user.eventLength[index] = eventLength;
+        await replaceMessage(ctx, user.alarmMessage[index], banner)
       }
 
       await sleep(1000 - (Date.now() - user.start))
@@ -175,7 +175,7 @@ module.exports = async function alarmFlashSale(ctx) {
 
   } while (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, alarm: true }));
 
-  for (const msg of user.config.alarmMessage) {
+  for (const msg of user.alarmMessage) {
     await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
   }
 }
