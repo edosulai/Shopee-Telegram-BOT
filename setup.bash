@@ -9,4 +9,6 @@ sudo apt-get install -y nodejs
 npm install -y
 npm audit fix -y
 sudo npm install nodemon -g
+git config --global user.email "ngufeel@gmail.com"
+git config --global user.name "edosulai"
 sudo git config credential.helper store

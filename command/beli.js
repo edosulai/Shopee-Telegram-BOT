@@ -236,13 +236,9 @@ const getHope = async function (ctx, page, cache) {
     } else if (requestName == 'checkout') {
 
     } else if (requestName == 'infoCheckout') {
-      let shipping_orders = user[requestName].responseBody.shipping_orders[0]
-      let checkout_price_data = user[requestName].responseBody.checkout_price_data
-      let promotion_data = user[requestName].responseBody.promotion_data
 
       user[requestName].responseBody.timestamp = Math.floor(user.start / 1000)
       user[requestName].responseBody.checkout_price_data.merchandise_subtotal = user.price * user.quantity
-      user[requestName].responseBody.checkout_price_data.total_payable = shipping_orders.shipping_fee + (user.price * user.quantity) + tax.value
 
       for (const [shoporders_index, shoporders] of user[requestName].responseBody.shoporders.entries()) {
         for (const [items_index, items] of shoporders.items.entries()) {
@@ -257,6 +253,7 @@ const getHope = async function (ctx, page, cache) {
         user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total_without_shipping = user.price * user.quantity
         user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total = shipping_orders.shipping_fee + (user.price * user.quantity)
 
+        user[requestName].responseBody.checkout_price_data.total_payable = user[requestName].responseBody.shipping_orders[shipping_orders_index].shipping_fee + (user.price * user.quantity) + parseInt(100000000)
       }
 
       user[requestName].responseBody.dropshipping_info = {
