@@ -50,20 +50,23 @@ module.exports = async function (ctx) {
   user.url = user.commands.url
   user.skip = user.commands['-skip'] || false
   user.cancel = user.commands['-cancel'] || false
+  user.cache = user.commands['-cache'] || false
   user.price = user.commands.price ? parseInt(user.commands.price) * 100000 : false
 
-  await Log.findOne({
-    teleBotId: process.env.BOT_ID,
-    teleChatId: ctx.message.chat.id,
-    itemid: user.itemid,
-    shopid: user.shopid,
-  }, async function (err, log) {
-    if (err || !log) return replaceMessage(ctx, user.message, 'Cache Untuk Produk Ini Tidak Tersedia!!')
-    log = JSON.parse(JSON.stringify(log))
-    for (const key in log) {
-      if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
-    }
-  })
+  if (user.cache) {
+    await Log.findOne({
+      teleBotId: process.env.BOT_ID,
+      teleChatId: ctx.message.chat.id,
+      itemid: user.itemid,
+      shopid: user.shopid,
+    }, async function (err, log) {
+      if (err || !log) return replaceMessage(ctx, user.message, 'Cache Untuk Produk Ini Tidak Tersedia!!')
+      log = JSON.parse(JSON.stringify(log))
+      for (const key in log) {
+        if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
+      }
+    })
+  }
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -80,6 +83,17 @@ module.exports = async function (ctx) {
 
     const [page] = await browser.pages();
     await page.setUserAgent(process.env.USER_AGENT)
+
+    await page.setCookie(...Object.keys(user.userCookie).map((key) => {
+      return {
+        name: key,
+        value: user.userCookie[key].value,
+        url: 'https://shopee.co.id/',
+        domain: user.userCookie[key].Domain || 'shopee.co.id',
+      }
+    }))
+
+    await page.goto(`https://shopee.co.id/cart`)
 
     await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: true }).exec()
 
@@ -122,7 +136,7 @@ module.exports = async function (ctx) {
         return null
       }(user.infoBarang)
 
-      if (user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
+      if (user.cache && user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
         await getHope(ctx, page, true)
 
         await Log.updateOne({
@@ -173,7 +187,7 @@ module.exports = async function (ctx) {
       `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
     )
 
-    while ((user.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) continue;
+    while (((user.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) && !user.skip) continue;
 
     await getHope(ctx, page)
 
@@ -220,7 +234,6 @@ const getHope = async function (ctx, page, cache) {
   }))
 
   await page.setRequestInterception(true)
-  await page.setDefaultNavigationTimeout(0)
 
   page.on('request', async (request) => {
     if (!listRequest.map(e => e.url).includes(request.url()) || cache) return request.continue()
@@ -341,10 +354,10 @@ const getHope = async function (ctx, page, cache) {
   });
 
   try {
-    await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`, { timeout: 0 })
-    await page.waitForSelector(process.env.CHECKOUT_BUTTON)
+    await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`)
+    // await page.waitForRequest('https://shopee.co.id/api/v4/cart/update', { method: 'POST', timeout: 5000 })
+    await page.waitForSelector(process.env.CHECKOUT_BUTTON, { method: 'POST', timeout: 5000 })
     await page.click(process.env.CHECKOUT_BUTTON)
-    await page.waitForSelector(process.env.TRANSFER_BANK)
   } catch (err) {
     return sendReportToDev(ctx, err)
   }
@@ -411,17 +424,22 @@ const getHope = async function (ctx, page, cache) {
   user.end = Date.now();
 
   try {
-    await page.click(process.env.TRANSFER_BANK)
-    await page.waitForSelector(process.env.BSI_CEK_OTOMATIS)
-    await page.click(process.env.BSI_CEK_OTOMATIS)
-    await page.waitForSelector(process.env.ORDER_BUTTON)
+    await page.waitForRequest('https://shopee.co.id/api/v4/checkout/get', { method: 'POST', timeout: 5000 })
+    // await page.waitForSelector(process.env.TRANSFER_BANK, { timeout: 5000 })
+    // await page.click(process.env.TRANSFER_BANK)
+    // await page.click(process.env.BNI_CEK_OTOMATIS)
+    // await page.click(process.env.BRI_CEK_OTOMATIS)
+    // await page.click(process.env.BSI_CEK_OTOMATIS)
+    
+    await page.waitForSelector(process.env.ORDER_BUTTON, { timeout: 5000 })
+
     await page.click(process.env.ORDER_BUTTON)
-    await page.waitForSelector(process.env.BUY_SUCCESS)
+    await page.click(process.env.ORDER_BUTTON)
+
+    await page.waitForResponse('https://shopee.co.id/api/v4/checkout/place_order', { method: 'POST', timeout: 5000 })
   } catch (err) {
     return sendReportToDev(ctx, err)
   }
-
-  console.log(user.end);
 
   let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
   info += `\nEnd   : <b>${timeConverter(user.end, { usemilis: true })}</b></code>`
