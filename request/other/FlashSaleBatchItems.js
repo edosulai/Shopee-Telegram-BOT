@@ -22,9 +22,9 @@ module.exports = async function (ctx) {
       'referer: https://shopee.co.id/flash_sale',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
     ]).setBody(JSON.stringify({
-      "promotionid": user.getAllItemids.data.promotionid,
+      "promotionid": user.AllItemids.data.promotionid,
       "categoryid": 0,
-      "itemids": user.getAllItemids.data.item_brief_list.filter((item, index) => {
+      "itemids": user.AllItemids.data.item_brief_list.filter((item, index) => {
         if (index < 50) return item.itemid
       }).map((item) => item.itemid),
       "sort_soldout": true,

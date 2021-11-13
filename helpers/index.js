@@ -144,7 +144,7 @@ const isValidURL = function (string) {
 
 const ensureRole = function (ctx, ignoreReport = false, allowRole = [1]) {
   if (allowRole.includes(ctx.session.userRole)) return true
-  if (!ignoreReport) sendReportToDev(ctx, `Mencoba Mengakses Fitur BOT`, 'Info')
+  if (!ignoreReport) logReport(ctx, `Mencoba Mengakses Fitur BOT`, 'Info')
   return false
 }
 
@@ -212,7 +212,7 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
   }
 }
 
-const sendReportToDev = async function (ctx, msg, type = '') {
+const logReport = async function (ctx, msg, type = '') {
   if (ctx.telegram) {
     return ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
   } else {
@@ -437,7 +437,7 @@ module.exports = {
   extractRootDomain,
   sendMessage,
   replaceMessage,
-  sendReportToDev,
+  logReport,
   serializeCookie,
   setNewCookie,
   objectSize,

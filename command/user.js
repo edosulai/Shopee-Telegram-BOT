@@ -1,6 +1,6 @@
 const User = require('../models/User');
 
-const { sendReportToDev, ensureRole, getCommands, objectSize } = require('../helpers')
+const { logReport, ensureRole, getCommands, objectSize } = require('../helpers')
 
 module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return
@@ -9,7 +9,7 @@ module.exports = async function (ctx) {
 
   if (objectSize(user.commands) < 1) {
     return User.find({ teleBotId: process.env.BOT_ID }, function (err, users) {
-      if (err) return sendReportToDev(ctx, new Error(err))
+      if (err) return logReport(ctx, new Error(err))
       let alluser = ``
       for (let user of users) {
         let theUser = JSON.parse(JSON.stringify(user)).teleChatData
@@ -30,7 +30,7 @@ module.exports = async function (ctx) {
     }).exec()
 
     return User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: user.commands.id }, async function (err, newUser) {
-      if (err) return sendReportToDev(ctx, new Error(err))
+      if (err) return logReport(ctx, new Error(err))
       return ctx.reply(`<code>${newUser}</code>`, { parse_mode: 'HTML' })
     })
   }

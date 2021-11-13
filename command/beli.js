@@ -1,17 +1,17 @@
 const psl = require('psl');
 const puppeteer = require('puppeteer');
 
-const getAddress = require('../request/other/getAddress');
-const getInfoBarang = require('../request/buy/getInfoBarang');
-const postKeranjang = require('../request/buy/postKeranjang');
-const postUpdateKeranjang = require('../request/buy/postUpdateKeranjang');
-const postCancel = require('../request/other/postCancel');
+const Address = require('../request/other/Address');
+const InfoBarang = require('../request/buy/InfoBarang');
+const Keranjang = require('../request/buy/Keranjang');
+const UpdateKeranjang = require('../request/buy/UpdateKeranjang');
+const Cancel = require('../request/other/Cancel');
 
 const User = require('../models/User');
 const Log = require('../models/Log');
 const FlashSale = require('../models/FlashSale');
 
-const { sendReportToDev, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain, addDots } = require('../helpers')
+const { logReport, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain, addDots } = require('../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -53,29 +53,52 @@ module.exports = async function (ctx) {
   user.cache = user.commands['-cache'] || false
   user.price = user.commands.price ? parseInt(user.commands.price) * 100000 : false
 
-  if (user.cache) {
-    await Log.findOne({
-      teleBotId: process.env.BOT_ID,
-      teleChatId: ctx.message.chat.id,
-      itemid: user.itemid,
-      shopid: user.shopid,
-    }, async function (err, log) {
-      if (err || !log) return replaceMessage(ctx, user.message, 'Cache Untuk Produk Ini Tidak Tersedia!!')
-      log = JSON.parse(JSON.stringify(log))
-      for (const key in log) {
-        if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
-      }
-    })
-  }
-
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     ignoreHTTPSErrors: true,
     defaultViewport: null,
-    args: ['--start-maximized']
+    // userDataDir: './temp',
+    args: [
+      // '--autoplay-policy=user-gesture-required',
+      // '--disable-background-networking',
+      // '--disable-background-timer-throttling',
+      // '--disable-backgrounding-occluded-windows',
+      // '--disable-breakpad',
+      // '--disable-client-side-phishing-detection',
+      // '--disable-component-update',
+      // '--disable-default-apps',
+      // '--disable-dev-shm-usage',
+      // '--disable-domain-reliability',
+      // '--disable-extensions',
+      // '--disable-features=AudioServiceOutOfProcess',
+      // '--disable-hang-monitor',
+      // '--disable-ipc-flooding-protection',
+      // '--disable-notifications',
+      // '--disable-offer-store-unmasked-wallet-cards',
+      // '--disable-popup-blocking',
+      // '--disable-print-preview',
+      // '--disable-prompt-on-repost',
+      // '--disable-renderer-backgrounding',
+      // '--disable-setuid-sandbox',
+      // '--disable-speech-api',
+      // '--disable-sync',
+      // '--hide-scrollbars',
+      // '--ignore-gpu-blacklist',
+      // '--metrics-recording-only',
+      // '--mute-audio',
+      // '--no-default-browser-check',
+      // '--no-first-run',
+      // '--no-pings',
+      // '--no-sandbox',
+      // '--no-zygote',
+      // '--password-store=basic',
+      // '--use-gl=swiftshader',
+      // '--use-mock-keychain',
+      '--start-maximized'
+    ]
   })
 
-  await getAddress(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  await Address(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
     setNewCookie(user.userCookie, headers['set-cookie'])
     user.address = typeof body == 'string' ? JSON.parse(body) : body;
@@ -93,7 +116,7 @@ module.exports = async function (ctx) {
       }
     }))
 
-    await page.goto(`https://shopee.co.id/cart`)
+    await page.goto(`https://shopee.co.id/checkout`, { waitUntil: ['domcontentloaded', 'load', 'networkidle0', 'networkidle2'] })
 
     await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { queue: true }).exec()
 
@@ -102,7 +125,7 @@ module.exports = async function (ctx) {
 
       if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
 
-      await getInfoBarang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      await InfoBarang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.error == null) {
@@ -135,25 +158,6 @@ module.exports = async function (ctx) {
         }
         return null
       }(user.infoBarang)
-
-      if (user.cache && user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
-        await getHope(ctx, page, true)
-
-        await Log.updateOne({
-          teleBotId: process.env.BOT_ID,
-          teleChatId: ctx.message.chat.id,
-          itemid: user.itemid,
-          modelid: user.modelid,
-          shopid: user.shopid
-        }, {
-          infoKeranjang: user.infoKeranjang,
-          updateKeranjang: user.updateKeranjang,
-          checkout: user.checkout,
-          infoCheckout: user.infoCheckout,
-          selectedShop: user.selectedShop,
-          selectedItem: user.selectedItem
-        }, { upsert: true }).exec()
-      }
 
       if (!user.infoBarang.item.upcoming_flash_sale && !user.end) break;
 
@@ -191,7 +195,7 @@ module.exports = async function (ctx) {
 
     await getHope(ctx, page)
 
-  }).catch((err) => sendReportToDev(ctx, err));
+  }).catch((err) => logReport(ctx, err));
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
 
@@ -202,27 +206,12 @@ const getHope = async function (ctx, page, cache) {
   let user = ctx.session
   user.start = Date.now();
 
-  await postKeranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  await Keranjang(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     setNewCookie(user.userCookie, headers['set-cookie'])
+    let chunk = typeof body == 'string' ? JSON.parse(body) : body;
+    if (chunk.error == 0) user.keranjang = chunk
     curl.close()
-  }).catch((err) => sendReportToDev(ctx, err))
-
-  const listRequest = [{
-    name: 'infoKeranjang',
-    url: 'https://shopee.co.id/api/v4/cart/get'
-  }, {
-    name: 'updateKeranjang',
-    url: 'https://shopee.co.id/api/v4/cart/update'
-  }, {
-    name: 'checkout',
-    url: 'https://shopee.co.id/api/v4/cart/checkout'
-  }, {
-    name: 'infoCheckout',
-    url: 'https://shopee.co.id/api/v4/checkout/get'
-  }, {
-    name: 'order',
-    url: 'https://shopee.co.id/api/v4/checkout/place_order'
-  }]
+  }).catch((err) => logReport(ctx, err))
 
   await page.setCookie(...Object.keys(user.userCookie).map((key) => {
     return {
@@ -233,239 +222,162 @@ const getHope = async function (ctx, page, cache) {
     }
   }))
 
+  const blockedDomains = [
+    'gum.criteo.com',
+    'stats.g.doubleclick.net',
+    'www.google-analytics.com',
+    'analytics.google.com',
+    'cw.addthis.com',
+    'dis.criteo.com',
+    'ups.analytics.yahoo.com',
+    'pixel.advertising.com',
+    'simage2.pubmatic.com',
+    'contextual.media.net',
+    'rtb-csync.smartadserver.com',
+    'eb2.3lift.com',
+    'x.bidswitch.net',
+    'r.casalemedia.com',
+    'ads.yahoo.com',
+    'ssp.meba.kr',
+    'sync-t1.taboola.com',
+    'secure.adnxs.com',
+    'criteo-sync.teads.tv',
+    'ad.tpmn.co.kr',
+    'ade.clmbtech.com',
+    's.ad.smaato.net',
+    'ad.caprofitx.adtdp.com',
+    's-cs.send.microad.jp',
+    'adservice.google.com',
+    'seller.shopee.sg',
+    'seller.shopee.co.id',
+    'chat-ws.shopee.co.id',
+    'firebaselogging-pa.googleapis.com',
+    'fls.doubleclick.net',
+    'c-api-bit.shopeemobile.com',
+    'www.googletagmanager.com',
+    'shopee.co.id/api/v2/item/get_installment_plans',
+    'shopee.co.id/api/v4/notification/get_activities?limit=5',
+    'shopee.co.id/api/v4/notification/get_notifications?limit=5',
+    'shopee.co.id/api/v4/deep_platform/ab_test/get_all_variates?project_numbers=0',
+    'shopee.co.id/api/v4/checkout/get_quick'
+  ];
+
+  const blockedResource = ['image', 'font'];
+
   await page.setRequestInterception(true)
 
-  page.on('request', async (request) => {
-    if (!listRequest.map(e => e.url).includes(request.url()) || cache) return request.continue()
-
-    const requestName = listRequest.find(e => e.url == request.url()).name;
-
-    if (!user[requestName]) return request.continue()
-
-    if (requestName == 'infoKeranjang') {
-
-      for (const [shop_orders_index, shop_orders] of user[requestName].responseBody.data.shop_orders.entries()) {
-        for (const [items_index, items] of shop_orders.items.entries()) {
-          for (const [models_index, models] of items.models.entries()) {
-
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].shop.addin_time = Math.floor(user.start / 1000)
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].addin_time = Math.floor(user.start / 1000)
-
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].price = user.price
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].promotionid = user.promotionid
-
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].origin_cart_item_price = user.price
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].price = user.price
-
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].applied_promotion_id = user.promotionid
-            user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].product_promotion_id = user.promotionid
-
-          }
-        }
-      }
-
-      for (const [shop_order_id_list_index, shop_order_id_list] of user[requestName].responseBody.data.shop_order_id_list.entries()) {
-        user[requestName].responseBody.data.shop_order_id_list[shop_order_id_list_index].addin_time = Math.floor(user.start / 1000)
-      }
-
-    } else if (requestName == 'updateKeranjang') {
-      for (const [shop_vouchers_index, shop_vouchers] of user[requestName].responseBody.data.shop_vouchers.entries()) {
-        user[requestName].responseBody.data.shop_vouchers[shop_vouchers_index].promotionid = user.promotionid
-      }
-
-      for (const [total_payment_index, total_payment] of user[requestName].responseBody.data.total_payment.entries()) {
-        user[requestName].responseBody.data.total_payment[total_payment_index] = user.price
-      }
-    } else if (requestName == 'checkout') {
-
-    } else if (requestName == 'infoCheckout') {
-
-      user[requestName].responseBody.timestamp = Math.floor(user.start / 1000)
-      user[requestName].responseBody.checkout_price_data.merchandise_subtotal = user.price * user.quantity
-
-      for (const [shoporders_index, shoporders] of user[requestName].responseBody.shoporders.entries()) {
-        for (const [items_index, items] of shoporders.items.entries()) {
-          user[requestName].responseBody.shoporders[shoporders_index].items[items_index].price = user.price
-        }
-
-        user[requestName].responseBody.shoporders[shoporders_index].order_total_without_shipping = user.price * user.quantity
-        user[requestName].responseBody.shoporders[shoporders_index].order_total = shoporders.shipping_fee + (user.price * user.quantity)
-      }
-
-      for (const [shipping_orders_index, shipping_orders] of user[requestName].responseBody.shipping_orders.entries()) {
-        user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total_without_shipping = user.price * user.quantity
-        user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total = shipping_orders.shipping_fee + (user.price * user.quantity)
-
-        user[requestName].responseBody.checkout_price_data.total_payable = user[requestName].responseBody.shipping_orders[shipping_orders_index].shipping_fee + (user.price * user.quantity) + parseInt(100000000)
-      }
-
-      user[requestName].responseBody.dropshipping_info = {
-        "enabled": false,
-        "name": "",
-        "phone_number": ""
-      }
-
-      user[requestName].responseBody.buyer_txn_fee_info = {
-        "title": "Biaya Penanganan",
-        "description": `Besar biaya penanganan adalah Rp ${addDots(parseInt(100000000) / 100000)} dari total transaksi.`,
-        "learn_more_url": "https://shopee.co.id/events3/code/634289435/"
-      }
-
-      user[requestName].responseBody.disabled_checkout_info = {
-        "description": "",
-        "auto_popup": false,
-        "error_infos": []
-      }
-
-      user[requestName].responseBody.can_checkout = true
-
-    }
-
-    return request.respond({
-      status: user[requestName].responseStatus,
-      headers: user[requestName].responseHeaders,
-      body: JSON.stringify(user[requestName].responseBody)
-    });
-  })
-
-  page.on('requestfinished', async (request) => {
-    try {
-      if (!listRequest.map(e => e.url).includes(request.url())) return;
-
-      const response = await request.response();
-
-      let responseBody;
-
-      if (request.redirectChain().length === 0) {
-        const buffer = await response.buffer();
-        responseBody = buffer.toString('utf8');
-      }
-
-      user[listRequest.find(e => e.url == request.url()).name] = {
-        url: request.url(),
-        responseStatus: response.status(),
-        responseHeaders: response.headers(),
-        responseBody: JSON.parse(responseBody),
-      }
-
-    } catch (err) {
-      await sendReportToDev(ctx, err.message)
-    }
+  page.on('console', msg => {
+    for (let i = 0; i < msg.args.length; ++i) console.log(`${i}: ${msg.args[i]}`);
   });
 
-  try {
-    await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`)
-    // await page.waitForRequest('https://shopee.co.id/api/v4/cart/update', { method: 'POST', timeout: 5000 })
-    await page.waitForSelector(process.env.CHECKOUT_BUTTON, { method: 'POST', timeout: 5000 })
-    await page.click(process.env.CHECKOUT_BUTTON)
-  } catch (err) {
-    return sendReportToDev(ctx, err)
-  }
-
-  if (cache) {
-    user.selectedShop = function (shops) {
-      for (const shop of shops) if (shop.shop.shopid == user.shopid) return shop
-    }(user.infoKeranjang.responseBody.data.shop_orders) || user.selectedShop || user.infoKeranjang.responseBody.data.shop_orders[0]
-
-    user.selectedItem = function (items) {
-      for (const item of items) {
-        if (item.modelid == user.modelid) return item
-        if (item.models) {
-          for (const model of item.models) {
-            if (
-              model.itemid == user.itemid &&
-              model.shop_id == user.shopid &&
-              model.modelid == user.modelid
-            ) return item
-          }
-        }
-      }
-    }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
-
-    user.price = user.price || function (item) {
-      if (item.models) {
-        for (const model of item.models) {
-          if (
-            model.itemid == user.itemid &&
-            model.shop_id == user.shopid &&
-            model.modelid == user.modelid &&
-            model.promotionid == user.promotionid
-          ) return model.price
-        }
-      }
-      return item.origin_cart_item_price
-    }(user.selectedItem) || user.price
-
-    for (const cookie of await page.cookies('https://shopee.co.id')) {
-      user.userCookie[cookie.name] = {
-        value: cookie.value,
-        Domain: cookie.domain,
-        Path: cookie.path,
-        expires: cookie.expires,
-        size: cookie.size,
-        httpOnly: cookie.httpOnly,
-        secure: cookie.secure,
-        session: cookie.session,
-        sameParty: cookie.sameParty,
-        sourceScheme: cookie.sourceScheme,
-        sourcePort: cookie.sourcePort
-      }
+  page.on('request', async (request) => {
+    if (blockedDomains.some(domain => request.url().indexOf(domain) !== -1) || blockedResource.includes(request.resourceType())) {
+      request.abort();
+    } else {
+      request.continue();
     }
+  })
 
-    return postUpdateKeranjang(ctx, 2).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-      if (chunk.error != 0) sendReportToDev(ctx, new Error(JSON.stringify(chunk, null, 2)))
-      curl.close()
-    }).catch((err) => console.error(chalk.red(err)))
+  // page.on('requestfinished', async (request) => {
+  //   try {
+  //     if (!listRequest.map(e => e.url).includes(request.url())) return;
 
+  //     const response = await request.response();
+
+  //     let responseBody;
+
+  //     if (request.redirectChain().length === 0) {
+  //       const buffer = await response.buffer();
+  //       responseBody = buffer.toString('utf8');
+  //     }
+
+  //     user[listRequest.find(e => e.url == request.url()).name] = {
+  //       url: request.url(),
+  //       responseStatus: response.status(),
+  //       responseHeaders: response.headers(),
+  //       responseBody: JSON.parse(responseBody),
+  //     }
+
+  //   } catch (err) {
+  //     await logReport(ctx, err.message)
+  //   }
+  // })
+
+  await page.evaluate(({ infoBarang, keranjang, shopid, itemid, modelid, quantity }) => {
+    sessionStorage.setItem('cart_info', JSON.stringify({
+      promotion_data: {
+        free_shipping_voucher_info: {
+          free_shipping_voucher_id: 0,
+          free_shipping_voucher_code: null,
+          disabled_reason: "",
+          description: ""
+        },
+        platform_vouchers: [],
+        shop_vouchers: [],
+        use_coins: false
+      },
+      shoporders: [{
+        shop: { shopid: shopid },
+        items: [{
+          itemid: itemid,
+          quantity: quantity,
+          modelid: modelid,
+          add_on_deal_id: infoBarang.item.add_on_deal_info ? infoBarang.item.add_on_deal_id : null,
+          is_add_on_sub_item: null,
+          item_group_id: keranjang.data.cart_item.item_group_id
+        }]
+      }]
+    }));
+  }, { infoBarang: user.infoBarang, keranjang: user.keranjang, shopid: user.shopid, itemid: user.itemid, modelid: user.modelid, quantity: user.quantity });
+
+  await page.goto(`https://shopee.co.id/checkout`).then().catch((err) => logReport(ctx, err));
+
+  // await page.waitForRequest('https://shopee.co.id/api/v4/checkout/get', { method: 'POST', timeout: 10000 }).then().catch((err) => logReport(ctx, err));
+
+  await page.waitForSelector(process.env.TRANSFER_BANK, { timeout: 10000 }).then().catch((err) => err);
+  await page.click(process.env.TRANSFER_BANK).then().catch((err) => err);
+  await page.click(process.env.BNI_CEK_OTOMATIS).then().catch((err) => err);
+
+  await page.waitForSelector(process.env.ORDER_BUTTON, { timeout: 10000 }).then().catch((err) => logReport(ctx, err));
+
+  for (let i = 0; i < 5; i++) {
+    await page.click(process.env.ORDER_BUTTON).then().catch((err) => err);
   }
 
-  user.end = Date.now();
+  await page.waitForResponse('https://shopee.co.id/api/v4/checkout/place_order', { method: 'POST' }).then(async (response) => {
 
-  try {
-    await page.waitForRequest('https://shopee.co.id/api/v4/checkout/get', { method: 'POST', timeout: 5000 })
-    // await page.waitForSelector(process.env.TRANSFER_BANK, { timeout: 5000 })
-    // await page.click(process.env.TRANSFER_BANK)
-    // await page.click(process.env.BNI_CEK_OTOMATIS)
-    // await page.click(process.env.BRI_CEK_OTOMATIS)
-    // await page.click(process.env.BSI_CEK_OTOMATIS)
-    
-    await page.waitForSelector(process.env.ORDER_BUTTON, { timeout: 5000 })
+    const buffer = await response.buffer();
 
-    await page.click(process.env.ORDER_BUTTON)
-    await page.click(process.env.ORDER_BUTTON)
+    user.order = JSON.parse(buffer.toString('utf8'))
 
-    await page.waitForResponse('https://shopee.co.id/api/v4/checkout/place_order', { method: 'POST', timeout: 5000 })
-  } catch (err) {
-    return sendReportToDev(ctx, err)
-  }
+    let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
+    info += `\nEnd   : <b>${timeConverter(Date.now(), { usemilis: true })}</b></code>`
 
-  let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
-  info += `\nEnd   : <b>${timeConverter(user.end, { usemilis: true })}</b></code>`
+    if (user.order.error) {
+      info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
 
-  if (user.order.error) {
-    info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
-
-    await postUpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      setNewCookie(user.userCookie, headers['set-cookie'])
-      info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-      curl.close()
-    }).catch((err) => sendReportToDev(ctx, err));
-
-  } else {
-    info += `\n\n<i><b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-
-    if (user.cancel) {
-      await postCancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      await UpdateKeranjang(ctx, 2).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
-        info += `\n\nAuto Cancel Berhasil`
+        info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
         curl.close()
-      }).catch((err) => sendReportToDev(ctx, err));
+      }).catch((err) => logReport(ctx, err));
+
+    } else {
+      info += `\n\n<i><b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
+
+      if (user.cancel) {
+        await Cancel(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+          setNewCookie(user.userCookie, headers['set-cookie'])
+          info += `\n\nAuto Cancel Berhasil`
+          curl.close()
+        }).catch((err) => logReport(ctx, err));
+      }
     }
-  }
 
-  await replaceMessage(ctx, user.message, info, false)
+    await replaceMessage(ctx, user.message, info, false)
 
-  await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
+    await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
+
+  }).catch((err) => logReport(ctx, err));
+
 }

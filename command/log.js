@@ -2,7 +2,7 @@ const fs = require('fs');
 
 const Log = require('../models/Log');
 
-const { ensureRole, getCommands, objectSize, parseShopeeUrl, sendMessage, sendReportToDev } = require('../helpers')
+const { ensureRole, getCommands, objectSize, parseShopeeUrl, sendMessage, logReport } = require('../helpers')
 
 module.exports = function (ctx) {
   if (!ensureRole(ctx)) return
@@ -21,7 +21,7 @@ module.exports = function (ctx) {
     return Log.deleteMany(user.itemid ? { teleBotId: process.env.BOT_ID, itemid: user.itemid, shopid: user.shopid } : { teleBotId: process.env.BOT_ID })
       .then((result) => {
         return ctx.reply(`${result.deletedCount} Log Telah Terhapus`)
-      }).catch((err) => sendReportToDev(ctx, new Error(err)));
+      }).catch((err) => logReport(ctx, new Error(err)));
   }
 
   return Log.findOne({ teleBotId: process.env.BOT_ID, itemid: user.itemid, shopid: user.shopid }, async function (err, log) {

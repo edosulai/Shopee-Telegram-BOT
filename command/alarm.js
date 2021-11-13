@@ -1,13 +1,11 @@
-const getAllItemids = require('../request/other/getAllItemids');
-const postFlashSaleBatchItems = require('../request/other/postFlashSaleBatchItems');
+const AllItemids = require('../request/other/AllItemids');
+const FlashSaleBatchItems = require('../request/other/FlashSaleBatchItems');
 
 const User = require('../models/User');
 const FlashSale = require('../models/FlashSale');
 const Event = require('../models/Event');
 
-// const getItem = require('../helpers/getItem');
-
-const { sendReportToDev, ensureRole, getCommands, numTocurrency, sendMessage, replaceMessage, sleep, setNewCookie } = require('../helpers')
+const { logReport, ensureRole, getCommands, numTocurrency, sendMessage, replaceMessage, sleep, setNewCookie } = require('../helpers')
 
 module.exports = async function alarmFlashSale(ctx) {
   if (!ensureRole(ctx)) return
@@ -69,13 +67,13 @@ module.exports = async function alarmFlashSale(ctx) {
 
       user.start = Date.now()
 
-      await getAllItemids(ctx, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      await AllItemids(ctx, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.data.promotionid) {
-          user.getAllItemids = chunk
-          user.getAllItemids.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.getAllItemids.now = Date.now()
+          user.AllItemids = chunk
+          user.AllItemids.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.AllItemids.now = Date.now()
         } else {
           user.start = false;
         }
@@ -87,13 +85,13 @@ module.exports = async function alarmFlashSale(ctx) {
 
       if (!user.start) continue;
 
-      await postFlashSaleBatchItems(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+      await FlashSaleBatchItems(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
         setNewCookie(user.userCookie, headers['set-cookie'])
         let chunk = typeof body == 'string' ? JSON.parse(body) : body;
         if (chunk.data) {
-          user.getFlashSaleSession = chunk
-          user.getFlashSaleSession.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.getFlashSaleSession.now = Date.now()
+          user.FlashSaleSession = chunk
+          user.FlashSaleSession.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
+          user.FlashSaleSession.now = Date.now()
         } else {
           user.start = false;
         }
@@ -109,7 +107,7 @@ module.exports = async function alarmFlashSale(ctx) {
       user.max[index] = { price_before_discount: 0, url: null }
       let eventLength = 0;
 
-      for await (const item of user.getFlashSaleSession.data.items) {
+      for await (const item of user.FlashSaleSession.data.items) {
         if (predictPrice[item.hidden_price_display] && (item.price_before_discount / minPredict > minPredict)) {
           if (item.price_before_discount > user.max[index].price_before_discount) {
             user.max[index] = {
@@ -129,7 +127,7 @@ module.exports = async function alarmFlashSale(ctx) {
             url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`,
             price: predictPrice[item.hidden_price_display]
           }, async function (err, event, created) {
-            if (err) return sendReportToDev(ctx, err)
+            if (err) return logReport(ctx, err)
           })
         }
       }
@@ -142,16 +140,6 @@ module.exports = async function alarmFlashSale(ctx) {
       ) {
         user.beginMax[index] = user.max[index]
 
-        let newCtx = function (theCtx) {
-          let newCtx = theCtx
-          return newCtx
-        }(ctx)
-
-        newCtx.session.commands = {
-          url: user.max[index].url,
-          '-vip': true
-        }
-
         await sendMessage(ctx, `Memuat... <code>${user.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
           newCtx.session.config.message = {
             chatId: replyCtx.chat.id,
@@ -161,8 +149,7 @@ module.exports = async function alarmFlashSale(ctx) {
           }
         })
 
-        // await getItem(newCtx)
-        // await ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
+        await ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
       }
 
       if (eventLength != user.eventLength[index]) {

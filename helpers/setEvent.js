@@ -1,8 +1,8 @@
-const getInfoBarang = require('../request/buy/getInfoBarang');
+const InfoBarang = require('../request/buy/InfoBarang');
 
 const Event = require('../models/Event');
 
-const { sendReportToDev, parseShopeeUrl, sendMessage } = require('./index')
+const { logReport, parseShopeeUrl, sendMessage } = require('./index')
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -19,7 +19,7 @@ module.exports = async function (ctx) {
     user.itemid = itemid
     user.shopid = shopid
 
-    await getInfoBarang({
+    await InfoBarang({
       Curl: user.Curl,
       config: {
         url: user.commands.url,
@@ -45,7 +45,7 @@ module.exports = async function (ctx) {
       url: user.commands.url,
       price: user.commands.price
     }, async function (err, event, created) {
-      if (err) return sendReportToDev(ctx, err)
+      if (err) return logReport(ctx, err)
       user.event
     })
   }

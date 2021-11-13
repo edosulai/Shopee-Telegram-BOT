@@ -1,24 +1,23 @@
 const crypto = require('crypto');
 
-const getAddress = require('../request/other/getAddress');
+const Address = require('../request/other/Address');
 
-const getLogin = require('../request/auth/getLogin');
-const postLogin = require('../request/auth/postLogin');
-const postLoginMethod = require('../request/auth/postLoginMethod');
-const postLoginLinkVerify = require('../request/auth/postLoginLinkVerify');
-const postLoginTokenVerify = require('../request/auth/postLoginTokenVerify');
-const postStatusLogin = require('../request/auth/postStatusLogin');
-const postLoginDone = require('../request/auth/postLoginDone');
+const Login = require('../request/auth/Login');
+const LoginMethod = require('../request/auth/LoginMethod');
+const LoginLinkVerify = require('../request/auth/LoginLinkVerify');
+const LoginTokenVerify = require('../request/auth/LoginTokenVerify');
+const StatusLogin = require('../request/auth/StatusLogin');
+const LoginDone = require('../request/auth/LoginDone');
 
 const User = require('../models/User');
 
-const { sendReportToDev, getCommands, setNewCookie, checkAccount, sleep } = require('../helpers')
+const { logReport, getCommands, setNewCookie, checkAccount, sleep } = require('../helpers')
 
 module.exports = function (ctx) {
   let user = ctx.session;
   let commands = getCommands(ctx.message.text)
 
-  return getAddress(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+  return Address(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
     curl.close()
     setNewCookie(user.userCookie, headers['set-cookie'])
     user.address = typeof body == 'string' ? JSON.parse(body) : body;
@@ -45,14 +44,9 @@ module.exports = function (ctx) {
 
     if (!checkAccount(ctx)) return;
 
-    await getLogin(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-      curl.close()
-      setNewCookie(user.userCookie, headers['set-cookie'])
-    }).catch((err) => sendReportToDev(ctx, new Error(err)));
-
     return async function tryLogin(msg) {
       if (msg) await ctx.reply(msg)
-      return postLogin(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
+      return Login(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
         curl.close()
         setNewCookie(user.userCookie, headers['set-cookie'])
         user.login = typeof body == 'string' ? JSON.parse(body) : body;
@@ -63,21 +57,21 @@ module.exports = function (ctx) {
           case 2:
             return ctx.reply('Akun dan/atau password Anda salah, silakan coba lagi')
           case 98:
-            await postLoginMethod(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await LoginMethod(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginMethod = typeof body == 'string' ? JSON.parse(body) : body;
-            }).catch((err) => sendReportToDev(ctx, new Error(err)));
+            }).catch((err) => logReport(ctx, new Error(err)));
 
             if (user.loginMethod.data.length == 0) {
               return ctx.reply('Maaf, kami tidak dapat memverifikasi log in kamu. Silakan hubungi Customer Service untuk bantuan.')
             }
 
-            await postLoginLinkVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await LoginLinkVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginLinkVerify = typeof body == 'string' ? JSON.parse(body) : body;
-            }).catch((err) => sendReportToDev(ctx, new Error(err)));
+            }).catch((err) => logReport(ctx, new Error(err)));
 
             if (user.loginLinkVerify.error && user.loginLinkVerify.error == 81900202) {
               return ctx.reply('Verifikasi gagal.. Kamu telah mencapai limit verifikasi melalui link otentikasi hari ini.')
@@ -86,34 +80,34 @@ module.exports = function (ctx) {
             ctx.reply('Silahkan Cek Notifikasi SMS dari Shopee di Handphone Anda')
 
             do {
-              await postStatusLogin(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+              await StatusLogin(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
                 curl.close()
                 setNewCookie(user.userCookie, headers['set-cookie'])
                 user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
-              }).catch((err) => sendReportToDev(ctx, new Error(err)));
+              }).catch((err) => logReport(ctx, new Error(err)));
 
               if (user.loginStatus.data.link_status == 4) return ctx.reply('Login Anda Gagal Coba Beberapa Saat Lagi')
 
               await sleep(1000);
             } while (user.loginStatus.data.link_status != 2);
 
-            await postLoginTokenVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await LoginTokenVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginTokenVerify = typeof body == 'string' ? JSON.parse(body) : body;
-            }).catch((err) => sendReportToDev(ctx, new Error(err)));
+            }).catch((err) => logReport(ctx, new Error(err)));
 
-            await postLoginDone(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
+            await LoginDone(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
               curl.close()
               setNewCookie(user.userCookie, headers['set-cookie'])
               user.loginDoneStatus = typeof body == 'string' ? JSON.parse(body) : body;
-            }).catch((err) => sendReportToDev(ctx, new Error(err)));
+            }).catch((err) => logReport(ctx, new Error(err)));
 
             if (user.loginDoneStatus.data) {
               await ctx.reply('Login Berhasil')
             } else {
               await ctx.reply(`Login Gagal`)
-              return sendReportToDev(ctx, new Error('Login Gagal'), 'Error')
+              return logReport(ctx, new Error('Login Gagal'), 'Error')
             }
 
             break;
@@ -129,11 +123,11 @@ module.exports = function (ctx) {
           userLoginInfo: user.userLoginInfo,
           userCookie: user.userCookie
         }).exec(async (err, res) => {
-          if (err) return ctx.reply(`User Gagal Di Update`).then(() => sendReportToDev(ctx, new Error('User Gagal Di Update'), 'Error')).catch((err) => sendReportToDev(ctx, new Error(err)));
+          if (err) return ctx.reply(`User Gagal Di Update`).then(() => logReport(ctx, new Error('User Gagal Di Update'), 'Error')).catch((err) => logReport(ctx, new Error(err)));
         })
 
-      }).catch((err) => sendReportToDev(ctx, new Error(err)));
+      }).catch((err) => logReport(ctx, new Error(err)));
     }()
 
-  }).catch((err) => sendReportToDev(ctx, new Error(err)));
+  }).catch((err) => logReport(ctx, new Error(err)));
 }
