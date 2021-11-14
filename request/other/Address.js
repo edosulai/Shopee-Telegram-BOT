@@ -1,12 +1,12 @@
+const { curly } = require('node-libcurl');
+
 const { serializeCookie } = require('../../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;
 
-  let curl = new user.Curl()
-
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setHeaders([
+  return curly.get(`https://shopee.co.id/api/v1/addresses/`, {
+    httpHeader: [
       'authority: shopee.co.id',
       'pragma: no-cache',
       'cache-control: no-cache',
@@ -23,5 +23,6 @@ module.exports = async function (ctx) {
       'referer: https://shopee.co.id/checkout',
       'accept-language: en-US,en;q=0.9',
       `cookie: ${serializeCookie(user.userCookie)}`
-    ]).get(`https://shopee.co.id/api/v1/addresses/`)
+    ]
+  })
 }

@@ -1,12 +1,12 @@
+const { curly } = require('node-libcurl');
+
 const { serializeCookie } = require('../../helpers')
 
 module.exports = async function (ctx, action) {
   let user = ctx.session;
 
-  let curl = new user.Curl()
-
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setHeaders([
+  return curly.post(`https://shopee.co.id/api/v4/cart/update`, {
+    httpHeader: [
       'authority: shopee.co.id',
       'sec-ch-ua: "Google Chrome";v="95", "Chromium";v="95", ";Not A Brand";v="99"',
       'dnt: 1',
@@ -27,7 +27,8 @@ module.exports = async function (ctx, action) {
       'referer: https://shopee.co.id/cart',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       `cookie: ${serializeCookie(user.userCookie)}`,
-    ]).setBody(JSON.stringify({
+    ],
+    postFields: JSON.stringify({
       "action_type": action,
       "updated_shop_order_ids": [{
         "shopid": user.shopid,
@@ -76,5 +77,6 @@ module.exports = async function (ctx, action) {
       },
       "add_on_deal_sub_item_list": [],
       "version": 3
-    })).post(`https://shopee.co.id/api/v4/cart/update`)
+    })
+  })
 }

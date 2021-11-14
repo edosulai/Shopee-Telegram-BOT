@@ -1,12 +1,12 @@
+const { curly } = require('node-libcurl');
+
 const { serializeCookie } = require('../../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;
 
-  let curl = new user.Curl()
-
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setHeaders([
+  return curly.post(`https://shopee.co.id/api/v4/anti_fraud/ivs/token/verify`, {
+    httpHeader: [
       'authority: shopee.co.id',
       'pragma: no-cache',
       'cache-control: no-cache',
@@ -25,12 +25,14 @@ module.exports = async function (ctx) {
       'referer: https://shopee.co.id/verify/ivs',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       `cookie: ${serializeCookie(user.userCookie)}`
-    ]).setBody(JSON.stringify({
+    ],
+    postFields: JSON.stringify({
       method_name: 5,
       event: 1,
       u_token: user.login.data.ivs_token,
       r_token: user.loginLinkVerify.data.r_token,
       v_token: user.loginMethod.data[0].v_token,
       misc: { operation: 0 }
-    })).post(`https://shopee.co.id/api/v4/anti_fraud/ivs/token/verify`)
+    })
+  })
 }

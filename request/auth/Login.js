@@ -1,12 +1,12 @@
+const { curly } = require('node-libcurl');
+
 const { serializeCookie } = require('../../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;
 
-  let curl = new user.Curl()
-
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setHeaders([
+  return curly.post(`https://shopee.co.id/api/v2/authentication/login`, {
+    httpHeader: [
       'authority: shopee.co.id',
       `user-agent: ${process.env.USER_AGENT}`,
       'x-api-source: pc',
@@ -23,10 +23,12 @@ module.exports = async function (ctx) {
       'referer: https://shopee.co.id/buyer/login',
       'accept-language: en-US,en;q=0.9',
       `cookie: ${serializeCookie(user.userCookie)}`
-    ]).setBody(JSON.stringify({
+    ],
+    postFields: JSON.stringify({
       email: user.userLoginInfo.email,
       password: user.userLoginInfo.password,
       support_whats_app: true,
       support_ivs: true
-    })).post(`https://shopee.co.id/api/v2/authentication/login`)
+    })
+  })
 }

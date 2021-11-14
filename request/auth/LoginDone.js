@@ -1,12 +1,12 @@
+const { curly } = require('node-libcurl');
+
 const { serializeCookie } = require('../../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session;
 
-  let curl = new user.Curl()
-
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setHeaders([
+  return curly.post(`https://shopee.co.id/api/v4/account/basic/login_ivs`, {
+    httpHeader: [
       'authority: shopee.co.id',
       'pragma: no-cache',
       'cache-control: no-cache',
@@ -25,11 +25,13 @@ module.exports = async function (ctx) {
       'referer: https://shopee.co.id/authenticate/ivs',
       'accept-language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
       `cookie: ${serializeCookie(user.userCookie)}`
-    ]).setBody(JSON.stringify({
+    ],
+    postFields: JSON.stringify({
       is_user_login: true,
       is_web: true,
       ivs_flow_no: user.login.data.ivs_flow_no,
       ivs_signature: user.loginTokenVerify.signature,
       ivs_method: 5
-    })).post(`https://shopee.co.id/api/v4/account/basic/login_ivs`)
+    })
+  })
 }

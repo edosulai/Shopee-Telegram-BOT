@@ -21,13 +21,11 @@ module.exports = async function alarmFlashSale(ctx) {
     return sendMessage(ctx, 'Alarm Sudah Berjalan!!')
   }
 
-  user = {
-    autobuy: user.commands['-autobuy'],
-    alarmMessage: [],
-    beginMax: [],
-    max: [],
-    eventLength: []
-  }
+  user.autobuy = user.commands['-autobuy'] || false
+  user.alarmMessage = []
+  user.beginMax = []
+  user.max = []
+  user.eventLength = []
 
   await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { alarm: true }).exec()
   user.flashsale = (await FlashSale.find({ teleBotId: process.env.BOT_ID })).sort((a, b) => a.start_time - b.start_time);
@@ -67,17 +65,11 @@ module.exports = async function alarmFlashSale(ctx) {
 
       user.start = Date.now()
 
-      await AllItemids(ctx, session).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        setNewCookie(user.userCookie, headers['set-cookie'])
-        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-        if (chunk.data.promotionid) {
-          user.AllItemids = chunk
-          user.AllItemids.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.AllItemids.now = Date.now()
-        } else {
-          user.start = false;
-        }
-        curl.close()
+      await AllItemids(session).then(({ statusCode, data, headers }) => {
+        setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+        let chunk = typeof data == 'string' ? JSON.parse(data) : data;
+        if (chunk.data.promotionid) user.AllItemids = chunk
+        else user.start = false;
       }).catch((err) => {
         user.start = false;
         return err
@@ -85,17 +77,11 @@ module.exports = async function alarmFlashSale(ctx) {
 
       if (!user.start) continue;
 
-      await FlashSaleBatchItems(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-        setNewCookie(user.userCookie, headers['set-cookie'])
-        let chunk = typeof body == 'string' ? JSON.parse(body) : body;
-        if (chunk.data) {
-          user.FlashSaleSession = chunk
-          user.FlashSaleSession.time = Math.floor(curlInstance.getInfo('TOTAL_TIME') * 1000);
-          user.FlashSaleSession.now = Date.now()
-        } else {
-          user.start = false;
-        }
-        curl.close()
+      await FlashSaleBatchItems(ctx).then(({ statusCode, data, headers }) => {
+        setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+        let chunk = typeof data == 'string' ? JSON.parse(data) : data;
+        if (chunk.data) user.FlashSaleSession = chunk
+        else user.start = false;
       }).catch((err) => {
         user.start = false;
         return err
@@ -140,16 +126,9 @@ module.exports = async function alarmFlashSale(ctx) {
       ) {
         user.beginMax[index] = user.max[index]
 
-        await sendMessage(ctx, `Memuat... <code>${user.max[index].url}</code>`, { parse_mode: 'HTML' }).then((replyCtx) => {
-          newCtx.session.config.message = {
-            chatId: replyCtx.chat.id,
-            msgId: replyCtx.message_id,
-            inlineMsgId: replyCtx.inline_message_id,
-            text: replyCtx.text
-          }
+        await sendMessage(ctx, `Memuat... <code>${user.max[index].url}</code>`, { parse_mode: 'HTML' }).then(async (replyCtx) => {
+          await ctx.telegram.deleteMessage(replyCtx.chat.id, replyCtx.message_id)
         })
-
-        await ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
       }
 
       if (eventLength != user.eventLength[index]) {
@@ -162,7 +141,5 @@ module.exports = async function alarmFlashSale(ctx) {
 
   } while (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, alarm: true }));
 
-  for (const msg of user.alarmMessage) {
-    await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
-  }
+  for (const msg of user.alarmMessage) await ctx.telegram.deleteMessage(msg.chatId, msg.msgId)
 }

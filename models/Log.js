@@ -8,7 +8,6 @@ module.exports = mongoose.model('Logs', {
   modelid: Number,
   infoKeranjang: Object,
   updateKeranjang: Object,
-  checkout: Object,
   infoCheckout: Object,
   selectedShop: Object,
   selectedItem: Object,

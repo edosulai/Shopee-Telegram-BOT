@@ -17,10 +17,9 @@ module.exports = function (ctx) {
   let user = ctx.session;
   let commands = getCommands(ctx.message.text)
 
-  return Address(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-    curl.close()
-    setNewCookie(user.userCookie, headers['set-cookie'])
-    user.address = typeof body == 'string' ? JSON.parse(body) : body;
+  return Address(ctx).then(async ({ statusCode, data, headers }) => {
+    setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+    user.address = typeof data == 'string' ? JSON.parse(data) : data;
     if (!user.address.error) return ctx.reply('Anda Sudah Login')
 
     for (let command in commands) {
@@ -46,10 +45,9 @@ module.exports = function (ctx) {
 
     return async function tryLogin(msg) {
       if (msg) await ctx.reply(msg)
-      return Login(ctx).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-        curl.close()
-        setNewCookie(user.userCookie, headers['set-cookie'])
-        user.login = typeof body == 'string' ? JSON.parse(body) : body;
+      return Login(ctx).then(async ({ statusCode, data, headers }) => {
+        setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+        user.login = typeof data == 'string' ? JSON.parse(data) : data;
 
         switch (user.login.error) {
           case 1:
@@ -57,20 +55,18 @@ module.exports = function (ctx) {
           case 2:
             return ctx.reply('Akun dan/atau password Anda salah, silakan coba lagi')
           case 98:
-            await LoginMethod(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-              curl.close()
-              setNewCookie(user.userCookie, headers['set-cookie'])
-              user.loginMethod = typeof body == 'string' ? JSON.parse(body) : body;
+            await LoginMethod(ctx).then(({ statusCode, data, headers }) => {
+              setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+              user.loginMethod = typeof data == 'string' ? JSON.parse(data) : data;
             }).catch((err) => logReport(ctx, new Error(err)));
 
             if (user.loginMethod.data.length == 0) {
               return ctx.reply('Maaf, kami tidak dapat memverifikasi log in kamu. Silakan hubungi Customer Service untuk bantuan.')
             }
 
-            await LoginLinkVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-              curl.close()
-              setNewCookie(user.userCookie, headers['set-cookie'])
-              user.loginLinkVerify = typeof body == 'string' ? JSON.parse(body) : body;
+            await LoginLinkVerify(ctx).then(({ statusCode, data, headers }) => {
+              setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+              user.loginLinkVerify = typeof data == 'string' ? JSON.parse(data) : data;
             }).catch((err) => logReport(ctx, new Error(err)));
 
             if (user.loginLinkVerify.error && user.loginLinkVerify.error == 81900202) {
@@ -80,10 +76,9 @@ module.exports = function (ctx) {
             ctx.reply('Silahkan Cek Notifikasi SMS dari Shopee di Handphone Anda')
 
             do {
-              await StatusLogin(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-                curl.close()
-                setNewCookie(user.userCookie, headers['set-cookie'])
-                user.loginStatus = typeof body == 'string' ? JSON.parse(body) : body;
+              await StatusLogin(ctx).then(({ statusCode, data, headers }) => {
+                setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+                user.loginStatus = typeof data == 'string' ? JSON.parse(data) : data;
               }).catch((err) => logReport(ctx, new Error(err)));
 
               if (user.loginStatus.data.link_status == 4) return ctx.reply('Login Anda Gagal Coba Beberapa Saat Lagi')
@@ -91,16 +86,14 @@ module.exports = function (ctx) {
               await sleep(1000);
             } while (user.loginStatus.data.link_status != 2);
 
-            await LoginTokenVerify(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-              curl.close()
-              setNewCookie(user.userCookie, headers['set-cookie'])
-              user.loginTokenVerify = typeof body == 'string' ? JSON.parse(body) : body;
+            await LoginTokenVerify(ctx).then(({ statusCode, data, headers }) => {
+              setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+              user.loginTokenVerify = typeof data == 'string' ? JSON.parse(data) : data;
             }).catch((err) => logReport(ctx, new Error(err)));
 
-            await LoginDone(ctx).then(({ statusCode, body, headers, curlInstance, curl }) => {
-              curl.close()
-              setNewCookie(user.userCookie, headers['set-cookie'])
-              user.loginDoneStatus = typeof body == 'string' ? JSON.parse(body) : body;
+            await LoginDone(ctx).then(({ statusCode, data, headers }) => {
+              setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+              user.loginDoneStatus = typeof data == 'string' ? JSON.parse(data) : data;
             }).catch((err) => logReport(ctx, new Error(err)));
 
             if (user.loginDoneStatus.data) {

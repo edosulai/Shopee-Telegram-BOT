@@ -30,7 +30,7 @@ bot.telegram.getMe().then(async (botInfo) => {
   process.env.BOT_NAME = botInfo.first_name
   process.env.BOT_USERNAME = botInfo.username
   process.env.BOT_ID = parseInt(botInfo.id)
-  process.env.CERT_PATH = path.join(__dirname, 'cert.pem')
+  process.env.CERT_PATH = path.join(__dirname + '/temp', 'cert.pem')
 
   fs.writeFileSync(process.env.CERT_PATH, tls.rootCertificates.join('\n'))
 
@@ -50,10 +50,9 @@ bot.telegram.getMe().then(async (botInfo) => {
 
       for (const user of users) {
         user.Curl = Curl
-        
-        await Address({ session: user }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-          setNewCookie(user.userCookie, headers['set-cookie'])
-          curl.close()
+
+        await Address({ session: user }).then(async ({ statusCode, data, headers }) => {
+          setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
         }).catch((err) => logReport(bot, err))
 
         await User.updateOne({
@@ -68,8 +67,8 @@ bot.telegram.getMe().then(async (botInfo) => {
     await Event.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
     await FlashSale.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
 
-    await FlashSaleSession({ Curl: Curl }).then(async ({ statusCode, body, headers, curlInstance, curl }) => {
-      const FlashSaleSession = typeof body == 'string' ? JSON.parse(body) : body;
+    await FlashSaleSession({ Curl: Curl }).then(async ({ statusCode, data, headers }) => {
+      const FlashSaleSession = typeof data == 'string' ? JSON.parse(data) : data;
 
       for await (const [index, session] of (FlashSaleSession.data.sessions).sort((a, b) => a.start_time - b.start_time).entries()) {
         if (index == 0) timeout = session.end_time + 2
@@ -90,7 +89,7 @@ bot.telegram.getMe().then(async (botInfo) => {
         }, async function (err, event, created) { if (err) return logReport(bot, err) })
       }
 
-      curl.close()
+
     }).catch((err) => console.error(chalk.red(err)));
 
     await logReport(bot, botInfo.first_name, `Starting`)
@@ -103,7 +102,7 @@ bot.telegram.getMe().then(async (botInfo) => {
 bot.use((ctx, next) => {
   if (!ctx.message.chat) return;
 
-  const certFilePath = path.join(__dirname, 'cert.pem')
+  const certFilePath = path.join(__dirname + '/temp', 'cert.pem')
   const tlsData = tls.rootCertificates.join('\n')
   fs.writeFileSync(certFilePath, tlsData)
 
@@ -130,7 +129,6 @@ bot.use((ctx, next) => {
     if (err) return logReport(ctx, err)
     if (created) logReport(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
-    ctx.session.Curl = Curl
     if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
       return ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => logReport(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
     }
@@ -143,7 +141,6 @@ bot.help(require('./command/help'))
 
 bot.command('alarm', require('./command/alarm'))
 bot.command('info', require('./command/info'))
-bot.command('speed', require('./command/speed'))
 bot.command('log', require('./command/log'))
 bot.command('user', require('./command/user'))
 bot.command('login', require('./command/login'))

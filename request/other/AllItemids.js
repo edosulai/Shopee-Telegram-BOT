@@ -1,10 +1,9 @@
-module.exports = async function (ctx, session) {
-  let user = ctx.session;
+const { curly } = require('node-libcurl');
 
-  let curl = new user.Curl()
+module.exports = async function (session) {
 
-  return curl.setOpt(curl.libcurl.option.SSL_VERIFYPEER, process.env.CERT_PATH).setOpt(curl.libcurl.option.TCP_KEEPALIVE, true).setOpt(curl.libcurl.option.TIMEOUT, 2)
-    .setHeaders([
+  return curly.get(`https://shopee.co.id/api/v2/flash_sale/get_all_itemids?need_personalize=true&promotionid=${session.promotionid}&sort_soldout=true`, {
+    httpHeader: [
       'authority: shopee.co.id',
       'pragma: no-cache',
       'cache-control: no-cache',
@@ -20,5 +19,6 @@ module.exports = async function (ctx, session) {
       'sec-fetch-dest: empty',
       `referer: https://shopee.co.id/flash_sale?promotionId=${session.promotionid}`,
       'accept-language: en-US,en;q=0.9'
-    ]).get(`https://shopee.co.id/api/v2/flash_sale/get_all_itemids?need_personalize=true&promotionid=${session.promotionid}&sort_soldout=true`)
+    ]
+  })
 }
