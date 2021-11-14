@@ -14,8 +14,6 @@ const User = require('./models/User');
 const Event = require('./models/Event');
 const FlashSale = require('./models/FlashSale');
 
-const Curl = require('./helpers/curl')
-
 const { logReport, generateString, ensureRole, setNewCookie } = require('./helpers')
 
 const bot = new Telegraf(process.env.TOKEN);
@@ -49,8 +47,6 @@ bot.telegram.getMe().then(async (botInfo) => {
       if (err) return logReport(bot, err)
 
       for (const user of users) {
-        user.Curl = Curl
-
         await Address({ session: user }).then(async ({ statusCode, data, headers }) => {
           setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
         }).catch((err) => logReport(bot, err))
@@ -67,7 +63,7 @@ bot.telegram.getMe().then(async (botInfo) => {
     await Event.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
     await FlashSale.deleteMany({ teleBotId: process.env.BOT_ID }).exec()
 
-    await FlashSaleSession({ Curl: Curl }).then(async ({ statusCode, data, headers }) => {
+    await FlashSaleSession().then(async ({ statusCode, data, headers }) => {
       const FlashSaleSession = typeof data == 'string' ? JSON.parse(data) : data;
 
       for await (const [index, session] of (FlashSaleSession.data.sessions).sort((a, b) => a.start_time - b.start_time).entries()) {
@@ -88,7 +84,6 @@ bot.telegram.getMe().then(async (botInfo) => {
           status: session.statuss
         }, async function (err, event, created) { if (err) return logReport(bot, err) })
       }
-
 
     }).catch((err) => console.error(chalk.red(err)));
 
@@ -127,11 +122,8 @@ bot.use((ctx, next) => {
     alarm: false
   }, async function (err, user, created) {
     if (err) return logReport(ctx, err)
-    if (created) logReport(ctx, `Akun Baru Terbuat`, 'Info')
     ctx.session = user
-    if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) {
-      return ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => logReport(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
-    }
+    if (process.env.NODE_ENV == 'development' && !ensureRole(ctx, true)) return ctx.reply(`Bot Sedang Maintenance, Silahkan Contact @edosulai`).then(() => logReport(ctx, `${ctx.session.teleChatId} Mencoba Akses BOT`, 'Info'))
     return next(ctx)
   })
 })
@@ -149,5 +141,4 @@ bot.command('beli', require('./command/beli'))
 bot.command('quit', require('./command/quit'))
 
 bot.catch((err, ctx) => logReport(ctx, err))
-
 bot.launch()

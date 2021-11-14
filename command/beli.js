@@ -113,7 +113,6 @@ module.exports = async function (ctx) {
   })
 
   await Address(ctx).then(async ({ statusCode, data, headers }) => {
-
     setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
     user.address = typeof data == 'string' ? JSON.parse(data) : data;
     if (user.address.error) return replaceMessage(ctx, user.message, 'Sesi Anda Sudah Habis Silahkan Login Kembali')

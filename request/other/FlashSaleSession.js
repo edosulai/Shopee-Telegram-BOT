@@ -1,6 +1,6 @@
 const { curly } = require('node-libcurl');
 
-module.exports = async function (ctx) {
+module.exports = async function () {
 
   return curly.get(`https://shopee.co.id/api/v2/flash_sale/get_all_sessions`, {
     httpHeader: [

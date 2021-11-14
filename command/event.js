@@ -4,7 +4,7 @@ const Event = require('../models/Event');
 
 const { ensureRole, getCommands, logReport, parseShopeeUrl, sendMessage } = require('../helpers')
 
-module.exports = function (ctx) {
+module.exports = async function (ctx) {
   if (!ensureRole(ctx)) return
   let user = ctx.session
   user.commands = getCommands(ctx.message.text)
