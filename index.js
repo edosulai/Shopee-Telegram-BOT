@@ -14,7 +14,7 @@ const User = require('./models/User');
 const Event = require('./models/Event');
 const FlashSale = require('./models/FlashSale');
 
-const { logReport, generateString, ensureRole, setNewCookie } = require('./helpers')
+const { logReport, generateString, ensureRole, setNewCookie, sleep } = require('./helpers')
 
 const bot = new Telegraf(process.env.TOKEN);
 
@@ -84,10 +84,11 @@ bot.telegram.getMe().then(async (botInfo) => {
           status: session.statuss
         }, async function (err, event, created) { if (err) return logReport(bot, err) })
       }
-
     }).catch((err) => console.error(chalk.red(err)));
 
-    await logReport(bot, botInfo.first_name, `Starting`)
+    await logReport(bot, botInfo.first_name, `Starting`).then(async (replyCtx) => {
+      await sleep(2000).then(async () => await bot.telegram.deleteMessage(replyCtx.chat.id, replyCtx.message_id))
+    })
 
     setTimeout(await tryGetFlashSale.bind(null, 0), (timeout * 1000) - Date.now());
   }(0)
