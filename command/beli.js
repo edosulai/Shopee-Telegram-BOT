@@ -11,7 +11,7 @@ const User = require('../models/User');
 const Log = require('../models/Log');
 const FlashSale = require('../models/FlashSale');
 
-const { logReport, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain, addDots } = require('../helpers')
+const { logReport, setNewCookie, timeConverter, parseShopeeUrl, sendMessage, replaceMessage, sleep, checkAccount, getCommands, objectSize, isValidURL, extractRootDomain, addDots, ensureRole } = require('../helpers')
 
 module.exports = async function (ctx) {
   let user = ctx.session
@@ -51,7 +51,7 @@ module.exports = async function (ctx) {
   user.skip = user.commands['-skip'] || false
   user.cancel = user.commands['-cancel'] || false
   user.cache = user.commands['-cache'] || false
-  user.price = user.commands.price ? parseInt(user.commands.price) * 100000 : false
+  user.predict = user.commands.price ? parseInt(user.commands.price) * 100000 : false
 
   await Log.findOne({
     teleBotId: process.env.BOT_ID,
@@ -68,7 +68,7 @@ module.exports = async function (ctx) {
   })
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     ignoreHTTPSErrors: true,
     defaultViewport: null,
     // userDataDir: './temp',
@@ -103,11 +103,11 @@ module.exports = async function (ctx) {
       // '--no-default-browser-check',
       // '--no-first-run',
       // '--no-pings',
-      // '--no-sandbox',
       // '--no-zygote',
       // '--password-store=basic',
       // '--use-gl=swiftshader',
       // '--use-mock-keychain',
+      '--no-sandbox',
       '--start-maximized'
     ]
   })
@@ -173,7 +173,7 @@ module.exports = async function (ctx) {
         return null
       }(user.infoBarang)
 
-      if (user.cache && user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % 10 == 0 : true)) {
+      if (user.cache && user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % (user.infoCheckout ? 5 : 60) == 0 : true)) {
         await getHope(ctx, page, user.cache)
 
         await Log.updateOne({
@@ -239,15 +239,82 @@ const getHope = async function (ctx, page, cache) {
   page.on('request', (request) => {
     if (blockedDomains.some(domain => request.url().indexOf(domain) !== -1) || blockedResource.includes(request.resourceType())) return request.abort();
 
-    const requestName = listRequest.find(e => e.url == request.url());
+    let requestName = listRequest.find(e => e.url == request.url());
+    requestName = requestName ? requestName.name : request.url();
 
-    if (!cache && user[requestName ? requestName.name : request.url()]) {
+    if (!cache && user[requestName]) {
+
+      if (requestName == 'infoKeranjang') {
+        for (const [shop_orders_index, shop_orders] of user[requestName].responseBody.data.shop_orders.entries()) {
+          for (const [items_index, items] of shop_orders.items.entries()) {
+            for (const [models_index, models] of items.models.entries()) {
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].shop.addin_time = Math.floor(user.start / 1000)
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].addin_time = Math.floor(user.start / 1000)
+
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].price = user.price
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].promotionid = user.promotionid
+
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].origin_cart_item_price = user.price
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].price = user.price
+
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].applied_promotion_id = user.promotionid
+              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].product_promotion_id = user.promotionid
+            }
+          }
+        }
+        for (const [shop_order_id_list_index, shop_order_id_list] of user[requestName].responseBody.data.shop_order_id_list.entries()) {
+          user[requestName].responseBody.data.shop_order_id_list[shop_order_id_list_index].addin_time = Math.floor(user.start / 1000)
+        }
+      } else if (requestName == 'updateKeranjang') {
+        for (const [shop_vouchers_index, shop_vouchers] of user[requestName].responseBody.data.shop_vouchers.entries()) {
+          user[requestName].responseBody.data.shop_vouchers[shop_vouchers_index].promotionid = user.promotionid
+        }
+        for (const [total_payment_index, total_payment] of user[requestName].responseBody.data.total_payment.entries()) {
+          user[requestName].responseBody.data.total_payment[total_payment_index] = user.price
+        }
+      } else if (requestName == 'infoCheckout') {
+        user[requestName].responseBody.timestamp = Math.floor(user.start / 1000)
+        user[requestName].responseBody.checkout_price_data.merchandise_subtotal = user.price * user.quantity
+        for (const [shoporders_index, shoporders] of user[requestName].responseBody.shoporders.entries()) {
+          for (const [items_index, items] of shoporders.items.entries()) {
+            user[requestName].responseBody.shoporders[shoporders_index].items[items_index].price = user.price
+          }
+          user[requestName].responseBody.shoporders[shoporders_index].order_total_without_shipping = user.price * user.quantity
+          user[requestName].responseBody.shoporders[shoporders_index].order_total = shoporders.shipping_fee + (user.price * user.quantity)
+        }
+        for (const [shipping_orders_index, shipping_orders] of user[requestName].responseBody.shipping_orders.entries()) {
+          user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total_without_shipping = user.price * user.quantity
+          user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total = shipping_orders.shipping_fee + (user.price * user.quantity)
+          user[requestName].responseBody.checkout_price_data.total_payable = user[requestName].responseBody.shipping_orders[shipping_orders_index].shipping_fee + (user.price * user.quantity) + parseInt(100000000)
+        }
+        user[requestName].responseBody.dropshipping_info = {
+          "enabled": false,
+          "name": "",
+          "phone_number": ""
+        }
+        user[requestName].responseBody.buyer_txn_fee_info = {
+          "title": "Biaya Penanganan",
+          "description": `Besar biaya penanganan adalah Rp ${addDots(parseInt(100000000) / 100000)} dari total transaksi.`,
+          "learn_more_url": "https://shopee.co.id/events3/code/634289435/"
+        }
+        user[requestName].responseBody.disabled_checkout_info = {
+          "description": "",
+          "auto_popup": false,
+          "error_infos": []
+        }
+        user[requestName].responseBody.can_checkout = true
+      }
+
       return request.respond({
-        status: user[requestName ? requestName.name : request.url()].responseStatus,
-        headers: user[requestName ? requestName.name : request.url()].responseHeaders,
-        body: requestName ? JSON.stringify(user[requestName.name].responseBody) : user[request.url()].responseBody
+        status: user[requestName].responseStatus,
+        headers: user[requestName].responseHeaders,
+        body: listRequest.find(e => e.url == request.url()) ? JSON.stringify(user[requestName].responseBody) : user[requestName].responseBody
       });
     }
+
+    // if (request.url() == 'https://shopee.co.id/api/v4/checkout/place_order') {
+    //   console.log(request.postData());
+    // }
 
     return request.continue();
   })
@@ -308,7 +375,7 @@ const getHope = async function (ctx, page, cache) {
         }
       }(user.selectedShop.items) || user.selectedItem || user.selectedShop.items[0]
 
-      user.price = user.price || function (item) {
+      user.price = user.predict || function (item) {
         if (item.models) {
           for (const model of item.models) {
             if (
@@ -397,7 +464,7 @@ const getHope = async function (ctx, page, cache) {
 
   await page.waitForSelector(process.env.ORDER_BUTTON, { timeout: 5000 }).then().catch((err) => logReport(ctx, err));
 
-  for (let i = 0; i < 5; i++) await page.click(process.env.ORDER_BUTTON).then().catch((err) => err);
+  for (let i = 0; i < 3; i++) await page.click(process.env.ORDER_BUTTON).then().catch((err) => err);
 
   return page.waitForResponse('https://shopee.co.id/api/v4/checkout/place_order', { method: 'POST', timeout: 15000 }).then(async (response) => {
 
@@ -416,7 +483,6 @@ const getHope = async function (ctx, page, cache) {
       await UpdateKeranjang(ctx, 2).then(({ statusCode, data, headers }) => {
         setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
         let chunk = typeof data == 'string' ? JSON.parse(data) : data;
-        if (chunk.error != 0) return new Promise((resolve, reject) => reject(chunk.error))
         info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
       }).catch((err) => logReport(ctx, err));
 
@@ -427,7 +493,6 @@ const getHope = async function (ctx, page, cache) {
         await Cancel(ctx).then(({ statusCode, data, headers }) => {
           setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
           let chunk = typeof data == 'string' ? JSON.parse(data) : data;
-          console.log(chunk);
           info += `\n\nAuto Cancel Berhasil`
         }).catch((err) => logReport(ctx, err));
       }

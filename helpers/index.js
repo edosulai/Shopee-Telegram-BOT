@@ -1,6 +1,7 @@
 const cookie = require('cookie');
 const psl = require('psl');
 const url = require('url');
+const chalk = require('chalk');
 
 const waitUntil = function (fromObject, ...wantToCheckValueIsExist) {
   const start = Date.now()
@@ -214,9 +215,15 @@ const replaceMessage = async function (ctx, oldMsg, newMsg, filter = true) {
 
 const logReport = async function (ctx, msg, type = '') {
   if (ctx.telegram) {
-    return ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' })
+    return ctx.telegram.sendMessage(process.env.ADMIN_ID, `<code>${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { parse_mode: 'HTML' }).then(async (replyCtx) => {
+      await sleep(60000)
+      await ctx.telegram.deleteMessage(replyCtx.chat.id, replyCtx.message_id)
+    }).catch((err) => console.error(chalk.red(err)));
   } else {
-    return ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' })
+    return ctx.reply(`<code>(${ctx.message ? ctx.message.chat.first_name : 'Unknown'} ${ctx.message ? ctx.message.chat.id : '0'}) ${msg.stack ? msg.stack.replace(/<[^>]*>?/gm, "") : `${type} : ${msg.replace(/<[^>]*>?/gm, "")}`}</code>`, { chat_id: process.env.ADMIN_ID, parse_mode: 'HTML' }).then(async (replyCtx) => {
+      await sleep(60000)
+      await ctx.telegram.deleteMessage(replyCtx.chat.id, replyCtx.message_id)
+    }).catch((err) => console.error(chalk.red(err)));
   }
 }
 
