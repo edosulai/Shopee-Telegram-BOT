@@ -40,7 +40,7 @@ module.exports = async function (ctx) {
       itemid: user.itemid,
       shopid: user.shopid
     }, {
-      barang: user.infoBarang.item.name.replace(/<[^>]*>?/gm, ""),
+      barang: user.infoBarang.data.name,
       url: user.commands.url,
       price: user.commands.price
     }, async function (err, event, created) {

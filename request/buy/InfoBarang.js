@@ -5,7 +5,7 @@ const { serializeCookie } = require('../../helpers')
 module.exports = async function (ctx) {
   let user = ctx.session;
 
-  return curly.get(`https://shopee.co.id/api/v2/item/get?itemid=${user.itemid}&shopid=${user.shopid}`, {
+  return curly.get(`https://shopee.co.id/api/v4/item/get?itemid=${user.itemid}&shopid=${user.shopid}`, {
     httpHeader: [
       'authority: shopee.co.id',
       'pragma: no-cache',

@@ -38,9 +38,9 @@ module.exports = async function (ctx) {
       "shopid": user.shopid,
       "itemid": user.itemid,
       "modelid": user.modelid,
-      ...function (item) {
-        if (item.add_on_deal_info != null) return { "add_on_deal_id": item.add_on_deal_id }
-      }(user.infoBarang.item)
+      ...function (data) {
+        if (data.add_on_deal_info != null) return { "add_on_deal_id": data.add_on_deal_id }
+      }(user.infoBarang.data)
     })
   })
 }

@@ -39,8 +39,6 @@ module.exports = async function (ctx) {
     return replaceMessage(ctx, user.message, 'Hanya Bisa Mendaftarkan 1 Produk Dalam Antrian!!')
   }
 
-  user.flashsale = await FlashSale.find({ teleBotId: process.env.BOT_ID })
-
   let { itemid, shopid, err } = parseShopeeUrl(user.commands.url)
   if (err) return sendMessage(ctx, err)
 
@@ -50,8 +48,8 @@ module.exports = async function (ctx) {
   user.url = user.commands.url
   user.skip = user.commands['-skip'] || false
   user.cancel = user.commands['-cancel'] || false
-  user.cache = user.commands['-cache'] || false
   user.predict = user.commands.price ? parseInt(user.commands.price) * 100000 : false
+  user.payment = user.commands.payment ? paymentMethod[user.commands.payment.toUpperCase()] : paymentMethod.BNI
 
   await Log.findOne({
     teleBotId: process.env.BOT_ID,
@@ -59,7 +57,7 @@ module.exports = async function (ctx) {
     itemid: user.itemid,
     shopid: user.shopid,
   }, async function (err, log) {
-    if (!err && log && user.cache) {
+    if (!err && log) {
       log = JSON.parse(JSON.stringify(log))
       for (const key in log) {
         if (Object.hasOwnProperty.call(log, key) && typeof log[key] == 'object') user[key] = log[key]
@@ -68,7 +66,7 @@ module.exports = async function (ctx) {
   })
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     ignoreHTTPSErrors: true,
     defaultViewport: null,
     // userDataDir: './temp',
@@ -152,29 +150,22 @@ module.exports = async function (ctx) {
       user.infoBarang = user.infoBarangTemp
       delete user.infoBarangTemp
 
-      user.promotionid = (user.infoBarang.item.flash_sale ? user.flashsale[0].promotionid : user.flashsale[1].promotionid)
+      user.promotionid = user.infoBarang.data.upcoming_flash_sale ? user.infoBarang.data.upcoming_flash_sale.promotionid : user.infoBarang.data.flash_sale ? user.infoBarang.data.flash_sale.promotionid : null
 
-      user.modelid = user.infoBarang.item.upcoming_flash_sale ? user.infoBarang.item.upcoming_flash_sale.modelids[0] : function (barang) {
-        for (const model of barang.item.models) {
-          if (!barang.item.flash_sale) break;
-          if (model.stock < 1 || model.price_stocks.length < 1) continue
-          for (const stock of model.price_stocks) {
-            if (user.flashsale[0].promotionid == stock.promotion_id) return stock.model_id
+      user.modelid = user.infoBarang.data.upcoming_flash_sale ? user.infoBarang.data.upcoming_flash_sale.modelids[0] : function (barang) {
+        if (barang.data.flash_sale) {
+          for (const model of barang.data.models) {
+            if (model.stock > 1 && user.promotionid == model.promotionid) return model.modelid
           }
         }
-        for (const model of barang.item.models) {
-          if (model.stock < 1 || model.price_stocks.length < 1) continue
-          return model.price_stocks[0].model_id
+        for (const model of barang.data.models) {
+          if (model.stock > 1) return model.modelid
         }
-        for (const model of barang.item.models) {
-          if (model.stock < 1) continue
-          return model.modelid
-        }
-        return null
+        return barang.data.models[0].modelid
       }(user.infoBarang)
 
-      if (user.cache && user.infoBarang.item.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % (user.infoCheckout ? 5 : 60) == 0 : true)) {
-        await getHope(ctx, page, user.cache)
+      if (user.infoBarang.data.stock > 1 && (user.end ? Math.floor(Date.now() / 1000) % (user.infoCheckout ? 5 : 60) == 0 : true)) {
+        await getHope(ctx, page, true)
 
         await Log.updateOne({
           teleBotId: process.env.BOT_ID,
@@ -183,22 +174,22 @@ module.exports = async function (ctx) {
           modelid: user.modelid,
           shopid: user.shopid
         }, {
-          infoKeranjang: user.infoKeranjang,
-          updateKeranjang: user.updateKeranjang,
-          infoCheckout: user.infoCheckout,
+          infoKeranjang: user.infoKeranjang ? user.infoKeranjang.responseBody : null,
+          updateKeranjang: user.updateKeranjang ? user.updateKeranjang.responseBody : null,
+          infoCheckout: user.infoCheckout ? user.infoCheckout.responseBody : null,
           selectedShop: user.selectedShop,
           selectedItem: user.selectedItem
         }, { upsert: true }).exec()
       }
 
-      if (!user.infoBarang.item.upcoming_flash_sale && !user.end) break;
+      if (!user.infoBarang.data.upcoming_flash_sale && !user.end) break;
 
-      if (!user.end) user.end = parseInt(user.infoBarang.item.upcoming_flash_sale.start_time) * 1000
+      if (!user.end) user.end = parseInt(user.infoBarang.data.upcoming_flash_sale.start_time) * 1000
 
       if (user.end < Date.now() + 20000) break;
 
       await replaceMessage(ctx, user.message,
-        `${timeConverter(Date.now() - user.end, { countdown: true })} - <i><b>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</b></i>` +
+        `${timeConverter(Date.now() - user.end, { countdown: true })} - <i><b>${user.infoBarang.data.name}</b></i>` +
         `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
         `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
         `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
@@ -208,12 +199,8 @@ module.exports = async function (ctx) {
 
     } while (!user.skip)
 
-    if (!user.modelid) return replaceMessage(ctx, user.message, `Semua Stok Barang Sudah Habis`)
-
-    if (await User.findOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id, queue: false })) return ctx.telegram.deleteMessage(user.message.chatId, user.message.msgId)
-
     await replaceMessage(ctx, user.message,
-      `Mulai Membeli - <i><b>${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")}</b></i>` +
+      `Mulai Membeli - <i><b>${user.infoBarang.data.name}</b></i>` +
       `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
       `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
       `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
@@ -244,65 +231,71 @@ const getHope = async function (ctx, page, cache) {
 
     if (!cache && user[requestName]) {
 
-      if (requestName == 'infoKeranjang') {
-        for (const [shop_orders_index, shop_orders] of user[requestName].responseBody.data.shop_orders.entries()) {
-          for (const [items_index, items] of shop_orders.items.entries()) {
-            for (const [models_index, models] of items.models.entries()) {
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].shop.addin_time = Math.floor(user.start / 1000)
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].addin_time = Math.floor(user.start / 1000)
+      switch (requestName) {
+        case 'infoKeranjang':
+          for (const [shop_orders_index, shop_orders] of user[requestName].responseBody.data.shop_orders.entries()) {
+            for (const [items_index, items] of shop_orders.items.entries()) {
+              for (const [models_index, models] of items.models.entries()) {
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].shop.addin_time = Math.floor(user.start / 1000)
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].addin_time = Math.floor(user.start / 1000)
 
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].price = user.price
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].promotionid = user.promotionid
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].price = user.price
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].models[models_index].promotionid = user.promotionid
 
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].origin_cart_item_price = user.price
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].price = user.price
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].origin_cart_item_price = user.price
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].price = user.price
 
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].applied_promotion_id = user.promotionid
-              user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].product_promotion_id = user.promotionid
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].applied_promotion_id = user.promotionid
+                user[requestName].responseBody.data.shop_orders[shop_orders_index].items[items_index].product_promotion_id = user.promotionid
+              }
             }
           }
-        }
-        for (const [shop_order_id_list_index, shop_order_id_list] of user[requestName].responseBody.data.shop_order_id_list.entries()) {
-          user[requestName].responseBody.data.shop_order_id_list[shop_order_id_list_index].addin_time = Math.floor(user.start / 1000)
-        }
-      } else if (requestName == 'updateKeranjang') {
-        for (const [shop_vouchers_index, shop_vouchers] of user[requestName].responseBody.data.shop_vouchers.entries()) {
-          user[requestName].responseBody.data.shop_vouchers[shop_vouchers_index].promotionid = user.promotionid
-        }
-        for (const [total_payment_index, total_payment] of user[requestName].responseBody.data.total_payment.entries()) {
-          user[requestName].responseBody.data.total_payment[total_payment_index] = user.price
-        }
-      } else if (requestName == 'infoCheckout') {
-        user[requestName].responseBody.timestamp = Math.floor(user.start / 1000)
-        user[requestName].responseBody.checkout_price_data.merchandise_subtotal = user.price * user.quantity
-        for (const [shoporders_index, shoporders] of user[requestName].responseBody.shoporders.entries()) {
-          for (const [items_index, items] of shoporders.items.entries()) {
-            user[requestName].responseBody.shoporders[shoporders_index].items[items_index].price = user.price
+          for (const [shop_order_id_list_index, shop_order_id_list] of user[requestName].responseBody.data.shop_order_id_list.entries()) {
+            user[requestName].responseBody.data.shop_order_id_list[shop_order_id_list_index].addin_time = Math.floor(user.start / 1000)
           }
-          user[requestName].responseBody.shoporders[shoporders_index].order_total_without_shipping = user.price * user.quantity
-          user[requestName].responseBody.shoporders[shoporders_index].order_total = shoporders.shipping_fee + (user.price * user.quantity)
-        }
-        for (const [shipping_orders_index, shipping_orders] of user[requestName].responseBody.shipping_orders.entries()) {
-          user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total_without_shipping = user.price * user.quantity
-          user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total = shipping_orders.shipping_fee + (user.price * user.quantity)
-          user[requestName].responseBody.checkout_price_data.total_payable = user[requestName].responseBody.shipping_orders[shipping_orders_index].shipping_fee + (user.price * user.quantity) + parseInt(100000000)
-        }
-        user[requestName].responseBody.dropshipping_info = {
-          "enabled": false,
-          "name": "",
-          "phone_number": ""
-        }
-        user[requestName].responseBody.buyer_txn_fee_info = {
-          "title": "Biaya Penanganan",
-          "description": `Besar biaya penanganan adalah Rp ${addDots(parseInt(100000000) / 100000)} dari total transaksi.`,
-          "learn_more_url": "https://shopee.co.id/events3/code/634289435/"
-        }
-        user[requestName].responseBody.disabled_checkout_info = {
-          "description": "",
-          "auto_popup": false,
-          "error_infos": []
-        }
-        user[requestName].responseBody.can_checkout = true
+          break;
+
+        case 'updateKeranjang':
+          for (const [shop_vouchers_index, shop_vouchers] of user[requestName].responseBody.data.shop_vouchers.entries()) {
+            user[requestName].responseBody.data.shop_vouchers[shop_vouchers_index].promotionid = user.promotionid
+          }
+          for (const [total_payment_index, total_payment] of user[requestName].responseBody.data.total_payment.entries()) {
+            user[requestName].responseBody.data.total_payment[total_payment_index] = user.price
+          }
+          break;
+
+        case 'infoCheckout':
+          user[requestName].responseBody.timestamp = Math.floor(user.start / 1000)
+          user[requestName].responseBody.checkout_price_data.merchandise_subtotal = user.price * user.quantity
+          for (const [shoporders_index, shoporders] of user[requestName].responseBody.shoporders.entries()) {
+            for (const [items_index, items] of shoporders.items.entries()) {
+              user[requestName].responseBody.shoporders[shoporders_index].items[items_index].price = user.price
+            }
+            user[requestName].responseBody.shoporders[shoporders_index].order_total_without_shipping = user.price * user.quantity
+            user[requestName].responseBody.shoporders[shoporders_index].order_total = shoporders.shipping_fee + (user.price * user.quantity)
+          }
+          for (const [shipping_orders_index, shipping_orders] of user[requestName].responseBody.shipping_orders.entries()) {
+            user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total_without_shipping = user.price * user.quantity
+            user[requestName].responseBody.shipping_orders[shipping_orders_index].order_total = shipping_orders.shipping_fee + (user.price * user.quantity)
+            user[requestName].responseBody.checkout_price_data.total_payable = user[requestName].responseBody.shipping_orders[shipping_orders_index].shipping_fee + (user.price * user.quantity) + parseInt(100000000)
+          }
+          user[requestName].responseBody.dropshipping_info = {
+            "enabled": false,
+            "name": "",
+            "phone_number": ""
+          }
+          user[requestName].responseBody.buyer_txn_fee_info = {
+            "title": "Biaya Penanganan",
+            "description": `Besar biaya penanganan adalah Rp ${addDots(parseInt(100000000) / 100000)} dari total transaksi.`,
+            "learn_more_url": "https://shopee.co.id/events3/code/634289435/"
+          }
+          user[requestName].responseBody.disabled_checkout_info = {
+            "description": "",
+            "auto_popup": false,
+            "error_infos": []
+          }
+          user[requestName].responseBody.can_checkout = true
+          break;
       }
 
       return request.respond({
@@ -343,7 +336,7 @@ const getHope = async function (ctx, page, cache) {
     if (chunk.error == 0) return user.keranjang = chunk
   }).catch((err) => logReport(ctx, err))
 
-  if (!user.keranjang) return await logReport(ctx, 'Pembelian tidak dapat dilakukan karena produk sudah habis terjual.')
+  if (!user.keranjang) return await replaceMessage(ctx, user.message, 'Pembelian tidak dapat dilakukan karena produk sudah habis terjual.')
 
   await page.setCookie(...Object.keys(user.userCookie).map((key) => ({
     name: key,
@@ -352,7 +345,7 @@ const getHope = async function (ctx, page, cache) {
     domain: user.userCookie[key].Domain || 'shopee.co.id',
   })))
 
-  if (cache) {
+  if (cache || !user.selectedItem || !user.infoCheckout) {
     await page.goto(`https://shopee.co.id/cart?itemKeys=${user.itemid}.${user.modelid}.&shopId=${user.shopid}`, { timeout: 5000 }).then().catch((err) => logReport(ctx, new Error(err)));
     await page.waitForResponse('https://shopee.co.id/api/v4/cart/update', { method: 'POST', timeout: 5000 }).then(() => {
 
@@ -392,7 +385,7 @@ const getHope = async function (ctx, page, cache) {
     }).catch((err) => logReport(ctx, new Error(err)));
   }
 
-  await page.evaluate(({ infoBarang, keranjang, infoKeranjang, updateKeranjang, selectedShop, selectedItem, shopid, itemid, modelid, quantity }) => {
+  await page.evaluate(({ keranjang, infoKeranjang, updateKeranjang, selectedShop, selectedItem, shopid, itemid, modelid, quantity }) => {
     sessionStorage.setItem('cart_info', JSON.stringify({
       promotion_data: {
         free_shipping_voucher_info: updateKeranjang ? updateKeranjang.data.free_shipping_voucher_info : {
@@ -411,14 +404,13 @@ const getHope = async function (ctx, page, cache) {
           itemid: itemid,
           quantity: quantity,
           modelid: modelid,
-          add_on_deal_id: infoBarang.item.add_on_deal_info ? infoBarang.item.add_on_deal_id : null,
+          add_on_deal_id: selectedItem ? selectedItem.add_on_deal_id : null,
           is_add_on_sub_item: selectedItem ? selectedItem.is_add_on_sub_item : null,
-          item_group_id: keranjang.data.cart_item.item_group_id
+          item_group_id: selectedItem ? selectedItem.item_group_id : `${keranjang.data.cart_item.item_group_id}`
         }]
       }]
     }));
   }, {
-    infoBarang: user.infoBarang,
     keranjang: user.keranjang,
     infoKeranjang: user.infoKeranjang ? user.infoKeranjang.responseBody : null,
     updateKeranjang: user.updateKeranjang ? user.updateKeranjang.responseBody : null,
@@ -458,52 +450,95 @@ const getHope = async function (ctx, page, cache) {
     }).catch((err) => logReport(ctx, err))
   }
 
-  await page.waitForSelector(process.env.TRANSFER_BANK, { timeout: 5000 }).then().catch((err) => err);
-  await page.click(process.env.TRANSFER_BANK).then().catch((err) => err);
-  await page.click(process.env.BNI_CEK_OTOMATIS).then().catch((err) => err);
+  switch (user.payment) {
+    case paymentMethod.BNI:
+      await page.waitForSelector(process.env.TRANSFER_BANK, { timeout: 5000 }).then().catch((err) => logReport(ctx, err));
+      if (user.infoCheckout.responseBody.payment_channel_info.channels[2].banks[3].enabled) {
+        console.log(1);
+        await page.click(process.env.TRANSFER_BANK).then().catch((err) => logReport(ctx, err));
+        await page.click(process.env.BNI_CEK_OTOMATIS).then().catch((err) => logReport(ctx, err));
+      } else {
+        return replaceMessage(ctx, user.message, await failedBuy(ctx, `\n\n<i>Gagal Melakukan Order Barang <b>${user.infoBarang.data.name}</b>\n${user.infoCheckout.responseBody.payment_channel_info.channels[2].banks[3].disabled_reason}</i>`), false)
+      }
+      break;
+
+    case paymentMethod.COD:
+      await page.waitForSelector(process.env.COD, { timeout: 5000 }).then().catch((err) => logReport(ctx, err));
+      if (user.infoCheckout.responseBody.payment_channel_info.channels[1].enabled) {
+        await page.click(process.env.COD).then().catch((err) => logReport(ctx, err));
+      } else {
+        return replaceMessage(ctx, user.message, await failedBuy(ctx, `\n\n<i>Gagal Melakukan Order Barang <b>${user.infoBarang.data.name}</b>\n${user.infoCheckout.responseBody.payment_channel_info.channels[1].disabled_reason}</i>`), false)
+      }
+      break;
+
+    case paymentMethod.SHOPEEPAY:
+      await page.waitForSelector(process.env.SHOPEEPAY, { timeout: 5000 }).then().catch((err) => logReport(ctx, err));
+      if (user.infoCheckout.responseBody.payment_channel_info.channels[0].enabled) {
+        await page.click(process.env.SHOPEEPAY).then().catch((err) => logReport(ctx, err));
+      } else {
+        return replaceMessage(ctx, user.message, await failedBuy(ctx, `\n\n<i>Gagal Melakukan Order Barang <b>${user.infoBarang.data.name}</b>\n${user.infoCheckout.responseBody.payment_channel_info.channels[0].disabled_reason}</i>`), false)
+      }
+      break;
+
+  }
 
   await page.waitForSelector(process.env.ORDER_BUTTON, { timeout: 5000 }).then().catch((err) => logReport(ctx, err));
 
   for (let i = 0; i < 3; i++) await page.click(process.env.ORDER_BUTTON).then().catch((err) => err);
 
   return page.waitForResponse('https://shopee.co.id/api/v4/checkout/place_order', { method: 'POST', timeout: 15000 }).then(async (response) => {
-
     const buffer = await response.buffer();
-
     user.order = JSON.parse(buffer.toString('utf8'))
-    user.end = Date.now()
-
-    let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
-    info += `\nEnd   : <b>${timeConverter(user.end, { usemilis: true })}</b>`
-    info += `\nSpeed : <b>${user.end - user.start}ms</b></code>`
-
-    if (user.order.error) {
-      info += `\n\n<i>Gagal Melakukan Order Barang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`
-
-      await UpdateKeranjang(ctx, 2).then(({ statusCode, data, headers }) => {
-        setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
-        let chunk = typeof data == 'string' ? JSON.parse(data) : data;
-        info += `\n\nBarang <b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Telah Telah Di Hapus Dari Keranjang`
-      }).catch((err) => logReport(ctx, err));
-
-    } else {
-      info += `\n\n<i><b>(${user.infoBarang.item.name.replace(/<[^>]*>?/gm, "")})</b> Berhasil Di Pesan</i>`
-
-      if (user.cancel) {
-        await Cancel(ctx).then(({ statusCode, data, headers }) => {
-          setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
-          let chunk = typeof data == 'string' ? JSON.parse(data) : data;
-          info += `\n\nAuto Cancel Berhasil`
-        }).catch((err) => logReport(ctx, err));
-      }
-    }
-
-    await replaceMessage(ctx, user.message, info, false)
-
-    await User.updateOne({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, { userCookie: user.userCookie, queue: false }).exec()
-
+    return replaceMessage(ctx, user.message, user.order.error ? await failedBuy(ctx, `\n\n<i>Gagal Melakukan Order Barang <b>${user.infoBarang.data.name}</b>\n${user.order.error_msg}</i>\n${ensureRole(ctx, true) ? user.order.error : null}`) : await successBuy(ctx, `\n\n<i><b>${user.infoBarang.data.name}</b> Berhasil Di Pesan</i>`), false)
   }).catch((err) => logReport(ctx, err));
 
+}
+
+const successBuy = async function (ctx, msg) {
+  let user = ctx.session
+
+  let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
+  info += `\nEnd   : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
+  info += `\nSpeed : <b>${Date.now() - user.start}ms</b></code>`
+  info += msg
+
+  if (user.cancel) {
+    await Cancel(ctx).then(({ statusCode, data, headers }) => {
+      setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+      let chunk = typeof data == 'string' ? JSON.parse(data) : data;
+      info += `\n\nAuto Cancel Berhasil`
+    }).catch((err) => logReport(ctx, err));
+  }
+
+  return info;
+}
+
+const failedBuy = async function (ctx, msg) {
+  let user = ctx.session
+
+  let info = `<code>Start : <b>${timeConverter(user.start, { usemilis: true })}</b>`
+  info += `\nEnd   : <b>${timeConverter(Date.now(), { usemilis: true })}</b>`
+  info += `\nSpeed : <b>${Date.now() - user.start}ms</b></code>`
+  info += msg
+
+  await UpdateKeranjang(ctx, 2).then(({ statusCode, data, headers }) => {
+    setNewCookie(user.userCookie, headers[0]['Set-Cookie'])
+    let chunk = typeof data == 'string' ? JSON.parse(data) : data;
+    info += `\n\nBarang <b>${user.infoBarang.data.name}</b> Telah Telah Di Hapus Dari Keranjang`
+  }).catch((err) => logReport(ctx, err));
+
+  return info;
+}
+
+const paymentMethod = {
+  BNI: 'bni',
+  // BRI: 'bri',
+  // BCA: 'bca',
+  // MANDIRI: 'mandiri',
+  // BSI: 'bsi',
+  // PERMATA: 'permata',
+  COD: 'cod',
+  SHOPEEPAY: 'shopeepay'
 }
 
 const listRequest = [{
