@@ -66,7 +66,7 @@ module.exports = async function (ctx) {
   })
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     ignoreHTTPSErrors: true,
     defaultViewport: null,
     // userDataDir: './temp',
@@ -152,7 +152,7 @@ module.exports = async function (ctx) {
 
       user.promotionid = user.infoBarang.data.upcoming_flash_sale ? user.infoBarang.data.upcoming_flash_sale.promotionid : user.infoBarang.data.flash_sale ? user.infoBarang.data.flash_sale.promotionid : null
 
-      user.modelid = user.infoBarang.data.upcoming_flash_sale ? user.infoBarang.data.upcoming_flash_sale.modelids[0] : function (barang) {
+      user.modelid = function (barang) {
         if (barang.data.flash_sale) {
           for (const model of barang.data.models) {
             if (model.stock > 1 && user.promotionid == model.promotionid) return model.modelid
@@ -189,10 +189,10 @@ module.exports = async function (ctx) {
       if (user.end < Date.now() + 20000) break;
 
       await replaceMessage(ctx, user.message,
-        `${timeConverter(Date.now() - user.end, { countdown: true })} - <i><b>${user.infoBarang.data.name}</b></i>` +
-        `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
-        `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
-        `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
+        `${timeConverter(Date.now() - user.end, { countdown: true })} - <i><b>${user.infoBarang.data.name}</b></i>` + (ensureRole(ctx, true) ?
+          `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
+          `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
+          `\ninfoCheckout     = ${typeof user.infoCheckout}</code>` : null), false
       )
 
       await sleep(1000 - (Date.now() - user.start))
@@ -200,10 +200,10 @@ module.exports = async function (ctx) {
     } while (!user.skip)
 
     await replaceMessage(ctx, user.message,
-      `Mulai Membeli - <i><b>${user.infoBarang.data.name}</b></i>` +
-      `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
-      `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
-      `\ninfoCheckout     = ${typeof user.infoCheckout}</code>`, false
+      `Mulai Membeli - <i><b>${user.infoBarang.data.name}</b></i>` + (ensureRole(ctx, true) ?
+        `<code>\ninfoKeranjang    = ${typeof user.infoKeranjang}` +
+        `\nupdateKeranjang  = ${typeof user.updateKeranjang}` +
+        `\ninfoCheckout     = ${typeof user.infoCheckout}</code>` : null), false
     )
 
     while (((user.end > Date.now()) || ((Date.now() % 1000).toFixed(0) > 100)) && !user.skip) continue;
@@ -454,7 +454,6 @@ const getHope = async function (ctx, page, cache) {
     case paymentMethod.BNI:
       await page.waitForSelector(process.env.TRANSFER_BANK, { timeout: 5000 }).then().catch((err) => logReport(ctx, err));
       if (user.infoCheckout.responseBody.payment_channel_info.channels[2].banks[3].enabled) {
-        console.log(1);
         await page.click(process.env.TRANSFER_BANK).then().catch((err) => logReport(ctx, err));
         await page.click(process.env.BNI_CEK_OTOMATIS).then().catch((err) => logReport(ctx, err));
       } else {
