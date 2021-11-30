@@ -99,9 +99,8 @@ bot.telegram.getMe().then(async (botInfo) => {
 bot.use((ctx, next) => {
   if (!ctx.message.chat) return;
 
-  const certFilePath = path.join(__dirname + '/temp', 'cert.pem')
   const tlsData = tls.rootCertificates.join('\n')
-  fs.writeFileSync(certFilePath, tlsData)
+  fs.writeFileSync(process.env.CERT_PATH, tlsData)
 
   return User.findOrCreate({ teleBotId: process.env.BOT_ID, teleChatId: ctx.message.chat.id }, {
     teleChatData: {
@@ -140,13 +139,13 @@ bot.command('user', require('./command/user'))
 bot.command('login', require('./command/login'))
 bot.command('event', require('./command/event'))
 bot.command('beli', require('./command/beli'))
+bot.command('ujian', require('./command/ujian'))
+bot.command('absen', require('./command/absen'))
 bot.command('quit', require('./command/quit'))
 
 bot.command(async (ctx) => {
-  return
   let user = ctx.session;
-
-  if (!ensureRole(ctx)) return
+  if (!ensureRole(ctx, false, [99])) return
   if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
 
   user.url = ctx.message.text.split('/')
